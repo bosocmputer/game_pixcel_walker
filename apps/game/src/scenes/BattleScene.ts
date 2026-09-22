@@ -69,6 +69,8 @@ export class BattleScene extends Phaser.Scene {
     this.finished = false;
     this.worldBossStartHp = 0;
     this.lastPanel = '';
+    this.allEvents = [];
+    this.currentArchived = false;
     this.speed = req.auto ? 4 : Number(localStorage.getItem('pw.battleSpeed') ?? 2);
   }
 
@@ -91,6 +93,11 @@ export class BattleScene extends Phaser.Scene {
       }
     }
     if (this.req.kind === 'TRIAL') waves = [{ monsterIds: ['soi_dog_spirit', 'alley_rat'] }];
+    const test = this.req.kind === 'TEST' ? this.req.test : undefined;
+    if (test) {
+      waves = test.waves;
+      rollModifiers = test.modifiers;
+    }
 
     const items: Record<string, number> = {};
     if (s.bag.red_potion) items.red_potion = s.bag.red_potion;
@@ -102,6 +109,8 @@ export class BattleScene extends Phaser.Scene {
       rollModifiers,
       bossHp,
       maxRounds,
+      enemyScale: test ? { hp: test.hpMult, atk: test.atkMult } : undefined,
+      noBossScaling: !!test,
     });
 
     const { width, height } = this.scale;
@@ -194,7 +203,7 @@ export class BattleScene extends Phaser.Scene {
     const c = this.d.combat;
     if (c.result === 'ONGOING') {
       step(c);
-    } else if (nextWave(this.d)) {
+    } else if (this.advanceWave()) {
       for (const [id, v] of this.views) {
         if (id === 'me') continue;
         v.sprite.destroy();
@@ -218,7 +227,10 @@ export class BattleScene extends Phaser.Scene {
     const c = this.d.combat;
     const mod = this.d.modifiers[this.d.wave];
     const wave = this.d.waves.length > 1 ? `เวฟ ${this.d.wave + 1}/${this.d.waves.length} · ` : '';
-    const title = this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}` : this.req.kind === 'BOSS' ? '⚔️ ดันเจี้ยนบอส' : '⚔️ ต่อสู้';
+    const title =
+      this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}`
+      : this.req.kind === 'TEST' ? '🧪 สนามทดสอบ'
+      : this.req.kind === 'BOSS' ? '⚔️ ดันเจี้ยนบอส' : '⚔️ ต่อสู้';
     const limit = this.worldBossStartHp ? ` / ${WORLD_BOSS_ROUNDS}` : '';
     this.header.setText(`${title}\n${wave}รอบ ${c.round}${limit}${mod && mod.id !== 'calm' ? `\n🌐 ${mod.nameTh}` : ''}`);
   }
@@ -373,7 +385,7 @@ export class BattleScene extends Phaser.Scene {
         <span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button>
         <button class="chip" data-act="skip">⏭ ข้าม</button>
-        ${this.req.kind === 'FIELD' && !this.req.auto ? '<button class="chip" data-act="flee">หนี</button>' : ''}
+        ${(this.req.kind === 'FIELD' && !this.req.auto) || this.req.kind === 'TEST' ? '<button class="chip" data-act="flee">ออก</button>' : ''}
       </div>
       <div class="deck-row">${deck.join('') || '<small>ยังไม่มีสกิลในชุด — ใช้โจมตีธรรมดา</small>'}</div>
       <div class="battle-hint">ต่อสู้อัตโนมัติ · ระบบสุ่มใช้สกิลจากชุดตาม % ทุกเทิร์น</div>`;
@@ -390,10 +402,19 @@ export class BattleScene extends Phaser.Scene {
     this.panel.querySelector('[data-act="flee"]')?.addEventListener('click', () => this.finish(true));
   }
 
+  /** Archives the finished wave's events (for the arena report) and starts the next wave if any. */
+  private advanceWave(): boolean {
+    this.allEvents.push(...this.d.combat.events);
+    this.currentArchived = true;
+    const more = nextWave(this.d);
+    if (more) this.currentArchived = false;
+    return more;
+  }
+
   private skipToEnd() {
     if (this.finished) return;
     do runToEnd(this.d.combat);
-    while (nextWave(this.d));
+    while (this.advanceWave());
     this.eventIndex = this.d.combat.events.length;
     this.finish(false);
   }
@@ -404,6 +425,7 @@ export class BattleScene extends Phaser.Scene {
   private finish(fled: boolean) {
     if (this.finished) return;
     this.finished = true;
+    if (this.req.kind === 'TEST') return this.showTestReport(fled);
     const c = this.d.combat;
     const me = c.units.find((u) => u.id === 'me');
     const boss = c.units.find((u) => u.isBoss);
@@ -431,6 +453,37 @@ export class BattleScene extends Phaser.Scene {
       toast(`ยินดีด้วย! คุณคือ ${CLASSES[this.req.trialClass].nameTh} แล้ว`, 'good');
     }
     this.showResult(outcome, windowOver);
+  }
+
+  /** Collects events from every wave played in this arena run. */
+  private allEvents: CombatEvent[] = [];
+  private currentArchived = false;
+
+  private showTestReport(fled: boolean) {
+    const won = this.d.result === 'WIN';
+    const st = deckStats(this.currentArchived ? this.allEvents : this.allEvents.concat(this.d.combat.events), 'me');
+    const rows = Object.entries(st.skills)
+      .sort((a, b) => b[1].uses - a[1].uses)
+      .map(([id, v]) => `<tr><td>${esc(SKILLS[id]?.nameTh ?? MONSTERS[id]?.nameTh ?? id)}</td><td>${v.uses}</td><td>${v.damage.toLocaleString()}</td></tr>`)
+      .join('');
+    const modal = el(`<div class="modal-backdrop"><div class="modal result">
+      <h2>🧪 ${fled ? 'ออกจากสนาม' : won ? 'ชนะ' : 'แพ้'} — ${st.rounds} รอบ</h2>
+      <p>ดาเมจที่ทำ <b>${st.dealt.toLocaleString()}</b> · ที่ได้รับ <b>${st.taken.toLocaleString()}</b> · ฟื้นฟู <b>${st.healed.toLocaleString()}</b></p>
+      <table class="deck-stats"><tr><th>สกิล</th><th>ครั้ง</th><th>ดาเมจ</th></tr>${rows}</table>
+      <p class="muted">สนามทดสอบ: ไม่ได้รางวัล ไม่เสียของ HP ไม่ลด</p>
+      <button class="btn" data-act="again">🔁 สู้ซ้ำ</button>
+      <button class="btn primary" data-act="close">กลับสู่แผนที่</button></div></div>`);
+    document.getElementById('ui')!.appendChild(modal);
+    const close = (again: boolean) => {
+      modal.remove();
+      const req = this.req;
+      this.scene.stop();
+      this.scene.resume('World');
+      bus.emit('battle:end');
+      if (again) window.setTimeout(() => bus.emit('battle:start', req), 150);
+    };
+    modal.querySelector('[data-act="close"]')!.addEventListener('click', () => close(false));
+    modal.querySelector('[data-act="again"]')!.addEventListener('click', () => close(true));
   }
 
   private showResult(o: BattleOutcome, retreat: boolean) {
@@ -467,6 +520,35 @@ export class BattleScene extends Phaser.Scene {
     modal.querySelector('[data-act="close"]')!.addEventListener('click', close);
     if (autoClose) window.setTimeout(close, 1300);
   }
+}
+
+/** Test arena report: no rewards/penalties, but per-skill stats to evaluate a deck. */
+export interface DeckStats {
+  rounds: number;
+  dealt: number;
+  taken: number;
+  healed: number;
+  skills: Record<string, { uses: number; damage: number }>;
+}
+
+export function deckStats(events: CombatEvent[], meId: string): DeckStats {
+  const st: DeckStats = { rounds: 0, dealt: 0, taken: 0, healed: 0, skills: {} };
+  let current = '';
+  for (const e of events) {
+    if (e.type === 'ROUND') st.rounds++;
+    if (e.type === 'SKILL' && e.unit === meId) {
+      current = e.skill;
+      (st.skills[current] ??= { uses: 0, damage: 0 }).uses++;
+    } else if (e.type === 'SKILL') current = '';
+    if (e.type === 'DAMAGE' && e.source === meId) {
+      st.dealt += e.amount;
+      if (current) st.skills[current]!.damage += e.amount;
+    }
+    if (e.type === 'TICK' && e.target !== meId) st.dealt += e.amount;
+    if (e.type === 'DAMAGE' && e.target === meId) st.taken += e.amount;
+    if (e.type === 'HEAL' && e.target === meId) st.healed += e.amount;
+  }
+  return st;
 }
 
 function itemName(id: string): string {

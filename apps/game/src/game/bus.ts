@@ -1,5 +1,5 @@
 /** Tiny typed event bus between Phaser scenes and the DOM UI. */
-import type { ClassId, Landmark, Spawn } from '@pw/shared';
+import type { ClassId, Landmark, Spawn, WaveDef } from '@pw/shared';
 
 export interface BusEvents {
   'position': { lat: number; lng: number; accuracy: number; simulated: boolean };
@@ -18,7 +18,7 @@ export interface BusEvents {
 }
 
 export interface BattleRequest {
-  kind: 'FIELD' | 'BOSS' | 'TRIAL';
+  kind: 'FIELD' | 'BOSS' | 'TRIAL' | 'TEST';
   monsterIds: string[];
   landmark?: Landmark;
   trialClass?: ClassId;
@@ -26,6 +26,8 @@ export interface BattleRequest {
   spawn?: { id: string; expiresAt: number };
   /** Started by Auto Hunt: auto-battle at high speed, result closes itself. */
   auto?: boolean;
+  /** Test arena: custom waves/scaling, no rewards and no penalties. */
+  test?: { waves: WaveDef[]; hpMult: number; atkMult: number; modifiers: boolean };
 }
 
 type Handler<T> = (payload: T) => void;

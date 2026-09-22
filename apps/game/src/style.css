@@ -258,3 +258,10 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .preset { text-align: left; border: 2px solid #eadfce; background: #fff; border-radius: 12px; padding: 8px; display: grid; gap: 2px; font-size: 13px; }
 .preset small { color: var(--muted); font-size: 11px; }
 .preset.on { border-color: var(--orange); background: #fff3e0; }
+
+.chip-btn { border: 2px solid #eadfce; background: #fff; border-radius: 999px; padding: 4px 12px; margin-left: 6px; font-weight: 700; }
+.chip-btn.on { border-color: var(--orange); background: #fff3e0; }
+.tag.lineup { border: 0; cursor: pointer; }
+.deck-stats { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
+.deck-stats th, .deck-stats td { border-bottom: 1px dashed #eadfce; padding: 4px; text-align: right; }
+.deck-stats th:first-child, .deck-stats td:first-child { text-align: left; }

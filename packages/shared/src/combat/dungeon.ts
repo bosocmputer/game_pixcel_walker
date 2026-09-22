@@ -43,6 +43,9 @@ export interface Dungeon {
   bossHp?: number;
   /** Per-wave round cap (e.g. a world boss attack window). */
   maxRounds?: number;
+  /** Test arena: multiply every enemy's HP/ATK; skip party-size boss scaling. */
+  enemyScale?: { hp: number; atk: number };
+  noBossScaling?: boolean;
 }
 
 /** Waves for a landmark boss: its minion waves followed by the boss. */
@@ -57,9 +60,10 @@ function waveConfig(d: Dungeon, index: number): CombatConfig {
   const partySize = d.party.length;
   const partyB = def.monsterIds.map((id, i) => {
     const isBoss = !!MONSTERS[id]?.boss;
-    return monsterSetup(id, `w${index}e${i}`, isBoss && def.boss
-      ? { hpScale: bossHpScale(id, partySize), atkScale: bossAtkScale(id, partySize), hp: d.bossHp }
-      : {});
+    const scaled = isBoss && def.boss && !d.noBossScaling;
+    const hpScale = (scaled ? bossHpScale(id, partySize) : 1) * (d.enemyScale?.hp ?? 1);
+    const atkScale = (scaled ? bossAtkScale(id, partySize) : 1) * (d.enemyScale?.atk ?? 1);
+    return monsterSetup(id, `w${index}e${i}`, { hpScale, atkScale, hp: isBoss && def.boss ? d.bossHp : undefined });
   });
   return { partyA: d.party, partyB, seed: (d.seed + index * 7919) >>> 0, items: d.items, modifier: d.modifiers[index] ?? null, maxRounds: d.maxRounds };
 }
@@ -72,6 +76,8 @@ export function createDungeon(opts: {
   rollModifiers?: boolean;
   bossHp?: number;
   maxRounds?: number;
+  enemyScale?: { hp: number; atk: number };
+  noBossScaling?: boolean;
 }): Dungeon {
   const rng = createRng(opts.seed ^ 0x5bd1e995);
   const modifiers = opts.waves.map(() => (opts.rollModifiers === false ? null : WAVE_MODIFIERS[Math.floor(rng() * WAVE_MODIFIERS.length)]!));
@@ -88,6 +94,8 @@ export function createDungeon(opts: {
     defeated: [],
     bossHp: opts.bossHp,
     maxRounds: opts.maxRounds,
+    enemyScale: opts.enemyScale,
+    noBossScaling: opts.noBossScaling,
   };
   d.combat = createCombat(waveConfig(d, 0));
   d.combat.events.unshift({ type: 'WAVE', wave: 1, total: d.waves.length, modifier: modifiers[0]?.nameTh ?? null });

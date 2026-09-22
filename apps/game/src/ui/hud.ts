@@ -46,6 +46,7 @@ import {
 import { LOADOUT_SIZE, derivedOf, effectiveLoadout, learnableSkills, mutationOf, store, type SaveData } from '../state/store';
 import { bar, el, esc } from './dom';
 import { showCreator } from './creator';
+import { arenaPanel, wireArena } from './arena';
 import { autoHunt } from '../game/autohunt';
 
 const STAT_TH: Record<StatKey, string> = {
@@ -371,6 +372,11 @@ function renderPanel() {
     case 'trial':
       body.innerHTML = trialPanel();
       break;
+    case 'arena':
+      body.innerHTML = arenaPanel();
+      wireArena(body, renderPanel, closePanel);
+      body.scrollTop = scroll;
+      return;
     case 'settings':
       body.innerHTML = settingsPanel();
       break;
@@ -534,6 +540,7 @@ function trialPanel(): string {
 
 function settingsPanel(): string {
   return `<h2>⚙️ ตั้งค่า</h2>
+    <button class="btn primary" data-act="arena">🧪 สนามทดสอบการต่อสู้</button>
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
     <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>
@@ -590,6 +597,7 @@ function wirePanel(body: HTMLElement) {
     closePanel();
     bus.emit('battle:start', { kind: 'TRIAL', monsterIds: [], trialClass: classId });
   });
+  on('[data-act="arena"]', () => openPanel('arena'));
   on('[data-act="sim"]', () => {
     walk.enableSimulation();
     renderPanel();

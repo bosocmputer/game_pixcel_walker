@@ -12,11 +12,8 @@ npm install
 npm run dev
 ```
 
-เปิด http://localhost:5173 — บนคอมพิวเตอร์ GPS จะเข้าโหมดจำลองอัตโนมัติ ใช้ **WASD / ลูกศร** เดิน
-(กด Shift ค้างเพื่อวิ่งเร็ว — เร็วเกิน 20 กม./ชม. จะไม่นับก้าว) หรือใช้จอยสติ๊กบนจอ
-
-ทดสอบบนมือถือในวง Wi-Fi เดียวกัน: เปิด `http://<IP เครื่องคอม>:5173`
-(GPS จริงต้องใช้ HTTPS — ใช้ตอน deploy แล้ว หรือใช้ tunnel เช่น `npx localtunnel --port 5173`)
+เปิด http://localhost:5173 — บนคอมพิวเตอร์ GPS จะเข้าโหมดจำลองอัตโนมัติ ใช้ **WASD / ลูกศร** หรือจอยสติ๊กบนจอเดิน
+ปรับความเร็วโหมดจำลองได้ที่ปุ่ม 🏃 (ทดสอบเท่านั้น) · มือถือต้องใช้ HTTPS ถึงจะได้ GPS จริง — ดูหัวข้อถัดไป
 
 ## เล่นหลายเครื่อง (วง Wi-Fi เดียวกัน)
 
@@ -38,7 +35,7 @@ npm run dev:lan
 | `npm test` | เทสต์กฎเกม + จำลองสมดุล (balance) |
 | `npm run typecheck` | ตรวจ TypeScript |
 | `npm run build` | build เกมไว้ที่ `apps/game/dist` |
-| `npm run map:build` | ดึง OpenStreetMap เชียงใหม่ → แผนที่ 8-bit ใหม่ |
+| `npm run dev:all` / `npm run dev:lan` | เกม + presence server (lan = HTTPS สำหรับมือถือ) |
 
 ## Deploy (ฟรี)
 

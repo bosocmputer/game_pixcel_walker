@@ -8,6 +8,7 @@ import {
   MUTATIONS,
   MUTATION_MIN_LEVEL,
   MUTATION_THRESHOLD,
+  DECK_PRESETS,
   RARITY_COLOR,
   SKILLS,
   STAT_KEYS,
@@ -418,20 +419,33 @@ const TRIGGER_TH: Record<string, string> = {
   COVER: 'รับแทนเพื่อน', ASSIST: 'ตามตีซ้ำ', COUNTER: 'สวนกลับ', ON_DODGE: 'เมื่อหลบได้', ON_LOW_HP: 'เมื่อ HP ต่ำ', ON_ALLY_DEATH: 'เมื่อเพื่อนตาย',
 };
 
+const ELEMENT_ICON: Record<string, string> = { NEUTRAL: '', FIRE: '🔥', WATER: '💧', LIGHTNING: '⚡', EARTH: '🪨', HOLY: '✨', SHADOW: '🌑' };
+
 /** Skill Deck (Pockie Ninja style): up to LOADOUT_SIZE skills rolled by % each turn. */
 function deckEditor(s: SaveData): string {
   const deck = effectiveLoadout(s);
-  const rows = learnableSkills(s).map((id) => {
+  const presets = DECK_PRESETS[s.classId] ?? [];
+  const row = (id: string) => {
     const sk = SKILLS[id]!;
     const on = deck.includes(id);
     const kind = sk.kind === 'REACTIVE' ? `ตอบโต้: ${TRIGGER_TH[sk.trigger ?? ''] ?? ''}` : `CD ${sk.cooldown} · ${sk.mp} MP`;
-    return `<div class="row deck-pick ${on ? 'on' : ''}"><div><b>${esc(sk.nameTh)}</b> <span class="tag">${sk.rate}%</span>
+    return `<div class="row deck-pick ${on ? 'on' : ''}"><div><b>${ELEMENT_ICON[sk.element] ?? ''} ${esc(sk.nameTh)}</b> <span class="tag">${sk.rate}%</span>
       <br><small class="muted">${esc(kind)} — ${esc(sk.description)}</small></div><span class="spacer"></span>
       <button class="mini" data-deck="${id}">${on ? 'เอาออก' : 'ใส่'}</button></div>`;
-  }).join('');
+  };
+  const pool = learnableSkills(s);
+  const active = pool.filter((id) => SKILLS[id]!.kind === 'ACTIVE').map(row).join('');
+  const reactive = pool.filter((id) => SKILLS[id]!.kind === 'REACTIVE').map(row).join('');
+  const presetBtns = presets
+    .map((p) => `<button class="preset ${p.deck.every((id) => deck.includes(id)) && deck.length === p.deck.length ? 'on' : ''}" data-preset="${p.id}">
+      <b>${esc(p.nameTh)}</b><small>${esc(p.description)}</small></button>`)
+    .join('');
   return `<h3>ชุดสกิล (Skill Deck) ${deck.length}/${LOADOUT_SIZE}</h3>
-    <p class="muted">ต่อสู้อัตโนมัติ: ทุกเทิร์นระบบทอย % ของแต่ละสกิลตามลำดับความสำคัญ ถ้าไม่ติดเลยจะโจมตีธรรมดา · สกิลตอบโต้ทำงานเมื่อเกิดเหตุการณ์</p>
-    ${rows}`;
+    <p class="muted">ต่อสู้อัตโนมัติ: ทุกเทิร์นระบบทอย % ของแต่ละสกิลตามลำดับความสำคัญ ถ้าไม่ติดเลยจะโจมตีธรรมดา · สกิลตอบโต้ทำงานเมื่อเกิดเหตุการณ์ (ประเภทเดียวกันทำงานได้ทีละอัน)</p>
+    <div class="deck-now">${deck.map((id) => `<span class="tag">${ELEMENT_ICON[SKILLS[id]!.element] ?? ''}${esc(SKILLS[id]!.nameTh)}</span>`).join(' ')}</div>
+    ${presets.length ? `<h4>ชุดแนะนำ (กดแล้วปรับต่อได้)</h4><div class="presets">${presetBtns}</div>` : ''}
+    <h4>สกิลใช้งาน (ทอยทุกเทิร์น)</h4>${active}
+    <h4>สกิลตอบโต้ (ทำงานเมื่อเกิดเหตุการณ์)</h4>${reactive}`;
 }
 
 function itemLine(id: string, extra = ''): string {
@@ -533,6 +547,12 @@ function wirePanel(body: HTMLElement) {
 
   on('[data-alloc]', (x) => allocate(x.dataset.alloc as StatKey, 1));
   on('[data-alloc5]', (x) => allocate(x.dataset.alloc5 as StatKey, 5));
+  on('[data-preset]', (x) => {
+    const p = (DECK_PRESETS[store.s.classId] ?? []).find((d) => d.id === x.dataset.preset);
+    if (!p) return;
+    store.update((st) => (st.loadout = [...p.deck]));
+    toast(`ใช้ชุด ${p.nameTh} แล้ว — ปรับเพิ่ม/ลดได้เลย`, 'good');
+  });
   on('[data-deck]', (x) => {
     const id = x.dataset.deck!;
     store.update((st) => {

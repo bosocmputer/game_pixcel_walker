@@ -4,6 +4,7 @@
  */
 import {
   CLASSES,
+  DECK_PRESETS,
   DECK_SIZE,
   EQUIPMENT,
   SKILLS,
@@ -240,5 +241,6 @@ export function learnableSkills(s: SaveData): string[] {
 export function effectiveLoadout(s: SaveData): string[] {
   const learn = learnableSkills(s);
   const picked = s.loadout.filter((id) => learn.includes(id));
-  return (picked.length ? picked : learn).slice(0, LOADOUT_SIZE);
+  const preset = DECK_PRESETS[s.classId]?.[0]?.deck.filter((id) => learn.includes(id));
+  return (picked.length ? picked : preset?.length ? preset : learn).slice(0, LOADOUT_SIZE);
 }

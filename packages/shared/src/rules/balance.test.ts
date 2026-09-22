@@ -4,6 +4,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import {
+  DECK_PRESETS,
+  DECK_SIZE,
+  SKILLS,
+  classSkillPool,
   computeDerived,
   createDungeon,
   landmarkWaves,
@@ -79,5 +83,33 @@ describe('balance', () => {
     console.log('Lv20 knight octane dungeon', r);
     expect(r).toBeGreaterThan(0.2);
     expect(r).toBeLessThan(0.9);
+  });
+});
+
+describe('Novice deck presets', () => {
+  const presets = DECK_PRESETS.NOVICE ?? [];
+
+  it('are valid decks (≤ 6 known Novice skills, no duplicates)', () => {
+    expect(presets.length).toBeGreaterThanOrEqual(3);
+    for (const p of presets) {
+      expect(p.deck.length).toBeLessThanOrEqual(DECK_SIZE);
+      expect(new Set(p.deck).size).toBe(p.deck.length);
+      for (const id of p.deck) {
+        expect(SKILLS[id], id).toBeDefined();
+        expect(classSkillPool('NOVICE')).toContain(id);
+      }
+    }
+  });
+
+  it('are all viable and none dominates (Lv.10 Novice, Goblin King dungeon)', () => {
+    const rates = presets.map((p) => {
+      // Each preset is tested with the build it is meant for (elemental = INT).
+      const alloc = p.id === 'elemental' ? { int: 24, vit: 20, str: 5 } : { str: 22, vit: 22, agi: 5 };
+      const r = dungeonRate(unit(10, 'NOVICE', alloc, starterGear, p.deck), 'goblin_king', 5, 150);
+      console.log(`preset ${p.id}`, r);
+      return r;
+    });
+    for (const r of rates) expect(r).toBeGreaterThan(0.2);
+    expect(Math.max(...rates) - Math.min(...rates)).toBeLessThan(0.5);
   });
 });

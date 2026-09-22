@@ -251,3 +251,10 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .deck-slot.reactive { background: #e3f2fd; }
 .deck-slot.cd { opacity: .5; }
 .deck-pick.on { background: #fff3e0; border-radius: 8px; }
+
+.sheet h4 { margin: 14px 0 6px; font-size: 14px; color: var(--muted); }
+.deck-now { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.preset { text-align: left; border: 2px solid #eadfce; background: #fff; border-radius: 12px; padding: 8px; display: grid; gap: 2px; font-size: 13px; }
+.preset small { color: var(--muted); font-size: 11px; }
+.preset.on { border-color: var(--orange); background: #fff3e0; }

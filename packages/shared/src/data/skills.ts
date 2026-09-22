@@ -34,6 +34,77 @@ export const SKILLS: Record<string, SkillDef> = {
     effects: [{ kind: 'BUFF', stat: 'speed', pct: 0.2, turns: 2, self: true }],
   }),
 
+  power_smash: S({
+    id: 'power_smash', name: 'Power Smash', nameTh: 'ทุบสุดแรง', description: '180% ATK เป้าเดียว (แรงแต่ติดยาก)',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 2, mp: 6, target: 'ENEMY', priority: 1,
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.8 } }],
+  }),
+  stone_throw: S({
+    id: 'stone_throw', name: 'Stone Throw', nameTh: 'ปาหิน', description: 'ปาแถวหลัง 110% ATK (ติดบ่อย ไม่มีคูลดาวน์)',
+    kind: 'ACTIVE', element: 'EARTH', rate: 30, cooldown: 0, mp: 3, target: 'ENEMY_BACK', ranged: true,
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.1 } }],
+  }),
+  sweep_kick: S({
+    id: 'sweep_kick', name: 'Sweep Kick', nameTh: 'เตะกวาด', description: 'ศัตรู 2 ตัวขึ้นไป: ทุกตัว 70% ATK + 20% มึน 1 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 8, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', priority: 2,
+    effects: [
+      { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.7 } },
+      { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.2 },
+    ],
+  }),
+  dirty_trick: S({
+    id: 'dirty_trick', name: 'Dirty Trick', nameTh: 'ลูกไม้สกปรก', description: '60% ATK และ 60% ติดพิษ 4% Max HP/เทิร์น 3 เทิร์น',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 28, cooldown: 3, mp: 5, target: 'ENEMY',
+    effects: [
+      { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.6 } },
+      { kind: 'STATUS', status: 'POISON', turns: 3, chance: 0.6, potency: 0.04 },
+    ],
+  }),
+  fire_spark: S({
+    id: 'fire_spark', name: 'Fire Spark', nameTh: 'ประกายไฟ', description: 'ไฟ 40% ATK + 180% MATK และ 30% ติดไฟ (แรงขึ้นตาม INT)',
+    kind: 'ACTIVE', element: 'FIRE', rate: 36, cooldown: 1, mp: 6, target: 'ENEMY',
+    effects: [
+      { kind: 'DAMAGE', type: 'MAGIC', scaling: { atk: 0.4, matk: 1.8 } },
+      { kind: 'STATUS', status: 'BURN', turns: 2, chance: 0.3, potency: 0.3 },
+    ],
+  }),
+  aqua_splash: S({
+    id: 'aqua_splash', name: 'Aqua Splash', nameTh: 'สาดน้ำ', description: 'น้ำ 40% ATK + 180% MATK และ 30% ทำให้ช้าลง 2 เทิร์น',
+    kind: 'ACTIVE', element: 'WATER', rate: 36, cooldown: 1, mp: 6, target: 'ENEMY',
+    effects: [
+      { kind: 'DAMAGE', type: 'MAGIC', scaling: { atk: 0.4, matk: 1.8 } },
+      { kind: 'STATUS', status: 'SLOW', turns: 2, chance: 0.3, potency: 0.3 },
+    ],
+  }),
+  war_cry: S({
+    id: 'war_cry', name: 'War Cry', nameTh: 'ตะโกนศึก', description: 'ATK ตัวเอง +25% 3 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 5, mp: 8, target: 'SELF', priority: 3,
+    effects: [{ kind: 'BUFF', stat: 'atk', pct: 0.25, turns: 3, self: true }],
+  }),
+  focus: S({
+    id: 'focus', name: 'Focus', nameTh: 'รวมสมาธิ', description: 'โอกาส Critical ×2 นาน 3 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 20, cooldown: 5, mp: 6, target: 'SELF', priority: 3,
+    effects: [{ kind: 'BUFF', stat: 'crit', pct: 1, turns: 3, self: true }],
+  }),
+  guard_stance: S({
+    id: 'guard_stance', name: 'Guard Stance', nameTh: 'ตั้งการ์ด', description: 'HP ต่ำกว่า 60%: เกราะ 18% Max HP และ DEF +30% 2 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 35, cooldown: 4, mp: 6, target: 'SELF', condition: 'SELF_HP_BELOW_60', priority: 4,
+    effects: [
+      { kind: 'SHIELD', pctMaxHp: 0.18, turns: 2 },
+      { kind: 'BUFF', stat: 'def', pct: 0.3, turns: 2, self: true },
+    ],
+  }),
+  counter_jab: S({
+    id: 'counter_jab', name: 'Counter Jab', nameTh: 'หมัดสวน', description: 'ถูกโจมตีโดน: 25% สวนกลับ 70% ATK',
+    kind: 'REACTIVE', trigger: 'COUNTER', element: 'NEUTRAL', rate: 25, cooldown: 0, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.7 } }],
+  }),
+  second_wind: S({
+    id: 'second_wind', name: 'Second Wind', nameTh: 'ลมหายใจที่สอง', description: 'HP ต่ำกว่า 30%: ฟื้นฟู 20% Max HP ทันที (1 ครั้ง/การต่อสู้)',
+    kind: 'REACTIVE', trigger: 'ON_LOW_HP', element: 'NEUTRAL', rate: 100, cooldown: 0, mp: 0, target: 'SELF', oncePerBattle: true,
+    effects: [{ kind: 'HEAL', scaling: { maxHp: 0.2 } }],
+  }),
+
   // ---------------------------------------------------------------- Knight
   shield_bash: S({
     id: 'shield_bash', name: 'Shield Bash', nameTh: 'กระแทกโล่', description: '120% ATK + 150% DEF และ 60% Stun 1 เทิร์น',

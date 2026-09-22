@@ -5,6 +5,7 @@ import {
   LANDMARK_BOSS,
   MONSTERS,
   STAT_KEYS,
+  CLASS_CHANGE_LEVEL,
   canChangeClass,
   deathGoldLoss,
   gainExp,
@@ -275,6 +276,7 @@ export function applyBattleOutcome(opts: {
   landmark?: Landmark;
   kind: 'FIELD' | 'BOSS' | 'TRIAL';
   worldBoss?: { remainingHp: number; damage: number; maxHp: number };
+  spawn?: { id: string; expiresAt: number };
 }): BattleOutcome {
   const outcome: BattleOutcome = {
     result: opts.result === 'ONGOING' ? 'FLED' : opts.result,
@@ -314,6 +316,9 @@ export function applyBattleOutcome(opts: {
         outcome.loot.exp = Math.round(outcome.loot.exp * share);
         outcome.loot.gold = Math.round(outcome.loot.gold * share);
       }
+      // EXP comes only from monsters; Novices get +10% until the class change (Fresh Legs).
+      if (s.classId === 'NOVICE' && s.level < CLASS_CHANGE_LEVEL) outcome.loot.exp = Math.round(outcome.loot.exp * 1.1);
+      if (opts.spawn) s.killedSpawns[opts.spawn.id] = opts.spawn.expiresAt;
       const r = gainExp({ level: s.level, exp: s.exp }, outcome.loot.exp);
       s.level = r.level;
       s.exp = r.exp;

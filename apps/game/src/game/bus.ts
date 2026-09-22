@@ -19,6 +19,8 @@ export interface BattleRequest {
   monsterIds: string[];
   landmark?: Landmark;
   trialClass?: ClassId;
+  /** World spawn being fought (marked defeated on a win). */
+  spawn?: { id: string; expiresAt: number };
 }
 
 type Handler<T> = (payload: T) => void;

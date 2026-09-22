@@ -4,10 +4,12 @@
  * and home icons — by projecting lat/lng to screen space every frame.
  */
 import Phaser from 'phaser';
-import { heroCanvas, landmarkIcon, type Facing } from '../game/art';
-import { bus, type BattleRequest } from '../game/bus';
+import { FIGHT_RANGE_M, MONSTERS, haversine, type Spawn } from '@pw/shared';
+import { heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
+import { bus, toast, type BattleRequest } from '../game/bus';
 import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
-import { centerOn, depthScale, pixelsPerMeter, project, resetNorth, zoomBy } from '../game/map';
+import { centerOn, depthScale, getMap, pixelsPerMeter, project, resetNorth, zoomBy } from '../game/map';
+import { pruneKills, visibleSpawns } from '../game/spawns';
 import { walk } from '../game/walk';
 import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
@@ -31,6 +33,8 @@ export class WorldScene extends Phaser.Scene {
   private flip = false;
   private walkTime = 0;
   private landmarkSprites = new Map<string, Phaser.GameObjects.Container>();
+  private monsterSprites = new Map<string, Phaser.GameObjects.Container>();
+  private lastSpawnScan = 0;
   private homeSprite: Phaser.GameObjects.Image | null = null;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private lastNearIds = '';
@@ -78,6 +82,13 @@ export class WorldScene extends Phaser.Scene {
     this.events.on('resume', () => {
       walk.paused = false;
     });
+
+    // The Phaser canvas lets pointer events through to the map, so taps come from MapLibre.
+    const map = getMap();
+    const onTap = (e: { point: { x: number; y: number } }) => this.onTap(e.point.x, e.point.y);
+    map?.on('click', onTap);
+    this.events.once('shutdown', () => map?.off('click', onTap));
+    pruneKills();
 
     this.refreshHome(store.s);
     if (walk.position) this.onPosition(walk.position.lat, walk.position.lng, 10);
@@ -187,6 +198,10 @@ export class WorldScene extends Phaser.Scene {
       this.lastLandmarkScan = time;
       this.syncLandmarks();
     }
+    if (time - this.lastSpawnScan > 1000) {
+      this.lastSpawnScan = time;
+      this.syncMonsters();
+    }
     this.placeOverlays();
   }
 
@@ -215,6 +230,66 @@ export class WorldScene extends Phaser.Scene {
     }
   }
 
+
+  // -------------------------------------------------------------------------------------------
+  // World monsters
+
+  private levelColor(level: number): string {
+    const d = level - store.s.level;
+    return d <= -3 ? '#8dff8a' : d <= 1 ? '#fff176' : '#ff6b6b';
+  }
+
+  private syncMonsters() {
+    const here = this.current!;
+    const seen = new Set<string>();
+    for (const sp of visibleSpawns(here.lat, here.lng)) {
+      seen.add(sp.id);
+      let c = this.monsterSprites.get(sp.id);
+      const def = MONSTERS[sp.monsterId]!;
+      if (!c) {
+        const key = `mob_${def.sprite}`;
+        if (!this.textures.exists(key)) this.textures.addCanvas(key, monsterCanvas(def.sprite));
+        const shadow = this.add.ellipse(0, 0, 36, 10, 0x000000, 0.25);
+        const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(2.6);
+        const label = this.add
+          .text(0, 4, `Lv.${def.level}`, { fontFamily: 'Silkscreen', fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })
+          .setOrigin(0.5, 0);
+        const swords = this.add.text(0, -56, '⚔️', { fontSize: '18px' }).setOrigin(0.5).setVisible(false);
+        c = this.add.container(0, 0, [shadow, img, label, swords]).setDepth(8);
+        c.setData({ spawn: sp, img, swords, label });
+        this.tweens.add({ targets: img, y: -4, yoyo: true, repeat: -1, duration: 600 + Math.random() * 400, ease: 'Sine.easeInOut' });
+        this.monsterSprites.set(sp.id, c);
+      }
+      const inRange = haversine(here, sp) <= FIGHT_RANGE_M;
+      (c.getData('swords') as Phaser.GameObjects.Text).setVisible(inRange);
+      (c.getData('label') as Phaser.GameObjects.Text).setColor(this.levelColor(def.level));
+    }
+    for (const [id, c] of this.monsterSprites) {
+      if (seen.has(id)) continue;
+      c.destroy();
+      this.monsterSprites.delete(id);
+    }
+  }
+
+  /** Tap on the map: fight the nearest monster under the finger if it is within range. */
+  private onTap(x: number, y: number) {
+    if (this.scene.isPaused() || !this.current) return;
+    let best: { spawn: Spawn; d: number } | null = null;
+    for (const c of this.monsterSprites.values()) {
+      const d = Math.hypot(c.x - x, c.y - 20 * c.scale - y);
+      if (d < 48 * Math.max(0.7, c.scale) && (!best || d < best.d)) best = { spawn: c.getData('spawn') as Spawn, d };
+    }
+    if (!best) return;
+    const sp = best.spawn;
+    const def = MONSTERS[sp.monsterId]!;
+    const dist = haversine(this.current, sp);
+    if (dist > FIGHT_RANGE_M) {
+      toast(`${def.nameTh} Lv.${def.level} อยู่ห่าง ${Math.round(dist)} ม. — เดินเข้าไปใกล้อีก ${Math.ceil(dist - FIGHT_RANGE_M)} ม.`);
+      return;
+    }
+    this.startBattle({ kind: 'FIELD', monsterIds: [sp.monsterId], spawn: { id: sp.id, expiresAt: sp.expiresAt } });
+  }
+
   /** Re-project overlays every frame so they stick to the map while it zooms/rotates. */
   private placeOverlays() {
     const h = this.scale.height;
@@ -222,6 +297,12 @@ export class WorldScene extends Phaser.Scene {
       const p = project(c.getData('lat') as number, c.getData('lng') as number);
       const onScreen = p.x > -80 && p.y > -80 && p.x < this.scale.width + 80 && p.y < h + 80;
       c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h)).setDepth(7 + p.y / 10000);
+    }
+    for (const c of this.monsterSprites.values()) {
+      const sp = c.getData('spawn') as Spawn;
+      const p = project(sp.lat, sp.lng);
+      const onScreen = p.x > -80 && p.y > -80 && p.x < this.scale.width + 80 && p.y < h + 80;
+      c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h)).setDepth(8 + p.y / 10000);
     }
     const home = store.s.home;
     if (home && this.homeSprite) {

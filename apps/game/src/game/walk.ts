@@ -3,20 +3,10 @@
  * Real GPS via watchPosition, or a simulated walker for desktop testing.
  * The server will re-validate the same fixes in Phase 1; this is the client preview.
  */
-import {
-  ENCOUNTER_PER_100_STEPS,
-  createRng,
-  gainExp,
-  pickEncounter,
-  summarizeWalk,
-  tileTerrain,
-  walkExp,
-  walkStatPoints,
-  type GpsFix,
-} from '@pw/shared';
+import { summarizeWalk, walkStatPoints, type GpsFix } from '@pw/shared';
 import { bus, toast } from './bus';
 import { store, rollDay } from '../state/store';
-import { degScale, tileAt, toTile } from './world';
+import { degScale } from './world';
 
 const SIM_WALK_MPS = 1.4;
 const LAST_POS_KEY = 'pw.lastPos';
@@ -42,12 +32,10 @@ class WalkController {
   private watchId: number | null = null;
   private wakeLock: WakeLockSentinel | null = null;
   private lastFix: GpsFix | null = null;
-  private encounterBuffer = 0;
   private durabilityBuffer = 0;
   private simTimer: number | null = null;
   private simDir = { x: 0, y: 0 };
   private simTurbo = false;
-  private rng = createRng(Date.now() & 0xffffffff);
   paused = false;
 
   startLocation() {
@@ -180,13 +168,7 @@ class WalkController {
       s.totalSteps += steps;
       s.totalMeters += meters;
 
-      const exp = walkExp(steps, s.classId, s.level);
-      const r = gainExp({ level: s.level, exp: s.exp }, exp);
-      s.level = r.level;
-      s.exp = r.exp;
-      s.unspentPoints += r.statPointsGained;
-      if (r.levelsGained > 0) toast(`เลเวลอัป! Lv.${s.level} (+${r.statPointsGained} แต้ม)`, 'good');
-
+      // Walking gives no EXP (that comes from monsters) — only daily bonus stat points.
       const walkPts = walkStatPoints(beforeToday, s.stepsToday);
       if (walkPts > 0) {
         s.unspentPoints += walkPts;
@@ -205,26 +187,8 @@ class WalkController {
     });
 
     bus.emit('walk:progress', { steps: this.sessionSteps, meters: this.sessionMeters, vehicle: false });
-    this.rollEncounter(steps);
   }
 
-  private rollEncounter(steps: number) {
-    if (!this.position) return;
-    this.encounterBuffer += steps;
-    while (this.encounterBuffer >= 100) {
-      this.encounterBuffer -= 100;
-      if (this.rng() >= ENCOUNTER_PER_100_STEPS) continue;
-      const t = toTile(this.position.lat, this.position.lng);
-      const terrain = tileTerrain(tileAt(t.x, t.y));
-      if (!terrain) continue; // temples, schools, hospitals are safe
-      const level = store.s.level;
-      const count = level >= 5 && this.rng() < 0.35 ? 2 : 1;
-      const monsterIds = Array.from({ length: count }, () => pickEncounter(this.rng, terrain, level));
-      this.encounterBuffer = 0;
-      bus.emit('encounter', { monsterIds });
-      return;
-    }
-  }
 }
 
 export const walk = new WalkController();

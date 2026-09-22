@@ -417,6 +417,7 @@ export class BattleScene extends Phaser.Scene {
       rng: createRng(b.seed ^ 0x9e3779b9),
       landmark: this.req.landmark,
       kind: this.req.kind,
+      spawn: this.req.spawn,
       worldBoss: this.worldBossStartHp && boss
         ? { remainingHp: Math.max(0, Math.round(boss.hp)), damage: Math.round(this.worldBossStartHp - boss.hp), maxHp: boss.base.maxHp }
         : undefined,

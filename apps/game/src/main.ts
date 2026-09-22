@@ -9,7 +9,7 @@ import { DEFAULT_POS, lastKnownPosition, walk } from './game/walk';
 import { tickRegen } from './game/rules';
 import { store } from './state/store';
 import { mountHud, showOnboarding } from './ui/hud';
-import { createMap } from './game/map';
+import { createMap, getMap } from './game/map';
 import { el } from './ui/dom';
 
 /** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
@@ -55,7 +55,7 @@ async function start() {
   tickRegen();
   mountHud();
 
-  new Phaser.Game({
+  const game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
     pixelArt: true,
@@ -73,7 +73,7 @@ async function start() {
   });
 
   walk.startLocation();
-  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround } });
+  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap } });
   window.setInterval(tickRegen, 15000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void walk.onVisible();

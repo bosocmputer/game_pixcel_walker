@@ -22,7 +22,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
     passive: {
       id: 'fresh_legs',
       name: 'Fresh Legs',
-      description: 'EXP จากการเดิน +10% จนถึง Lv.10',
+      description: 'EXP จากมอนสเตอร์ +10% จนถึง Lv.10',
       modifiers: {},
     },
     skills: ['basic_attack', 'quick_strike', 'first_aid'],

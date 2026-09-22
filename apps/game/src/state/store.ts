@@ -54,6 +54,8 @@ export interface SaveData {
   bossKills: Record<string, number>;
   /** Async World Boss remaining HP per landmark (shared on the server in Phase 2). */
   worldBosses: Record<string, { hp: number; spawnedAt: number; lastAttempt?: number }>;
+  /** Defeated world spawns → expiry time (they stay gone until their slot rotates). */
+  killedSpawns: Record<string, number>;
   dayKey: string;
   stepsToday: number;
   totalSteps: number;
@@ -92,6 +94,7 @@ export function newSave(name: string, appearance: Appearance = DEFAULT_APPEARANC
     home: null,
     bossKills: {},
     worldBosses: {},
+    killedSpawns: {},
     dayKey: todayKey(),
     stepsToday: 0,
     totalSteps: 0,
@@ -114,6 +117,7 @@ class Store {
       if (this.data) {
         this.data.worldBosses ??= {};
         this.data.loadout ??= [];
+        this.data.killedSpawns ??= {};
         this.data.appearance ??= { ...DEFAULT_APPEARANCE };
       }
     } catch {

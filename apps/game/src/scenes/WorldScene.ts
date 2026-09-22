@@ -8,7 +8,7 @@ import { FIGHT_RANGE_M, MONSTERS, haversine, type Spawn } from '@pw/shared';
 import { heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
-import { centerOn, depthScale, getMap, pixelsPerMeter, project, resetNorth, zoomBy } from '../game/map';
+import { centerOn, depthScale, getMap, pixelsPerMeter, project, resetNorth, zoomBy, zoomScale } from '../game/map';
 import { pruneKills, visibleSpawns } from '../game/spawns';
 import { walk } from '../game/walk';
 import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
@@ -24,6 +24,7 @@ export class WorldScene extends Phaser.Scene {
   private shadow!: Phaser.GameObjects.Ellipse;
   private accuracyRing!: Phaser.GameObjects.Arc;
   private pulse!: Phaser.GameObjects.Arc;
+  private rangeRing!: Phaser.GameObjects.Ellipse;
   private loadingText!: Phaser.GameObjects.Text;
   private target: { lat: number; lng: number } | null = null;
   private current: { lat: number; lng: number } | null = null;
@@ -53,6 +54,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
 
+    this.rangeRing = this.add.ellipse(0, 0, 10, 10, 0xffa726, 0.07).setStrokeStyle(2, 0xffa726, 0.65).setDepth(4);
     this.accuracyRing = this.add.circle(0, 0, 10, 0x26c6da, 0.12).setStrokeStyle(2, 0x26c6da, 0.6).setDepth(5);
     this.pulse = this.add.circle(0, 0, 10, 0xffffff, 0).setStrokeStyle(3, 0xffa726, 0.9).setDepth(5);
     this.tweens.add({ targets: this.pulse, scale: 3, alpha: 0, duration: 1600, repeat: -1 });
@@ -186,9 +188,19 @@ export class WorldScene extends Phaser.Scene {
       this.walkTime = 0;
     }
     const frame = moving ? WALK_FRAMES[Math.floor(this.walkTime / 160) % 4]! : 0;
-    this.player.setTexture(this.heroKey(this.facing, frame)).setFlipX(this.facing === 'side' && this.flip).setPosition(here.x, here.y);
-    this.shadow.setPosition(here.x, here.y);
+    const zs = zoomScale();
+    this.player
+      .setTexture(this.heroKey(this.facing, frame))
+      .setFlipX(this.facing === 'side' && this.flip)
+      .setPosition(here.x, here.y)
+      .setScale(HERO_SCALE * zs);
+    this.shadow.setPosition(here.x, here.y).setScale(zs);
     this.pulse.setPosition(here.x, here.y);
+    // Play-radius ring: project points FIGHT_RANGE_M north/east to get the tilted ellipse size.
+    const r = FIGHT_RANGE_M;
+    const pn = project(this.current.lat + r / 110574, this.current.lng);
+    const pe = project(this.current.lat, this.current.lng + r / (111320 * Math.cos((this.current.lat * Math.PI) / 180)));
+    this.rangeRing.setPosition(here.x, here.y).setSize(Math.hypot(pe.x - here.x, pe.y - here.y) * 2, Math.hypot(pn.x - here.x, pn.y - here.y) * 2);
     this.accuracyRing.setPosition(here.x, here.y).setRadius(Math.max(12, this.accuracy * pixelsPerMeter(this.current.lat)));
 
     if (walk.simulated) {
@@ -309,21 +321,22 @@ export class WorldScene extends Phaser.Scene {
   /** Re-project overlays every frame so they stick to the map while it zooms/rotates. */
   private placeOverlays() {
     const h = this.scale.height;
+    const zs = zoomScale();
     for (const c of this.landmarkSprites.values()) {
       const p = project(c.getData('lat') as number, c.getData('lng') as number);
       const onScreen = p.x > -80 && p.y > -80 && p.x < this.scale.width + 80 && p.y < h + 80;
-      c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h)).setDepth(7 + p.y / 10000);
+      c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h) * zs).setDepth(7 + p.y / 10000);
     }
     for (const c of this.monsterSprites.values()) {
       const sp = c.getData('spawn') as Spawn;
       const p = project(sp.lat, sp.lng);
       const onScreen = p.x > -80 && p.y > -80 && p.x < this.scale.width + 80 && p.y < h + 80;
-      c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h)).setDepth(8 + p.y / 10000);
+      c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h) * zs).setDepth(8 + p.y / 10000);
     }
     const home = store.s.home;
     if (home && this.homeSprite) {
       const p = project(home.lat, home.lng);
-      this.homeSprite.setPosition(p.x, p.y).setScale(2.5 * depthScale(p.y, h));
+      this.homeSprite.setPosition(p.x, p.y).setScale(2.5 * depthScale(p.y, h) * zs);
     }
   }
 }

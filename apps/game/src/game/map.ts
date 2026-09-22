@@ -9,7 +9,9 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 export const MIN_ZOOM = 15;
 export const MAX_ZOOM = 19;
-const DEFAULT_ZOOM = 17.5;
+/** Zoomed out enough to see the whole 120 m play radius on a phone. */
+const DEFAULT_ZOOM = 16.6;
+const ZOOM_KEY = 'pw.mapZoom.v2';
 const PITCH = 55;
 
 let map: MLMap | null = null;
@@ -53,7 +55,7 @@ export function createMap(container: HTMLElement, lat: number, lng: number): Pro
     container,
     style: STYLE_URL,
     center: [lng, lat],
-    zoom: Number(localStorage.getItem('pw.mapZoom') ?? DEFAULT_ZOOM),
+    zoom: Number(localStorage.getItem(ZOOM_KEY) ?? DEFAULT_ZOOM),
     pitch: PITCH,
     bearing: 0,
     minZoom: MIN_ZOOM,
@@ -72,7 +74,7 @@ export function createMap(container: HTMLElement, lat: number, lng: number): Pro
   map.scrollZoom.enable({ around: 'center' });
   map.on('zoomend', () => {
     try {
-      localStorage.setItem('pw.mapZoom', String(map!.getZoom()));
+      localStorage.setItem(ZOOM_KEY, String(map!.getZoom()));
     } catch {
       /* ignore */
     }
@@ -118,4 +120,10 @@ export function resetNorth() {
 /** Perspective size factor for a screen y (sprites far up the tilted map look smaller). */
 export function depthScale(y: number, height: number): number {
   return 0.65 + 0.35 * Math.max(0, Math.min(1, y / height));
+}
+
+/** Sprite size factor for the current zoom so overlays shrink with the map (1 at zoom 17.5). */
+export function zoomScale(): number {
+  if (!map) return 1;
+  return Math.max(0.5, Math.min(1.25, 2 ** ((map.getZoom() - 17.5) * 0.75)));
 }

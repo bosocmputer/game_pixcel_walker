@@ -16,8 +16,11 @@ export const SPAWNS_PER_CELL = 6;
 export const SPAWN_CHANCE = 0.6;
 /** Extra positions tried when a roll lands somewhere blocked (e.g. a rooftop). */
 const PLACEMENT_TRIES = 4;
-/** Must be this close (metres) to start a fight. */
-export const FIGHT_RANGE_M = 40;
+/**
+ * Play radius (metres): monsters are shown only inside it and every one of them can be fought
+ * straight away, so players do not have to walk up to each monster.
+ */
+export const FIGHT_RANGE_M = 120;
 /** Players are grouped into 5-level bands so friends of similar level share spawns. */
 export const LEVEL_BAND = 5;
 

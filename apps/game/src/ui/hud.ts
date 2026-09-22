@@ -244,9 +244,8 @@ function renderNear(box: HTMLElement) {
   if (target) {
     const m = MONSTERS[target.monsterId]!;
     const low = s.hp < derivedOf(s).maxHp * 0.3;
-    const more = inRange.length > 1 ? ` (+อีก ${inRange.length - 1} ตัวใกล้ๆ)` : '';
-    cards.unshift(`<div class="lm-card fight"><div class="lm-title">⚔️ ${esc(m.nameTh)} Lv.${m.level} อยู่ใกล้คุณ!</div>
-      <div class="lm-sub">แตะ "สู้" หรือแตะตัวมอนสเตอร์บนแผนที่${more}${low ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
+    cards.unshift(`<div class="lm-card fight"><div class="lm-title">⚔️ มอนสเตอร์ในรัศมี ${inRange.length} ตัว</div>
+      <div class="lm-sub">ใกล้สุด: ${esc(m.nameTh)} Lv.${m.level} — แตะตัวไหนบนแผนที่ก็สู้ได้${low ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
       <div class="lm-actions"><button class="btn danger" data-fight-spawn="${esc(target.id)}">⚔️ สู้</button></div></div>`);
   }
   // Only touch the DOM when content changes, so a tap is never lost to a re-render.

@@ -1,5 +1,5 @@
 /** Tiny typed event bus between Phaser scenes and the DOM UI. */
-import type { ClassId, Landmark, Spawn, WaveDef } from '@pw/shared';
+import type { ClassId, Landmark, PlayerPresence, Spawn, WaveDef } from '@pw/shared';
 
 export interface BusEvents {
   'position': { lat: number; lng: number; accuracy: number; simulated: boolean };
@@ -15,6 +15,8 @@ export interface BusEvents {
   /** World spawns within fight range of the player (for the HUD fight prompt). */
   'monsters:inRange': { spawns: Spawn[] };
   'autohunt': { enabled: boolean };
+  'net': { connected: boolean; online: number };
+  'players': { players: PlayerPresence[] };
 }
 
 export interface BattleRequest {

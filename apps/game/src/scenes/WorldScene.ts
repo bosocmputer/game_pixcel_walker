@@ -14,6 +14,7 @@ import { walk } from '../game/walk';
 import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
+import { RemotePlayers } from './remotePlayers';
 
 const LANDMARK_RADIUS_M = 700;
 const WALK_FRAMES = [1, 0, 2, 0];
@@ -43,6 +44,7 @@ export class WorldScene extends Phaser.Scene {
   private lastDataChunk = '';
   private lastLandmarkScan = 0;
   private unsubs: (() => void)[] = [];
+  private remotes!: RemotePlayers;
 
   constructor() {
     super('World');
@@ -59,6 +61,7 @@ export class WorldScene extends Phaser.Scene {
     this.pulse = this.add.circle(0, 0, 10, 0xffffff, 0).setStrokeStyle(3, 0xffa726, 0.9).setDepth(5);
     this.tweens.add({ targets: this.pulse, scale: 3, alpha: 0, duration: 1600, repeat: -1 });
     this.shadow = this.add.ellipse(0, 0, 40, 14, 0x000000, 0.28).setDepth(9);
+    this.remotes = new RemotePlayers(this);
     this.refreshHero(store.s);
     this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(0.5, 0.92).setScale(HERO_SCALE);
     this.loadingText = this.add
@@ -79,6 +82,7 @@ export class WorldScene extends Phaser.Scene {
       }),
       bus.on('boss:challenge', ({ landmark }) => this.startBattle({ kind: 'BOSS', monsterIds: [], landmark })),
       bus.on('battle:start', (req) => this.startBattle(req)),
+      bus.on('players', ({ players }) => this.remotes.sync(players)),
       bus.on('zoom', ({ delta }) => (delta === 0 ? resetNorth() : zoomBy(delta * 0.5))),
     );
     this.events.once('shutdown', () => this.unsubs.forEach((u) => u()));
@@ -217,6 +221,7 @@ export class WorldScene extends Phaser.Scene {
       this.syncMonsters();
     }
     this.placeOverlays();
+    this.remotes.update(delta, HERO_SCALE);
   }
 
   /** Play-radius ring: the true ground circle projected, so it stays right under any rotation/tilt. */

@@ -15,6 +15,7 @@ packages/shared   Game rules + data, pure TypeScript, no DOM. Used by client AND
   src/combat      party auto turn-based engine, dungeons (see docs/COMBAT_SPEC.md)
   src/rules       progression, stats, spawns, walk validation, loot, economy, rng
 apps/game         Phaser 3 + Vite PWA client
+apps/server       Presence server (Node + ws), LAN testing phase — protocol in packages/shared/src/net
 tools/osm         Legacy offline baker (OSM → tilemap for one city); the game streams tiles live now
 tools/artpreview  Renders map/sprite sheets to PNG for reviewing procedural art without a browser
 supabase/         (Phase 1) migrations + edge functions — server-authoritative rewards
@@ -26,6 +27,8 @@ npm install
 npm test            # vitest for packages/shared
 npm run typecheck
 npm run dev         # game at http://localhost:5173
+npm run dev:all     # presence server + game
+npm run dev:lan     # same over HTTPS for phones on the Wi-Fi (https://<pc-ip>:5173)
 npm run map:build && npx tsx tools/artpreview/preview.mts [lat lng]   # map art sheet (needs a baked map)
 npx tsx tools/artpreview/heroes.mts
 ```

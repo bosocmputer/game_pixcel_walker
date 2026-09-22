@@ -265,3 +265,11 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .deck-stats { width: 100%; border-collapse: collapse; font-size: 13px; margin: 8px 0; }
 .deck-stats th, .deck-stats td { border-bottom: 1px dashed #eadfce; padding: 4px; text-align: right; }
 .deck-stats th:first-child, .deck-stats td:first-child { text-align: left; }
+
+.net-pill {
+  position: absolute; left: 50%; transform: translateX(-50%); top: calc(96px + env(safe-area-inset-top));
+  background: rgba(27,31,42,.8); color: #fff; font-size: 12px; font-weight: 700; padding: 4px 12px; border-radius: 999px;
+  pointer-events: none;
+}
+.net-pill.offline { opacity: .6; }
+body.in-battle .net-pill { display: none; }

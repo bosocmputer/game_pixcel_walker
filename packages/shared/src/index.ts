@@ -15,3 +15,4 @@ export * from './combat/engine';
 export * from './combat/dungeon';
 export * from './data/map';
 export * from './rules/spawns';
+export * from './net/protocol';

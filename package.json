@@ -1,12 +1,22 @@
 {
   "name": "pixel-walker",
   "private": true,
-  "workspaces": ["packages/*", "apps/*", "tools/*"],
+  "workspaces": [
+    "packages/*",
+    "apps/*",
+    "tools/*"
+  ],
   "scripts": {
     "dev": "npm run dev -w @pw/game",
     "build": "npm run build -w @pw/game",
     "test": "npm run test -w @pw/shared",
-    "typecheck": "tsc -b packages/shared apps/game",
-    "map:build": "npm run build -w @pw/osm"
+    "typecheck": "tsc -b packages/shared apps/game && tsc -p apps/server",
+    "map:build": "npm run build -w @pw/osm",
+    "server": "npm run start -w @pw/server",
+    "dev:all": "concurrently -k -n server,game -c cyan,yellow \"npm run start -w @pw/server\" \"npm run dev -w @pw/game\"",
+    "dev:lan": "concurrently -k -n server,game -c cyan,yellow \"npm run start -w @pw/server\" \"npm run dev:https -w @pw/game\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.4"
   }
 }

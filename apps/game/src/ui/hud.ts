@@ -121,6 +121,7 @@ function showStarterChoice(onDone: () => void) {
 export function mountHud() {
   const hud = el(`<div class="hud">
     <div class="topbar" data-open="char"></div>
+    <div class="net-pill offline">⚪ ออฟไลน์</div>
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
     <button class="sim-speed hidden" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button>
@@ -172,6 +173,11 @@ export function mountHud() {
     renderNear(hud.querySelector('.near')!);
   });
   bus.on('battle:end', () => renderNear(hud.querySelector('.near')!));
+  bus.on('net', ({ connected, online }) => {
+    const pill = hud.querySelector<HTMLElement>('.net-pill')!;
+    pill.classList.toggle('offline', !connected);
+    pill.textContent = connected ? `🟢 ออนไลน์ ${online} คน` : '⚪ ออฟไลน์';
+  });
   bus.on('autohunt', ({ enabled }) => {
     hud.querySelector('.auto-btn')!.classList.toggle('on', enabled);
     renderNear(hud.querySelector('.near')!);

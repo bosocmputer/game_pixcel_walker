@@ -16,6 +16,7 @@ import {
   type ClassId,
   type EquipSlot,
   type Landmark,
+  type Spawn,
   type StatKey,
 } from '@pw/shared';
 import { bus, toast } from '../game/bus';
@@ -69,6 +70,8 @@ const root = () => document.getElementById('ui')!;
 let near: Landmark[] = [];
 /** Encounters are opt-in: forcing a battle mid-walk (e.g. crossing a road) is unsafe. */
 let pendingEncounter: { monsterIds: string[]; expires: number } | null = null;
+/** Monsters within fight range right now (from WorldScene). */
+let inRange: Spawn[] = [];
 const ENCOUNTER_TTL_MS = 90_000;
 
 // ---------------------------------------------------------------------------------------------
@@ -164,6 +167,10 @@ export function mountHud() {
     renderNear(hud.querySelector('.near')!);
   });
   bus.on('battle:end', () => renderNear(hud.querySelector('.near')!));
+  bus.on('monsters:inRange', ({ spawns }) => {
+    inRange = spawns;
+    renderNear(hud.querySelector('.near')!);
+  });
   bus.on('toast', ({ text, kind }) => showToast(hud.querySelector('.toasts')!, text, kind ?? 'info'));
   window.setInterval(() => renderNear(hud.querySelector('.near')!), 5000);
   mountJoystick(hud.querySelector('.joystick')!);
@@ -199,7 +206,8 @@ function renderNear(box: HTMLElement) {
   const pos = walk.position;
   const home = pos && nearHome(s, pos.lat, pos.lng);
   if (pendingEncounter && pendingEncounter.expires < Date.now()) pendingEncounter = null;
-  if (!near.length && !home && !pendingEncounter) {
+  if (!near.length && !home && !pendingEncounter && !inRange.length) {
+    box.dataset.html = '';
     box.innerHTML = '';
     return;
   }
@@ -232,7 +240,25 @@ function renderNear(box: HTMLElement) {
       <div class="lm-sub">${esc(names)}${lowHp ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
       <div class="lm-actions"><button class="btn danger" data-fight>สู้</button><button class="btn" data-skip>ข้าม</button></div></div>`);
   }
-  box.innerHTML = cards.join('');
+  const target = inRange[0];
+  if (target) {
+    const m = MONSTERS[target.monsterId]!;
+    const low = s.hp < derivedOf(s).maxHp * 0.3;
+    const more = inRange.length > 1 ? ` (+อีก ${inRange.length - 1} ตัวใกล้ๆ)` : '';
+    cards.unshift(`<div class="lm-card fight"><div class="lm-title">⚔️ ${esc(m.nameTh)} Lv.${m.level} อยู่ใกล้คุณ!</div>
+      <div class="lm-sub">แตะ "สู้" หรือแตะตัวมอนสเตอร์บนแผนที่${more}${low ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
+      <div class="lm-actions"><button class="btn danger" data-fight-spawn="${esc(target.id)}">⚔️ สู้</button></div></div>`);
+  }
+  // Only touch the DOM when content changes, so a tap is never lost to a re-render.
+  const html = cards.join('');
+  if (box.dataset.html === html) return;
+  box.dataset.html = html;
+  box.innerHTML = html;
+  box.querySelector<HTMLElement>('[data-fight-spawn]')?.addEventListener('click', (e) => {
+    const id = (e.currentTarget as HTMLElement).dataset.fightSpawn;
+    const sp = inRange.find((x) => x.id === id);
+    if (sp) bus.emit('battle:start', { kind: 'FIELD', monsterIds: [sp.monsterId], spawn: { id: sp.id, expiresAt: sp.expiresAt } });
+  });
   box.querySelector('[data-fight]')?.addEventListener('click', () => {
     const e = pendingEncounter;
     pendingEncounter = null;

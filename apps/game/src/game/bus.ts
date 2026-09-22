@@ -1,5 +1,5 @@
 /** Tiny typed event bus between Phaser scenes and the DOM UI. */
-import type { ClassId, Landmark } from '@pw/shared';
+import type { ClassId, Landmark, Spawn } from '@pw/shared';
 
 export interface BusEvents {
   'position': { lat: number; lng: number; accuracy: number; simulated: boolean };
@@ -12,6 +12,8 @@ export interface BusEvents {
   'landmark:near': { landmarks: Landmark[] };
   'toast': { text: string; kind?: 'info' | 'good' | 'bad' };
   'zoom': { delta: number };
+  /** World spawns within fight range of the player (for the HUD fight prompt). */
+  'monsters:inRange': { spawns: Spawn[] };
 }
 
 export interface BattleRequest {

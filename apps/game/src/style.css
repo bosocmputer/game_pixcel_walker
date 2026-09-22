@@ -23,7 +23,8 @@ body.in-battle #game { pointer-events: auto; }
 .maplibregl-ctrl-attrib { font-size: 10px; }
 .maplibregl-ctrl-bottom-right { bottom: 88px; }
 #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
-#ui > * { pointer-events: auto; }
+/* The HUD layer covers the screen but must let taps/pinches through to the map. */
+#ui > *:not(.hud) { pointer-events: auto; }
 button { font-family: inherit; cursor: pointer; }
 
 /* --- Loading / onboarding ---------------------------------------------------------------- */
@@ -139,7 +140,8 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .hud.vehicle .walk-btn small::after { content: ' · 🚗 เร็วเกินไป ไม่นับก้าว'; }
 
 .joystick {
-  position: absolute; right: 16px; bottom: calc(110px + env(safe-area-inset-bottom)); width: 110px; height: 110px;
+  /* Above the landmark/fight cards so it never covers their buttons. */
+  position: absolute; right: 16px; bottom: calc(250px + env(safe-area-inset-bottom)); width: 110px; height: 110px;
   border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.4); touch-action: none;
 }
 .joystick.hidden { display: none; }
@@ -228,8 +230,11 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .zoom button { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(255,250,242,.95); font-size: 20px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
 
 .sim-speed {
-  position: absolute; right: 30px; bottom: calc(222px + env(safe-area-inset-bottom));
+  position: absolute; right: 30px; bottom: calc(372px + env(safe-area-inset-bottom));
   border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 700; font-size: 15px;
   background: rgba(255,250,242,.95); box-shadow: 0 3px 0 rgba(0,0,0,.25);
 }
 .sim-speed.hidden { display: none; }
+
+.lm-card.fight { border-left: 6px solid #ef5350; animation: tin .25s ease-out; }
+.lm-card.fight .btn.danger { font-size: 16px; padding: 10px 16px; }

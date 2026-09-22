@@ -35,6 +35,7 @@ export class WorldScene extends Phaser.Scene {
   private landmarkSprites = new Map<string, Phaser.GameObjects.Container>();
   private monsterSprites = new Map<string, Phaser.GameObjects.Container>();
   private lastSpawnScan = 0;
+  private lastInRange = '';
   private homeSprite: Phaser.GameObjects.Image | null = null;
   private keys!: Record<string, Phaser.Input.Keyboard.Key>;
   private lastNearIds = '';
@@ -81,6 +82,7 @@ export class WorldScene extends Phaser.Scene {
     this.events.once('shutdown', () => this.unsubs.forEach((u) => u()));
     this.events.on('resume', () => {
       walk.paused = false;
+      this.lastSpawnScan = 0;
     });
 
     // The Phaser canvas lets pointer events through to the map, so taps come from MapLibre.
@@ -272,6 +274,16 @@ export class WorldScene extends Phaser.Scene {
       if (seen.has(id)) continue;
       c.destroy();
       this.monsterSprites.delete(id);
+    }
+    const inRange = [...this.monsterSprites.values()]
+      .map((c) => c.getData('spawn') as Spawn)
+      .filter((sp) => haversine(here, sp) <= FIGHT_RANGE_M)
+      .sort((a, b) => haversine(here, a) - haversine(here, b));
+    const key = inRange.map((sp) => sp.id).join(',');
+    if (key !== this.lastInRange) {
+      this.lastInRange = key;
+      bus.emit('monsters:inRange', { spawns: inRange });
+      if (inRange.length) navigator.vibrate?.(80);
     }
   }
 

@@ -10,6 +10,7 @@ import { tickRegen } from './game/rules';
 import { store } from './state/store';
 import { mountHud, showOnboarding } from './ui/hud';
 import { createMap, getMap } from './game/map';
+import { autoHunt } from './game/autohunt';
 import { el } from './ui/dom';
 
 /** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
@@ -72,6 +73,7 @@ async function start() {
     fps: { forceSetTimeOut: new URLSearchParams(location.search).has('timer') },
   });
 
+  autoHunt.init(game);
   walk.startLocation();
   if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap } });
   window.setInterval(tickRegen, 15000);

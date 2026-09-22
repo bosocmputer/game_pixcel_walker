@@ -14,6 +14,7 @@ export interface BusEvents {
   'zoom': { delta: number };
   /** World spawns within fight range of the player (for the HUD fight prompt). */
   'monsters:inRange': { spawns: Spawn[] };
+  'autohunt': { enabled: boolean };
 }
 
 export interface BattleRequest {
@@ -23,6 +24,8 @@ export interface BattleRequest {
   trialClass?: ClassId;
   /** World spawn being fought (marked defeated on a win). */
   spawn?: { id: string; expiresAt: number };
+  /** Started by Auto Hunt: auto-battle at high speed, result closes itself. */
+  auto?: boolean;
 }
 
 type Handler<T> = (payload: T) => void;

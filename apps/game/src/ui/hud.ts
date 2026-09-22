@@ -44,6 +44,7 @@ import {
 import { derivedOf, mutationOf, store, type SaveData } from '../state/store';
 import { bar, el, esc } from './dom';
 import { showCreator } from './creator';
+import { autoHunt } from '../game/autohunt';
 
 const STAT_TH: Record<StatKey, string> = {
   str: 'STR พลัง',
@@ -120,7 +121,7 @@ export function mountHud() {
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
     <button class="sim-speed hidden" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button>
-    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button></div>
+    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">🤖<small>AUTO</small></button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
       <button class="menu-btn" data-open="bag">🎒<span>กระเป๋า</span></button>
@@ -136,6 +137,7 @@ export function mountHud() {
       walk.cycleSimSpeed();
       return renderSimSpeed();
     }
+    if ((e.target as HTMLElement).closest('[data-autohunt]')) return autoHunt.toggle();
     const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
     if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
@@ -167,6 +169,10 @@ export function mountHud() {
     renderNear(hud.querySelector('.near')!);
   });
   bus.on('battle:end', () => renderNear(hud.querySelector('.near')!));
+  bus.on('autohunt', ({ enabled }) => {
+    hud.querySelector('.auto-btn')!.classList.toggle('on', enabled);
+    renderNear(hud.querySelector('.near')!);
+  });
   bus.on('monsters:inRange', ({ spawns }) => {
     inRange = spawns;
     renderNear(hud.querySelector('.near')!);
@@ -244,7 +250,7 @@ function renderNear(box: HTMLElement) {
   if (target) {
     const m = MONSTERS[target.monsterId]!;
     const low = s.hp < derivedOf(s).maxHp * 0.3;
-    cards.unshift(`<div class="lm-card fight"><div class="lm-title">⚔️ มอนสเตอร์ในรัศมี ${inRange.length} ตัว</div>
+    cards.unshift(`<div class="lm-card fight"><div class="lm-title">⚔️ มอนสเตอร์ในรัศมี ${inRange.length} ตัว${autoHunt.enabled ? ' · 🤖 กำลังล่าอัตโนมัติ' : ''}</div>
       <div class="lm-sub">ใกล้สุด: ${esc(m.nameTh)} Lv.${m.level} — แตะตัวไหนบนแผนที่ก็สู้ได้${low ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
       <div class="lm-actions"><button class="btn danger" data-fight-spawn="${esc(target.id)}">⚔️ สู้</button></div></div>`);
   }

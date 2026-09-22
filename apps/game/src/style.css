@@ -238,3 +238,7 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 
 .lm-card.fight { border-left: 6px solid #ef5350; animation: tin .25s ease-out; }
 .lm-card.fight .btn.danger { font-size: 16px; padding: 10px 16px; }
+
+.zoom .auto-btn { display: grid; place-items: center; line-height: 1; font-size: 18px; height: 48px; }
+.zoom .auto-btn small { font-size: 9px; font-weight: 700; }
+.zoom .auto-btn.on { background: var(--cyan); color: #fff; animation: breathe 1.2s infinite alternate; }

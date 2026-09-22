@@ -27,6 +27,7 @@ import { bus, toast, type BattleRequest } from '../game/bus';
 import { applyBattleOutcome, bossIdFor, changeClass, worldBossHp, type BattleOutcome } from '../game/rules';
 import { derivedOf, mutationOf, store } from '../state/store';
 import { el, esc } from '../ui/dom';
+import { autoHunt } from '../game/autohunt';
 
 const WORLD_BOSS_WINDOW_S = 60;
 
@@ -64,7 +65,8 @@ export class BattleScene extends Phaser.Scene {
     this.targetId = null;
     this.worldBossStartHp = 0;
     this.lastPanelKey = '';
-    this.auto = localStorage.getItem('pw.auto') === '1';
+    this.auto = req.auto || localStorage.getItem('pw.auto') === '1';
+    this.speed = req.auto ? 4 : 2;
   }
 
   create() {
@@ -446,16 +448,25 @@ export class BattleScene extends Phaser.Scene {
           : '';
     const wb = o.worldBossDamage ? `<p>สร้างความเสียหายให้บอสโลก ${o.worldBossDamage.toLocaleString()} — HP บอสถูกบันทึกไว้ให้คนต่อไป</p>` : '';
 
+    const hunting = this.req.auto && autoHunt.enabled;
+    if (this.req.auto) autoHunt.onBattleResult(o.result);
+    const autoClose = hunting && o.result !== 'LOSE';
     const modal = el(`<div class="modal-backdrop"><div class="modal result">
       <h2>${title}</h2>${body}${wb}
+      ${autoClose ? '<p class="muted">🤖 ล่าอัตโนมัติ — ไปตัวถัดไป…</p>' : ''}
       <button class="btn primary" data-act="close">กลับสู่แผนที่</button></div></div>`);
     document.getElementById('ui')!.appendChild(modal);
-    modal.querySelector('[data-act="close"]')!.addEventListener('click', () => {
+    let closed = false;
+    const close = () => {
+      if (closed) return;
+      closed = true;
       modal.remove();
       this.scene.stop();
       this.scene.resume('World');
       bus.emit('battle:end');
-    });
+    };
+    modal.querySelector('[data-act="close"]')!.addEventListener('click', close);
+    if (autoClose) window.setTimeout(close, 1300);
   }
 }
 

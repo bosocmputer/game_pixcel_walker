@@ -119,7 +119,6 @@ export function mountHud() {
     <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
-      <button class="walk-btn" data-act="walk"></button>
       <button class="menu-btn" data-open="bag">🎒<span>กระเป๋า</span></button>
       <button class="menu-btn" data-open="home">🏠<span>บ้าน</span></button>
       <button class="menu-btn" data-open="settings">⚙️<span>ตั้งค่า</span></button>
@@ -133,21 +132,14 @@ export function mountHud() {
     if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
     if (!t) return;
-    if (t.dataset.act === 'walk') return walk.active ? walk.stopSession() : void walk.startSession();
     if (t.dataset.open) openPanel(t.dataset.open);
   });
 
   const render = () => {
     renderTopbar(hud.querySelector('.topbar')!, store.s);
-    renderWalkButton(hud.querySelector('.walk-btn')!);
     renderNear(hud.querySelector('.near')!);
   };
   store.subscribe(render);
-  bus.on('walk:state', render);
-  bus.on('walk:progress', (p) => {
-    renderWalkButton(hud.querySelector('.walk-btn')!);
-    if (p.vehicle) setVehicleWarning(hud);
-  });
   bus.on('landmark:near', ({ landmarks }) => {
     near = landmarks;
     renderNear(hud.querySelector('.near')!);
@@ -167,13 +159,6 @@ export function mountHud() {
   render();
 }
 
-let vehicleTimer = 0;
-function setVehicleWarning(hud: HTMLElement) {
-  hud.classList.add('vehicle');
-  window.clearTimeout(vehicleTimer);
-  vehicleTimer = window.setTimeout(() => hud.classList.remove('vehicle'), 6000);
-}
-
 function renderTopbar(elm: HTMLElement, s: SaveData) {
   const d = derivedOf(s);
   const mut = mutationOf(s);
@@ -191,14 +176,6 @@ function renderTopbar(elm: HTMLElement, s: SaveData) {
       <label>EXP</label>${bar(s.exp, next, 'exp')}<small>${Number.isFinite(next) ? Math.floor((s.exp / next) * 100) + '%' : 'MAX'}</small>
     </div>
     <div class="gold">🪙 ${s.gold.toLocaleString()}</div>`;
-}
-
-function renderWalkButton(btn: HTMLElement) {
-  const s = store.s;
-  btn.classList.toggle('active', walk.active);
-  btn.innerHTML = walk.active
-    ? `<b>■ หยุดเดิน</b><small>${walk.sessionSteps.toLocaleString()} ก้าว · ${(walk.sessionMeters / 1000).toFixed(2)} กม.</small>`
-    : `<b>▶ เริ่มเดิน</b><small>วันนี้ ${s.stepsToday.toLocaleString()} ก้าว</small>`;
 }
 
 function fmtWait(ms: number): string {
@@ -387,7 +364,6 @@ function charPanel(s: SaveData): string {
     </div>
     <h3>สถิติ</h3>
     <div class="grid2">
-      <span>ก้าวทั้งหมด</span><b>${s.totalSteps.toLocaleString()}</b><span>ระยะทาง</span><b>${(s.totalMeters / 1000).toFixed(1)} กม.</b>
       <span>ชนะ</span><b>${s.stats.battlesWon}</b><span>บอส</span><b>${s.stats.bossesKilled}</b>
     </div>
     ${s.level < CLASS_CHANGE_LEVEL && s.classId === 'NOVICE' ? `<p class="muted">ถึง Lv.${CLASS_CHANGE_LEVEL} แล้วไปสวนสาธารณะใหญ่เพื่อทำบททดสอบอาชีพ</p>` : ''}
@@ -482,7 +458,7 @@ function settingsPanel(): string {
   return `<h2>⚙️ ตั้งค่า</h2>
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
-    <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะไม่นับก้าว)</p>
+    <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>
     <p class="muted">ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL)</p>
     <button class="btn danger" data-act="reset">ลบเซฟและเริ่มใหม่</button>`;
 }

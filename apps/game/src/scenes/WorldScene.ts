@@ -96,6 +96,10 @@ export class WorldScene extends Phaser.Scene {
 
   private startBattle(req: BattleRequest) {
     if (this.scene.isActive('Battle')) return;
+    if (walk.tooFast) {
+      toast('เคลื่อนที่เร็วเกินไป (อยู่ในรถ?) — หยุดก่อนแล้วค่อยสู้ ความปลอดภัยมาก่อน!', 'bad');
+      return;
+    }
     walk.paused = true;
     walk.setSimDirection(0, 0);
     this.scene.pause();

@@ -75,9 +75,6 @@ async function start() {
   walk.startLocation();
   if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap } });
   window.setInterval(tickRegen, 15000);
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') void walk.onVisible();
-  });
 }
 
 boot().catch((e) => {

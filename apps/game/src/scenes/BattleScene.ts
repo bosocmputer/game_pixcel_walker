@@ -1,3 +1,8 @@
+/**
+ * Party auto-battle scene (Pockie Ninja style): side-view formation, player party on the left,
+ * monsters on the right. The shared engine resolves one unit turn per step; this scene only
+ * animates the resulting events. Fights are dungeons of 1..N waves.
+ */
 import Phaser from 'phaser';
 import {
   CLASSES,
@@ -5,52 +10,52 @@ import {
   EQUIPMENT,
   MONSTERS,
   SKILLS,
-  TICK,
-  GAUGE_FULL,
-  advance,
-  alive,
-  bossAtkScale,
-  bossHpScale,
-  canUseSkill,
-  command,
-  createBattle,
+  createDungeon,
   createRng,
-  skillMpCost,
-  type Battle,
-  type BattleEvent,
-  type BattleSetup,
-  type Command,
-  type Unit,
+  landmarkWaves,
+  nextWave,
+  runToEnd,
+  step,
+  type CombatEvent,
+  type CombatUnit,
+  type Dungeon,
+  type WaveDef,
 } from '@pw/shared';
 import { monsterCanvas } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { applyBattleOutcome, bossIdFor, changeClass, worldBossHp, type BattleOutcome } from '../game/rules';
-import { derivedOf, mutationOf, store } from '../state/store';
+import { playerSetup } from '../game/party';
+import { store } from '../state/store';
 import { el, esc } from '../ui/dom';
 import { autoHunt } from '../game/autohunt';
 
-const WORLD_BOSS_WINDOW_S = 60;
+/** World boss attack window, in rounds. */
+const WORLD_BOSS_ROUNDS = 20;
+const STEP_MS = 700;
 
 interface UnitView {
   sprite: Phaser.GameObjects.Image;
-  hpBar: Phaser.GameObjects.Graphics;
+  bars: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
   home: { x: number; y: number };
 }
 
+const STATUS_TH: Record<string, string> = {
+  STUN: 'มึน!', FREEZE: 'แข็ง!', POISON: 'ติดพิษ', BURN: 'ติดไฟ', BLEED: 'เลือดไหล', SLOW: 'ช้าลง', TAUNTING: 'ยั่วยุ!', ROOT: 'ถูกรัด!',
+};
+
 export class BattleScene extends Phaser.Scene {
   private req!: BattleRequest;
-  private b!: Battle;
+  private d!: Dungeon;
   private views = new Map<string, UnitView>();
   private eventIndex = 0;
-  private acc = 0;
+  private waitUntil = 0;
   private speed = 2;
-  private auto = false;
-  private targetId: string | null = null;
-  private panel!: HTMLElement;
   private finished = false;
   private worldBossStartHp = 0;
-  private targetMarker!: Phaser.GameObjects.Text;
+  private panel!: HTMLElement;
+  private header!: Phaser.GameObjects.Text;
+  private banner!: Phaser.GameObjects.Text;
 
   constructor() {
     super('Battle');
@@ -60,38 +65,55 @@ export class BattleScene extends Phaser.Scene {
     this.req = req;
     this.views.clear();
     this.eventIndex = 0;
-    this.acc = 0;
+    this.waitUntil = 0;
     this.finished = false;
-    this.targetId = null;
     this.worldBossStartHp = 0;
-    this.lastPanelKey = '';
-    this.auto = req.auto || localStorage.getItem('pw.auto') === '1';
-    this.speed = req.auto ? 4 : 2;
+    this.lastPanel = '';
+    this.speed = req.auto ? 4 : Number(localStorage.getItem('pw.battleSpeed') ?? 2);
   }
 
   create() {
-    const setup = this.buildSetup();
-    const seed = (Math.random() * 2 ** 31) | 0;
-    this.b = createBattle(setup, seed);
+    const s = store.s;
+    let waves: WaveDef[] = [{ monsterIds: this.req.monsterIds }];
+    let bossHp: number | undefined;
+    let maxRounds: number | undefined;
+    let rollModifiers = false;
+    if (this.req.kind === 'BOSS' && this.req.landmark) {
+      const bossId = bossIdFor(this.req.landmark)!;
+      if (MONSTERS[bossId]?.boss?.worldBoss) {
+        this.worldBossStartHp = worldBossHp(this.req.landmark, s);
+        bossHp = this.worldBossStartHp;
+        maxRounds = WORLD_BOSS_ROUNDS;
+        waves = [{ monsterIds: [bossId], boss: true }];
+      } else {
+        waves = landmarkWaves(bossId);
+        rollModifiers = true;
+      }
+    }
+    if (this.req.kind === 'TRIAL') waves = [{ monsterIds: ['soi_dog_spirit', 'alley_rat'] }];
+
+    const items: Record<string, number> = {};
+    if (s.bag.red_potion) items.red_potion = s.bag.red_potion;
+    this.d = createDungeon({
+      party: [playerSetup(s)],
+      waves,
+      seed: (Math.random() * 2 ** 31) | 0,
+      items,
+      rollModifiers,
+      bossHp,
+      maxRounds,
+    });
 
     const { width, height } = this.scale;
     const g = this.add.graphics();
-    g.fillGradientStyle(0x1b1f2a, 0x1b1f2a, 0x2b3a67, 0x2b3a67, 1);
-    g.fillRect(0, 0, width, height);
-    g.fillStyle(0x3a4f7a, 1).fillRect(0, height * 0.42, width, height * 0.3);
-    for (let i = 0; i < 40; i++) {
-      g.fillStyle(0x4a6090, 1).fillRect(Math.random() * width, height * 0.42 + Math.random() * height * 0.3, 4, 4);
-    }
+    g.fillGradientStyle(0x2b3a67, 0x2b3a67, 0x1b1f2a, 0x1b1f2a, 1).fillRect(0, 0, width, height * 0.5);
+    g.fillStyle(0x3d5a3a, 1).fillRect(0, height * 0.5, width, height * 0.5);
+    for (let i = 0; i < 60; i++) g.fillStyle(0x4a6b45, 1).fillRect(Math.random() * width, height * 0.5 + Math.random() * height * 0.5, 4, 3);
 
-    this.layoutUnits();
-    this.targetMarker = this.add.text(0, 0, '▼', { fontFamily: 'Silkscreen', fontSize: '20px', color: '#FFA726', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(20);
-    this.tweens.add({ targets: this.targetMarker, alpha: 0.4, yoyo: true, repeat: -1, duration: 400 });
+    this.header = this.add.text(width / 2, 12, '', { fontFamily: 'Mali', fontSize: '15px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5, 0).setDepth(50);
+    this.banner = this.add.text(width / 2, height * 0.3, '', { fontFamily: 'Mali', fontSize: '22px', color: '#ffd54f', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: width - 40 } }).setOrigin(0.5).setDepth(60).setAlpha(0);
 
-    const title =
-      this.req.kind === 'BOSS' ? `⚔️ บอส: ${this.b.units.find((u) => u.isBoss)?.name ?? ''}` :
-      this.req.kind === 'TRIAL' ? `🏛️ บททดสอบอาชีพ ${CLASSES[this.req.trialClass!].nameTh}` : '⚔️ เผชิญหน้ามอนสเตอร์!';
-    this.add.text(width / 2, 18, title, { fontFamily: 'Mali', fontSize: '18px', color: '#fff', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 0);
-
+    this.layout();
     this.panel = el(`<div class="battle-panel"></div>`);
     document.getElementById('ui')!.appendChild(this.panel);
     document.body.classList.add('in-battle');
@@ -102,349 +124,326 @@ export class BattleScene extends Phaser.Scene {
     this.renderPanel();
   }
 
-  private buildSetup(): BattleSetup {
-    const s = store.s;
-    const derived = derivedOf(s);
-    const items: Record<string, number> = {};
-    for (const id of ['red_potion', 'blue_elixir']) if (s.bag[id]) items[id] = s.bag[id]!;
+  // -------------------------------------------------------------------------------------------
+  // Layout: side view, two rows per side
 
-    let enemies: BattleSetup['enemies'] = this.req.monsterIds.map((monsterId) => ({ monsterId }));
-    if (this.req.kind === 'BOSS' && this.req.landmark) {
-      const bossId = bossIdFor(this.req.landmark)!;
-      const def = MONSTERS[bossId]!;
-      if (def.boss?.worldBoss) {
-        this.worldBossStartHp = worldBossHp(this.req.landmark, s);
-        enemies = [{ monsterId: bossId, hp: this.worldBossStartHp }];
-      } else {
-        enemies = [{ monsterId: bossId, hpScale: bossHpScale(bossId, 1), atkScale: bossAtkScale(bossId, 1) }];
+  private layout() {
+    const { width, height } = this.scale;
+    const units = this.d.combat.units;
+    const scale = Math.max(3, Math.min(5, Math.floor(width / 120)));
+    for (const side of ['A', 'B'] as const) {
+      for (const row of ['FRONT', 'BACK'] as const) {
+        const group = units.filter((u) => u.side === side && u.row === row);
+        const colX = side === 'A' ? (row === 'FRONT' ? 0.34 : 0.16) : row === 'FRONT' ? 0.66 : 0.84;
+        group.forEach((u, i) => {
+          const y = height * (0.44 + ((i + 0.5) / Math.max(group.length, 1)) * 0.22 - 0.11 + (row === 'BACK' ? -0.02 : 0));
+          const x = width * colX + (i % 2 ? (side === 'A' ? -14 : 14) : 0);
+          let v = this.views.get(u.id);
+          if (!v) v = this.addView(u, u.isBoss ? scale + 2 : scale);
+          v.home = { x, y };
+          if (u.hp > 0) v.sprite.setPosition(x, y).setAlpha(1);
+          v.label.setPosition(x, y + 4);
+        });
       }
     }
-    if (this.req.kind === 'TRIAL') enemies = [{ monsterId: 'soi_dog_spirit' }, { monsterId: 'alley_rat' }];
-
-    return {
-      players: [
-        {
-          id: 'me',
-          name: s.name,
-          sprite: 'hero',
-          level: s.level,
-          classId: s.classId,
-          mutation: mutationOf(s),
-          derived,
-          hp: s.hp,
-          mp: s.mp,
-          controller: this.auto ? 'AUTO' : 'MANUAL',
-        },
-      ],
-      enemies,
-      items,
-      canFlee: this.req.kind === 'FIELD',
-    };
+    this.drawBars();
   }
 
-  private layoutUnits() {
-    const { width, height } = this.scale;
-    const enemies = this.b.units.filter((u) => u.side === 'ENEMY');
-    const scale = Math.max(3, Math.min(6, Math.floor(width / 110)));
-    enemies.forEach((u, i) => {
-      if (!this.views.has(u.id)) this.addView(u, 0, 0, u.isBoss ? scale + 2 : scale);
-      const n = enemies.length;
-      const x = (width * (i + 1)) / (n + 1);
-      const y = height * (u.isBoss ? 0.36 : n > 3 && i % 2 ? 0.3 : 0.38);
-      const v = this.views.get(u.id)!;
-      v.home = { x, y };
-      if (alive(u)) v.sprite.setPosition(x, y);
-    });
-    const me = this.b.units.find((u) => u.side === 'PLAYER')!;
-    if (!this.views.has(me.id)) this.addView(me, 0, 0, scale);
-    const v = this.views.get(me.id)!;
-    v.home = { x: width / 2, y: height * 0.62 };
-    v.sprite.setPosition(v.home.x, v.home.y);
-    for (const [, view] of this.views) this.drawBar(view, this.b.units.find((u) => this.views.get(u.id) === view)!);
-  }
-
-  private addView(u: Unit, x: number, y: number, scale: number) {
+  private addView(u: CombatUnit, scale: number): UnitView {
     let key: string;
-    if (u.side === 'PLAYER') {
-      key = (this.scene.get('World').registry.get('heroKey') as string) ?? 'hero';
+    if (u.side === 'A') {
+      const down = (this.scene.get('World').registry.get('heroKey') as string) ?? 'hero';
+      key = down.replace(/_down_0$/, '_side_0');
+      if (!this.textures.exists(key)) key = down;
     } else {
       key = `mob_${u.sprite}`;
       if (!this.textures.exists(key)) this.textures.addCanvas(key, monsterCanvas(u.sprite));
     }
-    const sprite = this.add.image(x, y, key).setScale(scale).setOrigin(0.5, 1).setDepth(10);
-    if (u.side === 'ENEMY') {
-      sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
-        if (alive(u)) this.targetId = u.id;
-      });
-    }
+    const sprite = this.add.image(0, 0, key).setScale(scale).setOrigin(0.5, 1).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add
-      .text(x, y, `${u.name} Lv.${u.level}`, { fontFamily: 'Mali', fontSize: '12px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+      .text(0, 0, `${u.name} Lv.${u.level}`, { fontFamily: 'Mali', fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0)
       .setDepth(11);
-    const hpBar = this.add.graphics().setDepth(11);
-    this.views.set(u.id, { sprite, label, hpBar, home: { x, y } });
+    const bars = this.add.graphics().setDepth(11);
+    const v = { sprite, label, bars, home: { x: 0, y: 0 } };
+    this.views.set(u.id, v);
+    return v;
   }
 
-  private drawBar(v: UnitView, u: Unit) {
-    const w = Math.max(60, v.sprite.displayWidth * 0.9);
-    const x = v.sprite.x - w / 2;
-    const y = v.sprite.y + 4;
-    v.label.setPosition(v.sprite.x, y + 10);
-    v.hpBar.clear();
-    if (!alive(u)) return;
-    v.hpBar.fillStyle(0x000000, 0.6).fillRect(x - 1, y - 1, w + 2, 8);
-    const pct = u.hp / u.base.maxHp;
-    v.hpBar.fillStyle(pct > 0.5 ? 0x66bb6a : pct > 0.25 ? 0xffa726 : 0xef5350, 1).fillRect(x, y, w * pct, 6);
-    if (u.side === 'PLAYER') {
-      v.hpBar.fillStyle(0x000000, 0.6).fillRect(x - 1, y + 28, w + 2, 6);
-      v.hpBar.fillStyle(0x26c6da, 1).fillRect(x, y + 29, (w * Math.min(u.gauge, GAUGE_FULL)) / GAUGE_FULL, 4);
-    }
-  }
-
-  update(_t: number, delta: number) {
-    if (this.finished) return;
-    const b = this.b;
-
-    if (b.result === 'ONGOING' && !b.awaiting) {
-      this.acc += delta * this.speed;
-      const ticks = Math.floor(this.acc / (TICK * 1000));
-      if (ticks > 0) {
-        this.acc -= ticks * TICK * 1000;
-        advance(b, ticks);
-      }
-      if (this.worldBossStartHp && b.tick * TICK >= WORLD_BOSS_WINDOW_S && b.result === 'ONGOING') {
-        this.finish('RETREAT');
-        return;
-      }
-    }
-
-    this.consumeEvents();
-    this.layoutIfSummoned();
-    for (const u of b.units) {
+  private drawBars() {
+    for (const u of this.d.combat.units) {
       const v = this.views.get(u.id);
-      if (v) this.drawBar(v, u);
+      if (!v) continue;
+      v.bars.clear();
+      if (u.hp <= 0) continue;
+      const w = Math.max(50, v.sprite.displayWidth * 0.9);
+      const x = v.home.x - w / 2;
+      const y = v.home.y + 18;
+      v.bars.fillStyle(0x000000, 0.6).fillRect(x - 1, y - 1, w + 2, 7);
+      const pct = u.hp / u.base.maxHp;
+      v.bars.fillStyle(pct > 0.5 ? 0x66bb6a : pct > 0.25 ? 0xffa726 : 0xef5350, 1).fillRect(x, y, w * pct, 5);
+      if (u.shield) v.bars.fillStyle(0x80deea, 1).fillRect(x, y - 3, Math.min(w, (w * u.shield.amount) / u.base.maxHp), 2);
     }
+  }
 
-    const foes = b.units.filter((u) => u.side === 'ENEMY' && alive(u));
-    if (!this.targetId || !foes.some((f) => f.id === this.targetId)) this.targetId = foes[0]?.id ?? null;
-    const tv = this.targetId ? this.views.get(this.targetId) : undefined;
-    this.targetMarker.setVisible(!!tv);
-    if (tv) this.targetMarker.setPosition(tv.sprite.x, tv.sprite.y - tv.sprite.displayHeight - 12);
+  // -------------------------------------------------------------------------------------------
+  // Loop: one engine step, animate its events, wait, repeat
 
-    if (b.awaiting && this.auto) {
-      const u = b.units.find((x) => x.id === b.awaiting)!;
-      u.controller = 'AUTO';
-      b.awaiting = null;
+  update(time: number) {
+    if (this.finished || time < this.waitUntil) return;
+    const c = this.d.combat;
+    if (c.result === 'ONGOING') {
+      step(c);
+    } else if (nextWave(this.d)) {
+      for (const [id, v] of this.views) {
+        if (id === 'me') continue;
+        v.sprite.destroy();
+        v.label.destroy();
+        v.bars.destroy();
+        this.views.delete(id);
+      }
+      this.eventIndex = 0;
+      this.layout();
+    } else {
+      this.finish(false);
+      return;
     }
+    const busy = this.animateNew();
+    this.waitUntil = time + (busy ? STEP_MS : 120) / this.speed;
+    this.updateHeader();
     this.renderPanel();
-
-    if (b.result !== 'ONGOING' && this.eventIndex >= b.events.length) this.finish(b.result);
   }
 
-  private layoutIfSummoned() {
-    if (this.b.units.some((u) => !this.views.has(u.id))) this.layoutUnits();
+  private updateHeader() {
+    const c = this.d.combat;
+    const mod = this.d.modifiers[this.d.wave];
+    const wave = this.d.waves.length > 1 ? `เวฟ ${this.d.wave + 1}/${this.d.waves.length} · ` : '';
+    const title = this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}` : this.req.kind === 'BOSS' ? '⚔️ ดันเจี้ยนบอส' : '⚔️ ต่อสู้';
+    const limit = this.worldBossStartHp ? ` / ${WORLD_BOSS_ROUNDS}` : '';
+    this.header.setText(`${title}\n${wave}รอบ ${c.round}${limit}${mod && mod.id !== 'calm' ? `\n🌐 ${mod.nameTh}` : ''}`);
   }
 
-  private consumeEvents() {
-    const evs = this.b.events;
-    while (this.eventIndex < evs.length) this.animate(evs[this.eventIndex++]!);
+  private showBanner(text: string, color = '#ffd54f') {
+    this.banner.setText(text).setColor(color).setAlpha(1).setScale(0.8);
+    this.tweens.killTweensOf(this.banner);
+    this.tweens.add({ targets: this.banner, scale: 1, duration: 200 });
+    this.tweens.add({ targets: this.banner, alpha: 0, delay: 1100 / this.speed, duration: 400 });
   }
 
-  private popup(unitId: string, text: string, color: string, big = false) {
+  private popup(unitId: string, text: string, color: string, big = false, delay = 0, yOff = 0) {
     const v = this.views.get(unitId);
     if (!v) return;
-    const t = this.add
-      .text(v.sprite.x + Phaser.Math.Between(-16, 16), v.sprite.y - v.sprite.displayHeight * 0.6, text, {
-        fontFamily: 'Silkscreen',
-        fontSize: big ? '26px' : '18px',
-        color,
-        stroke: '#000',
-        strokeThickness: 4,
-      })
-      .setOrigin(0.5)
-      .setDepth(30);
-    this.tweens.add({ targets: t, y: t.y - 40, alpha: 0, duration: 900, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+    this.time.delayedCall(delay, () => {
+      const t = this.add
+        .text(v.home.x + Phaser.Math.Between(-14, 14), v.home.y - v.sprite.displayHeight * 0.7 + yOff, text, {
+          fontFamily: 'Silkscreen', fontSize: big ? '22px' : '15px', color, stroke: '#000', strokeThickness: 4,
+        })
+        .setOrigin(0.5)
+        .setDepth(30);
+      this.tweens.add({ targets: t, y: t.y - 36, alpha: 0, duration: 900, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
+    });
   }
 
-  private animate(e: BattleEvent) {
+  /** Animates events appended since the last call. Returns true if anything visible happened. */
+  private animateNew(): boolean {
+    const evs = this.d.combat.events;
+    let visible = false;
+    let delay = 0;
+    const gap = 110 / this.speed;
+    while (this.eventIndex < evs.length) {
+      const e = evs[this.eventIndex++]!;
+      if (e.type !== 'TURN' && e.type !== 'ROUND') visible = true;
+      this.animate(e, delay);
+      if (e.type === 'DAMAGE' || e.type === 'MISS' || e.type === 'HEAL') delay += gap;
+    }
+    this.time.delayedCall(delay + 50, () => this.drawBars());
+    return visible;
+  }
+
+  private animate(e: CombatEvent, delay: number) {
     switch (e.type) {
-      case 'ACT': {
+      case 'WAVE':
+        this.showBanner(`เวฟ ${e.wave}/${e.total}${e.modifier ? `\n${e.modifier}` : ''}`);
+        break;
+      case 'SKILL': {
         const v = this.views.get(e.unit);
-        if (!v) break;
-        const dir = this.b.units.find((u) => u.id === e.unit)?.side === 'PLAYER' ? -1 : 1;
-        this.tweens.add({ targets: v.sprite, y: v.home.y + dir * 14, yoyo: true, duration: 110 });
+        const u = this.d.combat.units.find((x) => x.id === e.unit);
+        if (!v || !u) break;
+        const dir = u.side === 'A' ? 1 : -1;
+        const offensive = e.targets.some((t) => t !== e.unit && this.d.combat.units.find((x) => x.id === t)?.side !== u.side);
+        if (offensive) this.tweens.add({ targets: v.sprite, x: v.home.x + dir * 36, yoyo: true, duration: 120 / this.speed });
         const skill = SKILLS[e.skill];
-        if (skill && skill.id !== 'basic_attack') this.popup(e.unit, skill.nameTh, '#FFA726');
-        if (e.skill.startsWith('item:')) this.popup(e.unit, CONSUMABLES[e.skill.slice(5)]?.nameTh ?? 'ไอเทม', '#80deea');
-        const bossSkill = MONSTERS[this.b.units.find((u) => u.id === e.unit)?.monsterId ?? '']?.boss?.skills.find((s) => s.id === e.skill);
-        if (bossSkill) {
+        const bossUlt = u.monsterId ? MONSTERS[u.monsterId]?.boss?.skills.find((s) => s.id === e.skill) : undefined;
+        if (bossUlt) {
           this.cameras.main.shake(250, 0.01);
-          this.popup(e.unit, bossSkill.nameTh + '!', '#ff5252', true);
+          this.showBanner(`${u.name}\n${bossUlt.nameTh}!`, '#ff6b6b');
+        } else if (skill && skill.id !== 'basic_attack') {
+          const tag = e.reactive === 'ASSIST' ? '⚡ ' : e.reactive === 'COUNTER' ? '↩ ' : e.reactive ? '✦ ' : '';
+          // Skill names float above the sprite so they don't collide with damage/heal numbers.
+          this.popup(e.unit, `${tag}${skill.nameTh}`, '#ffa726', false, 0, -v.sprite.displayHeight * 0.45);
         }
         break;
       }
       case 'DAMAGE': {
-        this.popup(e.target, `${e.amount}${e.crit ? '!' : ''}`, e.crit ? '#ffeb3b' : '#ffffff', e.crit);
+        this.popup(e.target, `${e.amount}${e.crit ? '!' : ''}${e.block ? '🛡' : ''}`, e.crit ? '#ffeb3b' : '#ffffff', e.crit, delay);
         const v = this.views.get(e.target);
         if (v) {
-          v.sprite.setTintFill(0xffffff);
-          this.time.delayedCall(80, () => v.sprite.clearTint());
+          this.time.delayedCall(delay, () => {
+            v.sprite.setTintFill(0xffffff);
+            this.time.delayedCall(70, () => v.sprite.clearTint());
+          });
         }
         break;
       }
       case 'MISS':
-        this.popup(e.target, 'MISS', '#b0bec5');
+        this.popup(e.target, 'MISS', '#b0bec5', false, delay);
         break;
       case 'HEAL':
-        this.popup(e.target, `+${e.amount}`, '#69f0ae');
+        this.popup(e.target, `+${e.amount}`, '#69f0ae', false, delay);
         break;
-      case 'DOT':
+      case 'TICK':
         this.popup(e.target, `${e.amount}`, e.status === 'POISON' ? '#b388ff' : '#ff8a65');
         break;
       case 'STATUS':
-        this.popup(e.target, STATUS_TH[e.status] ?? e.status, '#ffd54f');
+        this.popup(e.target, STATUS_TH[e.status] ?? e.status, '#ffd54f', false, delay);
+        break;
+      case 'SKIP':
+        this.popup(e.unit, STATUS_TH[e.reason] ?? 'ข้ามเทิร์น', '#90caf9');
         break;
       case 'SHIELD':
-        this.popup(e.unit, 'IRON WALL', '#4dabf7', true);
+        this.popup(e.target, '🛡 SHIELD', '#80deea');
         break;
-      case 'BLOCK':
+      case 'BUFF':
+        this.popup(e.target, `${String(e.stat).toUpperCase()} ▲`, '#a5d6a7');
+        break;
+      case 'COVER':
+        this.popup(e.unit, '🛡 COVER', '#4dabf7', true);
+        break;
+      case 'ITEM':
+        this.popup(e.unit, `${CONSUMABLES[e.item]?.nameTh ?? 'ยา'} +${e.amount}`, '#80deea');
+        break;
+      case 'RECOVER':
+        this.popup(e.unit, `+${e.amount}`, '#69f0ae');
+        break;
+      case 'BLOCK_ULT':
         this.popup(e.unit, 'BLOCK!', '#4dabf7', true);
         break;
       case 'MIRACLE':
         this.popup(e.unit, 'MIRACLE!', '#ffd43b', true);
         break;
+      case 'PHASE':
+        this.cameras.main.flash(300, 255, 80, 80);
+        this.showBanner(e.message, '#ff8a80');
+        break;
+      case 'ENRAGE':
+        this.showBanner('⚠️ บอสคลั่ง! (Enrage)', '#ff5252');
+        break;
+      case 'SUMMON':
+        this.layout();
+        break;
       case 'DEATH': {
         const v = this.views.get(e.unit);
-        if (v) this.tweens.add({ targets: [v.sprite, v.label], alpha: 0, duration: 400 });
+        if (v) this.time.delayedCall(delay, () => this.tweens.add({ targets: [v.sprite, v.label], alpha: 0, duration: 350 }));
         break;
       }
-      case 'FLEE':
-        toast(e.success ? 'หนีสำเร็จ!' : 'หนีไม่พ้น!', e.success ? 'info' : 'bad');
-        break;
       default:
         break;
     }
   }
 
   // -------------------------------------------------------------------------------------------
-  // DOM command panel
+  // DOM panel: deck with launch rates, speed, skip, flee
 
-  private lastPanelKey = '';
+  private lastPanel = '';
 
   private renderPanel() {
-    const b = this.b;
-    const me = b.units.find((u) => u.side === 'PLAYER')!;
-    const waiting = b.awaiting === me.id;
-    const key = JSON.stringify([
-      waiting, this.auto, this.speed, Math.round(me.hp), Math.round(me.mp), b.items,
-      Object.values(me.cooldowns).map((c) => Math.ceil(c)), b.itemCooldown > 0, b.result,
-    ]);
-    if (key === this.lastPanelKey) return;
-    this.lastPanelKey = key;
-
-    const skills = me.skills.map((id) => {
+    const me = this.d.combat.units.find((u) => u.id === 'me');
+    if (!me) return;
+    const deck = me.deck.map((id) => {
       const sk = SKILLS[id]!;
-      const cd = Math.ceil(me.cooldowns[id] ?? 0);
-      const ok = waiting && canUseSkill(me, id);
-      const cost = skillMpCost(me, sk);
-      return `<button class="btn skill" data-skill="${id}" ${ok ? '' : 'disabled'}>
-        <b>${esc(sk.nameTh)}</b><small>${cost ? `${cost} MP` : 'ฟรี'}${cd ? ` · ${cd}s` : ''}</small></button>`;
+      const cd = Math.max(0, (me.cooldowns[id] ?? 0) - 1);
+      return `<div class="deck-slot ${sk.kind === 'REACTIVE' ? 'reactive' : ''} ${cd ? 'cd' : ''}">
+        <b>${esc(sk.nameTh)}</b><small>${sk.rate}%${cd ? ` · CD ${cd}` : ''}</small></div>`;
     });
-    const items = Object.entries(b.items)
-      .filter(([, n]) => n > 0)
-      .map(([id, n]) => `<button class="btn item" data-item="${id}" ${waiting && b.itemCooldown <= 0 ? '' : 'disabled'}>
-        ${esc(CONSUMABLES[id]?.nameTh ?? id)} ×${n}</button>`);
-
-    this.panel.innerHTML = `
+    const html = `
       <div class="battle-vitals">
-        <span class="hp">HP ${Math.round(me.hp)}/${me.base.maxHp}</span>
-        <span class="mp">MP ${Math.round(me.mp)}/${me.base.maxMp}</span>
-        ${this.worldBossStartHp ? `<span class="timer">⏱ ${Math.max(0, Math.ceil(WORLD_BOSS_WINDOW_S - b.tick * TICK))}s</span>` : ''}
+        <span class="hp">HP ${Math.max(0, Math.round(me.hp))}/${Math.round(me.base.maxHp)}</span>
+        <span class="mp">MP ${Math.round(me.mp)}/${Math.round(me.base.maxMp)}</span>
+        <span class="pot">ยา ${this.d.combat.items.red_potion ?? 0}</span>
         <span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button>
-        <button class="chip ${this.auto ? 'on' : ''}" data-act="auto">AUTO</button>
+        <button class="chip" data-act="skip">⏭ ข้าม</button>
+        ${this.req.kind === 'FIELD' && !this.req.auto ? '<button class="chip" data-act="flee">หนี</button>' : ''}
       </div>
-      <div class="battle-cmds ${waiting ? 'ready' : ''}">
-        ${skills.join('')}
-        ${items.join('')}
-        ${b.canFlee ? `<button class="btn flee" data-act="flee" ${waiting ? '' : 'disabled'}>หนี</button>` : ''}
-      </div>
-      <div class="battle-hint">${waiting ? 'เลือกคำสั่ง (แตะมอนสเตอร์เพื่อเลือกเป้า)' : this.auto ? 'ต่อสู้อัตโนมัติ…' : 'รอเกจ ATB…'}</div>`;
-
-    this.panel.querySelectorAll<HTMLButtonElement>('[data-skill]').forEach((btn) =>
-      btn.addEventListener('click', () => this.send({ type: 'SKILL', unitId: me.id, skillId: btn.dataset.skill!, targetId: this.targetId ?? undefined })),
-    );
-    this.panel.querySelectorAll<HTMLButtonElement>('[data-item]').forEach((btn) =>
-      btn.addEventListener('click', () => this.send({ type: 'ITEM', unitId: me.id, itemId: btn.dataset.item! })),
-    );
-    this.panel.querySelector('[data-act="flee"]')?.addEventListener('click', () => this.send({ type: 'FLEE', unitId: me.id }));
-    this.panel.querySelector('[data-act="auto"]')?.addEventListener('click', () => {
-      this.auto = !this.auto;
-      localStorage.setItem('pw.auto', this.auto ? '1' : '0');
-      me.controller = this.auto ? 'AUTO' : 'MANUAL';
-      this.lastPanelKey = '';
-    });
+      <div class="deck-row">${deck.join('') || '<small>ยังไม่มีสกิลในชุด — ใช้โจมตีธรรมดา</small>'}</div>
+      <div class="battle-hint">ต่อสู้อัตโนมัติ · ระบบสุ่มใช้สกิลจากชุดตาม % ทุกเทิร์น</div>`;
+    if (html === this.lastPanel) return;
+    this.lastPanel = html;
+    this.panel.innerHTML = html;
     this.panel.querySelector('[data-act="speed"]')?.addEventListener('click', () => {
       this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
-      this.lastPanelKey = '';
+      localStorage.setItem('pw.battleSpeed', String(this.speed));
+      this.lastPanel = '';
+      this.renderPanel();
     });
+    this.panel.querySelector('[data-act="skip"]')?.addEventListener('click', () => this.skipToEnd());
+    this.panel.querySelector('[data-act="flee"]')?.addEventListener('click', () => this.finish(true));
   }
 
-  private send(cmd: Command) {
-    try {
-      command(this.b, cmd);
-    } catch (err) {
-      toast((err as Error).message, 'bad');
-    }
-    this.lastPanelKey = '';
+  private skipToEnd() {
+    if (this.finished) return;
+    do runToEnd(this.d.combat);
+    while (nextWave(this.d));
+    this.eventIndex = this.d.combat.events.length;
+    this.finish(false);
   }
 
   // -------------------------------------------------------------------------------------------
   // End
 
-  private finish(result: Battle['result'] | 'RETREAT') {
+  private finish(fled: boolean) {
     if (this.finished) return;
     this.finished = true;
-    const b = this.b;
-    const me = b.units.find((u) => u.side === 'PLAYER')!;
-    const boss = b.units.find((u) => u.isBoss);
-    const defeated = b.units.filter((u) => u.side === 'ENEMY' && !alive(u) && u.monsterId).map((u) => u.monsterId!);
+    const c = this.d.combat;
+    const me = c.units.find((u) => u.id === 'me');
+    const boss = c.units.find((u) => u.isBoss);
+    const windowOver = !!this.worldBossStartHp && c.result === 'LOSE' && (me?.hp ?? 0) > 0;
+    const result = fled || windowOver ? 'FLED' : this.d.result === 'WIN' ? 'WIN' : 'LOSE';
 
     const outcome = applyBattleOutcome({
-      result: result === 'RETREAT' ? 'FLED' : result,
-      defeated,
-      hp: me.hp,
-      mp: me.mp,
-      itemsLeft: b.items,
-      rng: createRng(b.seed ^ 0x9e3779b9),
+      result,
+      defeated: this.d.defeated,
+      hp: me?.hp ?? 0,
+      mp: me?.mp ?? 0,
+      itemsLeft: { ...store.s.bag, red_potion: c.items.red_potion ?? 0 },
+      rng: createRng(this.d.seed ^ 0x9e3779b9),
       landmark: this.req.landmark,
       kind: this.req.kind,
       spawn: this.req.spawn,
-      worldBoss: this.worldBossStartHp && boss
-        ? { remainingHp: Math.max(0, Math.round(boss.hp)), damage: Math.round(this.worldBossStartHp - boss.hp), maxHp: boss.base.maxHp }
-        : undefined,
+      worldBoss:
+        this.worldBossStartHp && boss
+          ? { remainingHp: Math.max(0, Math.round(boss.hp)), damage: Math.round(this.worldBossStartHp - boss.hp), maxHp: boss.base.maxHp }
+          : undefined,
     });
 
     if (this.req.kind === 'TRIAL' && result === 'WIN' && this.req.trialClass) {
       changeClass(this.req.trialClass);
       toast(`ยินดีด้วย! คุณคือ ${CLASSES[this.req.trialClass].nameTh} แล้ว`, 'good');
     }
-    this.showResult(outcome, result === 'RETREAT');
+    this.showResult(outcome, windowOver);
   }
 
   private showResult(o: BattleOutcome, retreat: boolean) {
     const knocked = !retreat && o.result === 'FLED' && o.worldBossDamage !== undefined;
-    const title = retreat ? '⏱ หมดเวลาโจมตี' : knocked ? '💫 ถูกตีกระเด็นออกมา!' : o.result === 'WIN' ? '🏆 ชนะ!' : o.result === 'LOSE' ? '💀 พ่ายแพ้…' : '🏃 หนีสำเร็จ';
-    const items = Object.entries(o.loot.items)
-      .map(([id, n]) => `<li>${esc(itemName(id))} ×${n}</li>`)
-      .join('');
+    const title = retreat ? '⏱ หมดเวลาโจมตี' : knocked ? '💫 ถูกตีกระเด็นออกมา!' : o.result === 'WIN' ? '🏆 ชนะ!' : o.result === 'LOSE' ? '💀 พ่ายแพ้…' : '🏃 ถอนตัว';
+    const items = Object.entries(o.loot.items).map(([id, n]) => `<li>${esc(itemName(id))} ×${n}</li>`).join('');
     const body =
       o.result === 'WIN'
         ? `<p>+${o.loot.exp.toLocaleString()} EXP · +${o.loot.gold.toLocaleString()} Gold</p>
            ${o.levelsGained ? `<p class="good">เลเวลอัป +${o.levelsGained}!</p>` : ''}
            ${items ? `<ul class="loot">${items}</ul>` : ''}`
         : o.result === 'LOSE'
-          ? `<p class="bad">ชุดเกราะพังทั้งหมด (Durability 0)</p><p class="bad">เสีย ${o.goldLost.toLocaleString()} Gold ที่ถืออยู่</p><p>EXP ไม่ลด — ลองปรับ Build ใหม่ได้เลย!</p>`
+          ? `<p class="bad">ชุดเกราะพังทั้งหมด (Durability 0)</p><p class="bad">เสีย ${o.goldLost.toLocaleString()} Gold ที่ถืออยู่</p><p>EXP ไม่ลด — ลองปรับชุดสกิล/Build ใหม่ได้เลย!</p>`
           : '';
     const wb = o.worldBossDamage ? `<p>สร้างความเสียหายให้บอสโลก ${o.worldBossDamage.toLocaleString()} — HP บอสถูกบันทึกไว้ให้คนต่อไป</p>` : '';
 
@@ -469,15 +468,6 @@ export class BattleScene extends Phaser.Scene {
     if (autoClose) window.setTimeout(close, 1300);
   }
 }
-
-const STATUS_TH: Record<string, string> = {
-  STUN: 'มึน!',
-  SLOW: 'ช้าลง',
-  POISON: 'ติดพิษ',
-  ROOT: 'ถูกรัด!',
-  TAUNT: 'ยั่วยุ',
-  BLEED: 'ไฟลุก',
-};
 
 function itemName(id: string): string {
   return EQUIPMENT[id]?.nameTh ?? CONSUMABLES[id]?.nameTh ?? id;

@@ -12,6 +12,15 @@ export interface ClassDef {
 
 export const CLASS_CHANGE_LEVEL = 10;
 
+/** Ranged/caster classes stand in the back row (lower aggro weight). */
+export const BACK_ROW_CLASSES: ClassId[] = ['SORCERER', 'CLERIC', 'RANGER'];
+
+/** Skills a class can put in its deck: Novice basics + its own kit. */
+export function classSkillPool(classId: ClassId): string[] {
+  const own = CLASSES[classId].skills;
+  return classId === 'NOVICE' ? own : [...CLASSES.NOVICE.skills, ...own];
+}
+
 export const CLASSES: Record<ClassId, ClassDef> = {
   NOVICE: {
     id: 'NOVICE',
@@ -25,7 +34,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'EXP จากมอนสเตอร์ +10% จนถึง Lv.10',
       modifiers: {},
     },
-    skills: ['basic_attack', 'quick_strike', 'first_aid'],
+    skills: ['quick_strike', 'first_aid', 'lucky_dodge'],
   },
   KNIGHT: {
     id: 'KNIGHT',
@@ -39,7 +48,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'DEF +25% และ HP Max +20%',
       modifiers: { pct: { def: 0.25, maxHp: 0.2 } },
     },
-    skills: ['basic_attack', 'shield_bash', 'taunt', 'iron_wall'],
+    skills: ['shield_bash', 'taunt', 'guardian', 'iron_wall'],
   },
   SORCERER: {
     id: 'SORCERER',
@@ -53,7 +62,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'สกิลเวทกว้างขึ้น 30% และร่ายเร็วขึ้น 15%',
       modifiers: {},
     },
-    skills: ['basic_attack', 'fireball', 'chain_lightning', 'mana_shield'],
+    skills: ['fireball', 'chain_lightning', 'frost_nova', 'mana_shield'],
   },
   ASSASSIN: {
     id: 'ASSASSIN',
@@ -67,7 +76,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'Critical Rate +15% และเดินบนแผนที่เร็วขึ้น 20%',
       modifiers: { flat: { crit: 0.15 }, pct: { moveSpeed: 0.2 } },
     },
-    skills: ['basic_attack', 'shadow_step', 'poison_blade', 'evasion_mastery'],
+    skills: ['shadow_step', 'poison_blade', 'shadow_assist', 'evasion_mastery'],
   },
   CLERIC: {
     id: 'CLERIC',
@@ -81,7 +90,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'การรักษา +30% และปาร์ตี้ได้ MDEF +15%',
       modifiers: { pct: { healPower: 0.3, mdef: 0.15 } },
     },
-    skills: ['basic_attack', 'holy_heal', 'blessing_of_light'],
+    skills: ['holy_heal', 'blessing_of_light', 'smite', 'divine_grace'],
   },
   RANGER: {
     id: 'RANGER',
@@ -95,6 +104,6 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'ระยะโจมตี ×2 และมองเห็นจุดเกิดบอสบนแผนที่ไกลขึ้น',
       modifiers: {},
     },
-    skills: ['basic_attack', 'snipe_shot'],
+    skills: ['snipe_shot', 'multi_shot', 'covering_fire', 'hunter_mark'],
   },
 };

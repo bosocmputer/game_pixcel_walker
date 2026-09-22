@@ -3,10 +3,6 @@ import {
   baseStats,
   bossHpScale,
   computeDerived,
-  createBattle,
-  advance,
-  command,
-  replay,
   deathGoldLoss,
   detectMutation,
   expToNext,
@@ -17,7 +13,6 @@ import {
   walkExp,
   walkStatPoints,
   type Stats,
-  type PlayerSetup,
   type GpsFix,
 } from '../index';
 
@@ -130,75 +125,10 @@ describe('economy', () => {
   });
 });
 
-function player(overrides: Partial<PlayerSetup> & { alloc?: Partial<Stats> } = {}): PlayerSetup {
-  const level = overrides.level ?? 12;
-  const classId = overrides.classId ?? 'KNIGHT';
-  const mutation = overrides.mutation ?? null;
-  const derived = computeDerived({
-    level,
-    classId,
-    mutation,
-    stats: totalStats({ ...zero, str: 20, vit: 25, agi: 10, ...(overrides.alloc ?? {}) }),
-    gear: [{ flat: { atk: 45, def: 20 } }],
-  });
-  return { id: 'p1', name: 'Tester', sprite: 'hero', level, classId, mutation, derived, controller: 'AUTO', ...overrides };
-}
-
-describe('combat', () => {
-  it('a Lv.12 geared Knight beats a slime', () => {
-    const b = advance(createBattle({ players: [player()], enemies: [{ monsterId: 'pixel_slime' }] }, 42));
-    expect(b.result).toBe('WIN');
-  });
-
-  it('is deterministic for the same seed', () => {
-    const setup = { players: [player()], enemies: [{ monsterId: 'soi_dog_spirit' }, { monsterId: 'alley_rat' }] };
-    const a = advance(createBattle(setup, 7));
-    const b = advance(createBattle(setup, 7));
-    expect(a.events).toEqual(b.events);
-  });
-
-  it('auto battles replay exactly from setup + seed', () => {
-    const setup = {
-      players: [player({ loadout: ['shield_bash', 'taunt'] })],
-      enemies: [{ monsterId: 'alley_rat' }, { monsterId: 'alley_rat' }],
-    };
-    const b = advance(createBattle(setup, 99));
-    const r = replay(setup, 99, []);
-    expect(r.result).toBe(b.result);
-    expect(r.events).toEqual(b.events);
-  });
-
-  it('only rolls skills from the loadout', () => {
-    const b = advance(createBattle({ players: [player({ loadout: ['taunt'] })], enemies: [{ monsterId: 'soi_dog_spirit' }] }, 4));
-    const used = new Set(b.events.filter((e) => e.type === 'ACT' && e.unit === 'p1').map((e) => (e as { skill: string }).skill));
-    expect([...used].every((s) => s === 'taunt' || s === 'basic_attack' || s.startsWith('item:'))).toBe(true);
-  });
-
+describe('boss scaling', () => {
   it('scales non-world boss HP to party size, never world bosses', () => {
     expect(bossHpScale('goblin_king', 1)).toBeCloseTo(1 / 4);
     expect(bossHpScale('goblin_king', 5)).toBe(1);
     expect(bossHpScale('park_treant', 1)).toBe(1);
-  });
-
-  it('Pure Tank blocks the first boss ultimate', () => {
-    const tank = player({
-      level: 22,
-      mutation: 'PURE_TANK',
-      alloc: { vit: 100, str: 5 },
-    });
-    const b = advance(
-      createBattle({ players: [tank], enemies: [{ monsterId: 'goblin_king' }] }, 3),
-    );
-    expect(b.events.some((e) => e.type === 'BLOCK')).toBe(true);
-  });
-
-  it('fleeing a boss always fails', () => {
-    const b = createBattle(
-      { players: [player({ controller: 'MANUAL' })], enemies: [{ monsterId: 'goblin_king' }] },
-      5,
-    );
-    advance(b);
-    command(b, { type: 'FLEE', unitId: 'p1' });
-    expect(b.result).not.toBe('FLED');
   });
 });

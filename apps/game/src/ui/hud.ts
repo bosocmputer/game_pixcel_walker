@@ -9,6 +9,7 @@ import {
   MUTATION_MIN_LEVEL,
   MUTATION_THRESHOLD,
   RARITY_COLOR,
+  SKILLS,
   STAT_KEYS,
   canChangeClass,
   expToNext,
@@ -41,7 +42,7 @@ import {
   worldBossHp,
   worldBossReadyAt,
 } from '../game/rules';
-import { derivedOf, mutationOf, store, type SaveData } from '../state/store';
+import { LOADOUT_SIZE, derivedOf, effectiveLoadout, learnableSkills, mutationOf, store, type SaveData } from '../state/store';
 import { bar, el, esc } from './dom';
 import { showCreator } from './creator';
 import { autoHunt } from '../game/autohunt';
@@ -409,7 +410,28 @@ function charPanel(s: SaveData): string {
       <span>ชนะ</span><b>${s.stats.battlesWon}</b><span>บอส</span><b>${s.stats.bossesKilled}</b>
     </div>
     ${s.level < CLASS_CHANGE_LEVEL && s.classId === 'NOVICE' ? `<p class="muted">ถึง Lv.${CLASS_CHANGE_LEVEL} แล้วไปสวนสาธารณะใหญ่เพื่อทำบททดสอบอาชีพ</p>` : ''}
+    ${deckEditor(s)}
     <button class="btn" data-act="respec">รีเซ็ต Stat (${respecCost(s) ? respecCost(s) + ' Gold' : 'ฟรีก่อน Lv.10'})</button>`;
+}
+
+const TRIGGER_TH: Record<string, string> = {
+  COVER: 'รับแทนเพื่อน', ASSIST: 'ตามตีซ้ำ', COUNTER: 'สวนกลับ', ON_DODGE: 'เมื่อหลบได้', ON_LOW_HP: 'เมื่อ HP ต่ำ', ON_ALLY_DEATH: 'เมื่อเพื่อนตาย',
+};
+
+/** Skill Deck (Pockie Ninja style): up to LOADOUT_SIZE skills rolled by % each turn. */
+function deckEditor(s: SaveData): string {
+  const deck = effectiveLoadout(s);
+  const rows = learnableSkills(s).map((id) => {
+    const sk = SKILLS[id]!;
+    const on = deck.includes(id);
+    const kind = sk.kind === 'REACTIVE' ? `ตอบโต้: ${TRIGGER_TH[sk.trigger ?? ''] ?? ''}` : `CD ${sk.cooldown} · ${sk.mp} MP`;
+    return `<div class="row deck-pick ${on ? 'on' : ''}"><div><b>${esc(sk.nameTh)}</b> <span class="tag">${sk.rate}%</span>
+      <br><small class="muted">${esc(kind)} — ${esc(sk.description)}</small></div><span class="spacer"></span>
+      <button class="mini" data-deck="${id}">${on ? 'เอาออก' : 'ใส่'}</button></div>`;
+  }).join('');
+  return `<h3>ชุดสกิล (Skill Deck) ${deck.length}/${LOADOUT_SIZE}</h3>
+    <p class="muted">ต่อสู้อัตโนมัติ: ทุกเทิร์นระบบทอย % ของแต่ละสกิลตามลำดับความสำคัญ ถ้าไม่ติดเลยจะโจมตีธรรมดา · สกิลตอบโต้ทำงานเมื่อเกิดเหตุการณ์</p>
+    ${rows}`;
 }
 
 function itemLine(id: string, extra = ''): string {
@@ -511,6 +533,15 @@ function wirePanel(body: HTMLElement) {
 
   on('[data-alloc]', (x) => allocate(x.dataset.alloc as StatKey, 1));
   on('[data-alloc5]', (x) => allocate(x.dataset.alloc5 as StatKey, 5));
+  on('[data-deck]', (x) => {
+    const id = x.dataset.deck!;
+    store.update((st) => {
+      const cur = effectiveLoadout(st);
+      if (cur.includes(id)) st.loadout = cur.filter((k) => k !== id);
+      else if (cur.length < LOADOUT_SIZE) st.loadout = [...cur, id];
+      else toast(`ชุดสกิลเต็มแล้ว (สูงสุด ${LOADOUT_SIZE})`, 'bad');
+    });
+  });
   on('[data-act="respec"]', () => {
     if (confirm('คืนแต้ม Stat ทั้งหมด?') && !respec()) toast('Gold ไม่พอ', 'bad');
   });

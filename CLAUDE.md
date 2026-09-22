@@ -12,7 +12,8 @@ where they disagree with MASTER_SPEC, MASTER_SPEC wins. Update MASTER_SPEC when 
 ```
 packages/shared   Game rules + data, pure TypeScript, no DOM. Used by client AND server.
   src/data        classes, skills, mutations, items, monsters — tune numbers here
-  src/rules       progression, stats, combat (ATB), walk validation, loot, economy, rng
+  src/combat      party auto turn-based engine, dungeons (see docs/COMBAT_SPEC.md)
+  src/rules       progression, stats, spawns, walk validation, loot, economy, rng
 apps/game         Phaser 3 + Vite PWA client
 tools/osm         Legacy offline baker (OSM → tilemap for one city); the game streams tiles live now
 tools/artpreview  Renders map/sprite sheets to PNG for reviewing procedural art without a browser

@@ -1,5 +1,5 @@
 import type { Element, LandmarkKind } from '../types';
-import type { StatusId } from './skills';
+import type { CombatStats, Row, StatusId } from '../combat/types';
 
 /** Terrain the encounter table uses, derived from the 8-bit map tile under the player. */
 export type Terrain = 'ROAD' | 'URBAN' | 'GREEN' | 'WATER';
@@ -30,17 +30,21 @@ export interface MonsterDef {
   sprite: string;
   boss?: BossInfo;
   terrain?: Terrain[];
+  /** Skill deck rolled in combat (basic attack is the fallback). */
+  deck?: string[];
+  /** Formation row (default FRONT). */
+  row?: Row;
 }
 
 export interface BossSkill {
   id: string;
   name: string;
   nameTh: string;
-  /** Uses this every N of the boss's own turns. */
+  /** Deterministic ultimate: used on every Nth turn of the boss (unavoidable). */
   everyTurns: number;
   damageScale: number;
   aoe: boolean;
-  status?: { status: StatusId; seconds: number; potency?: number };
+  status?: { status: StatusId; turns: number; potency?: number };
   summons?: { monsterId: string; count: number };
   /** Counts as an ultimate for Pure Tank's block. */
   ultimate?: boolean;
@@ -55,6 +59,22 @@ export interface BossInfo {
   worldBoss?: { durationHours: number };
   recommendedParty: [number, number];
   skills: BossSkill[];
+  /** HP-threshold phase shifts (applied once each, highest threshold first). */
+  phases?: BossPhase[];
+  /** After this many rounds the boss enrages: 100% crit, ×10 ATK (anti-stall). */
+  enrageRound?: number;
+  /** Waves of minions before the boss when fought as a landmark dungeon. */
+  dungeonWaves?: string[][];
+}
+
+export interface BossPhase {
+  hpBelow: number;
+  message: string;
+  statMult?: Partial<Record<keyof CombatStats, number>>;
+  rateBonus?: number;
+  addDeck?: string[];
+  /** Ultimate cadence after the shift (e.g. 4 → 3). */
+  everyTurns?: number;
 }
 
 export const MONSTERS: Record<string, MonsterDef> = {
@@ -69,49 +89,49 @@ export const MONSTERS: Record<string, MonsterDef> = {
     id: 'alley_rat', name: 'Alley Rat', nameTh: 'หนูซอย', level: 3, element: 'NEUTRAL',
     hp: 70, mp: 0, atk: 11, matk: 0, def: 4, mdef: 2, speed: 28, evasion: 0.08,
     exp: 25, gold: [3, 8], drops: [{ itemId: 'red_potion', chance: 0.12 }],
-    sprite: 'mob_rat', terrain: ['ROAD', 'URBAN'],
+    sprite: 'mob_rat', terrain: ['ROAD', 'URBAN'], deck: ['monster_counter'],
   },
   soi_dog_spirit: {
     id: 'soi_dog_spirit', name: 'Soi Dog Spirit', nameTh: 'วิญญาณหมาซอย', level: 6, element: 'SHADOW',
     hp: 160, mp: 0, atk: 22, matk: 0, def: 10, mdef: 6, speed: 30, evasion: 0.1,
     exp: 60, gold: [8, 18], drops: [{ itemId: 'iron_helm', chance: 0.02 }],
-    sprite: 'mob_dog', terrain: ['ROAD', 'URBAN'],
+    sprite: 'mob_dog', terrain: ['ROAD', 'URBAN'], deck: ['shadow_bite'],
   },
   moat_carp: {
     id: 'moat_carp', name: 'Moat Carp', nameTh: 'ปลาคาร์ปคูเมือง', level: 8, element: 'WATER',
     hp: 220, mp: 30, atk: 20, matk: 28, def: 14, mdef: 16, speed: 22, evasion: 0.05,
     exp: 85, gold: [10, 25], drops: [{ itemId: 'blue_elixir', chance: 0.15 }],
-    sprite: 'mob_carp', terrain: ['WATER'],
+    sprite: 'mob_carp', terrain: ['WATER'], deck: ['water_splash'], row: 'BACK',
   },
   leaf_sprite: {
     id: 'leaf_sprite', name: 'Leaf Sprite', nameTh: 'ภูตใบไม้', level: 10, element: 'EARTH',
     hp: 300, mp: 50, atk: 26, matk: 40, def: 18, mdef: 22, speed: 26, evasion: 0.12,
     exp: 120, gold: [14, 30], drops: [{ itemId: 'runner_sneakers', chance: 0.02 }],
-    sprite: 'mob_leaf', terrain: ['GREEN'],
+    sprite: 'mob_leaf', terrain: ['GREEN'], deck: ['monster_counter'], row: 'BACK',
   },
   songthaew_mimic: {
     id: 'songthaew_mimic', name: 'Songthaew Mimic', nameTh: 'รถแดงปีศาจ', level: 14, element: 'NEUTRAL',
     hp: 520, mp: 0, atk: 48, matk: 0, def: 35, mdef: 15, speed: 24, evasion: 0.03,
     exp: 210, gold: [25, 55], drops: [{ itemId: 'pixel_broadsword', chance: 0.015 }],
-    sprite: 'mob_songthaew', terrain: ['ROAD'],
+    sprite: 'mob_songthaew', terrain: ['ROAD'], deck: ['monster_counter'],
   },
   neon_bat: {
     id: 'neon_bat', name: 'Neon Bat', nameTh: 'ค้างคาวนีออน', level: 18, element: 'LIGHTNING',
     hp: 600, mp: 60, atk: 55, matk: 70, def: 30, mdef: 40, speed: 40, evasion: 0.2,
     exp: 300, gold: [35, 70], drops: [{ itemId: 'blue_elixir', chance: 0.2 }],
-    sprite: 'mob_bat', terrain: ['URBAN'],
+    sprite: 'mob_bat', terrain: ['URBAN'], deck: ['shadow_bite'], row: 'BACK',
   },
   ember_lizard: {
     id: 'ember_lizard', name: 'Ember Lizard', nameTh: 'กิ้งก่าถ่านแดง', level: 22, element: 'FIRE',
     hp: 900, mp: 80, atk: 80, matk: 90, def: 55, mdef: 45, speed: 30, evasion: 0.08,
     exp: 420, gold: [50, 100], drops: [{ itemId: 'whetstone', chance: 0.25 }],
-    sprite: 'mob_lizard', terrain: ['ROAD', 'URBAN'],
+    sprite: 'mob_lizard', terrain: ['ROAD', 'URBAN'], deck: ['fire_breath'],
   },
   doi_mist_wraith: {
     id: 'doi_mist_wraith', name: 'Doi Mist Wraith', nameTh: 'วิญญาณหมอกดอย', level: 28, element: 'SHADOW',
     hp: 1300, mp: 150, atk: 95, matk: 140, def: 60, mdef: 90, speed: 34, evasion: 0.15,
     exp: 620, gold: [70, 140], drops: [{ itemId: 'master_repair_kit', chance: 0.05 }],
-    sprite: 'mob_wraith', terrain: ['GREEN'],
+    sprite: 'mob_wraith', terrain: ['GREEN'], deck: ['shadow_bite'], row: 'BACK',
   },
   treant_sapling: {
     id: 'treant_sapling', name: 'Treant Sapling', nameTh: 'ลูกไม้อสูร', level: 26, element: 'EARTH',
@@ -122,6 +142,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
 
   // --- Landmark bosses ---
   goblin_king: {
+    deck: ['monster_counter'],
     id: 'goblin_king', name: 'Convenience Goblin King', nameTh: 'พญาก็อบลินประจำร้านสะดวกซื้อ', level: 10,
     element: 'NEUTRAL', hp: 5000, mp: 200, atk: 120, matk: 60, def: 45, mdef: 30, speed: 24, evasion: 0.05,
     exp: 1500, gold: [500, 1000],
@@ -132,15 +153,19 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: 'boss_goblin_king',
     boss: {
       landmark: 'CONVENIENCE', respawnMinutes: 120, recommendedParty: [1, 3],
+      phases: [{ hpBelow: 0.5, message: 'พญาก็อบลินโกรธจัด! ATK/Speed เพิ่มขึ้น', statMult: { atk: 1.25, speed: 1.2 }, addDeck: ['goblin_frenzy'] }],
+      enrageRound: 25,
+      dungeonWaves: [['alley_rat', 'pixel_slime'], ['soi_dog_spirit', 'alley_rat']],
       skills: [
         { id: 'snack_barrage', name: 'Snack Barrage', nameTh: 'ปาขนมระเบิด', everyTurns: 3,
-          damageScale: 1.3, aoe: true, status: { status: 'SLOW', seconds: 5, potency: 0.5 }, ultimate: true },
+          damageScale: 1.3, aoe: true, status: { status: 'SLOW', turns: 2, potency: 0.4 }, ultimate: true },
       ],
     },
   },
   octane_overlord: {
+    deck: ['monster_counter'],
     id: 'octane_overlord', name: 'Octane Overlord', nameTh: 'หุ่นยนต์หัวจ่ายน้ำมันผู้บ้าคลั่ง', level: 20,
-    element: 'FIRE', hp: 18000, mp: 500, atk: 215, matk: 200, def: 100, mdef: 90, speed: 22, evasion: 0.03,
+    element: 'FIRE', hp: 14000, mp: 500, atk: 190, matk: 100, def: 100, mdef: 90, speed: 22, evasion: 0.03,
     exp: 6000, gold: [2500, 2500],
     drops: [
       { itemId: 'fuel_plate', chance: 0.08 },
@@ -149,9 +174,12 @@ export const MONSTERS: Record<string, MonsterDef> = {
     sprite: 'boss_octane',
     boss: {
       landmark: 'FUEL', respawnMinutes: 240, recommendedParty: [2, 4],
+      phases: [{ hpBelow: 0.5, message: 'ระบบร้อนเกินพิกัด! ไฟลุกท่วม', statMult: { atk: 1.2 }, rateBonus: 20, addDeck: ['fire_breath'], everyTurns: 3 }],
+      enrageRound: 30,
+      dungeonWaves: [['songthaew_mimic'], ['ember_lizard', 'neon_bat']],
       skills: [
         { id: 'oil_spill_ignite', name: 'Oil Spill & Ignite', nameTh: 'ราดน้ำมันจุดไฟ', everyTurns: 4,
-          damageScale: 1.1, aoe: true, status: { status: 'BLEED', seconds: 5, potency: 60 }, ultimate: true },
+          damageScale: 1.1, aoe: true, status: { status: 'BURN', turns: 2, potency: 0.35 }, ultimate: true },
       ],
     },
   },
@@ -167,9 +195,11 @@ export const MONSTERS: Record<string, MonsterDef> = {
     boss: {
       landmark: 'PARK', respawnMinutes: 0, dailyAt: '18:00', worldBoss: { durationHours: 24 },
       recommendedParty: [4, 8],
+      phases: [{ hpBelow: 0.5, message: 'รากไม้โบราณตื่นขึ้น! เรียกลูกไม้ถี่ขึ้น', statMult: { def: 1.2 }, everyTurns: 4 }],
+      enrageRound: 40,
       skills: [
         { id: 'root_entangle', name: 'Root Entangle', nameTh: 'รากไม้รัดตรึง', everyTurns: 5,
-          damageScale: 0.8, aoe: true, status: { status: 'ROOT', seconds: 4 },
+          damageScale: 0.8, aoe: true, status: { status: 'ROOT', turns: 1 },
           summons: { monsterId: 'treant_sapling', count: 5 }, ultimate: true },
       ],
     },

@@ -4,8 +4,10 @@
  */
 import {
   CLASSES,
+  DECK_SIZE,
   EQUIPMENT,
   SKILLS,
+  classSkillPool,
   STARTER_KITS,
   computeDerived,
   detectMutation,
@@ -20,7 +22,7 @@ import {
 import { DEFAULT_APPEARANCE, type Appearance } from '../game/art';
 
 const KEY = 'pixelwalker.save.v1';
-export const LOADOUT_SIZE = 4;
+export const LOADOUT_SIZE = DECK_SIZE;
 
 export interface EquippedItem {
   itemId: string;
@@ -229,12 +231,12 @@ export function rollDay(s: SaveData) {
   }
 }
 
-/** Active class skills (excluding the basic attack) the player may put in the loadout. */
+/** Skills the player may put in the deck: Novice basics + current class kit. */
 export function learnableSkills(s: SaveData): string[] {
-  return CLASSES[s.classId].skills.filter((id) => id !== 'basic_attack' && SKILLS[id]?.kind === 'ACTIVE');
+  return classSkillPool(s.classId).filter((id) => SKILLS[id]);
 }
 
-/** Loadout used in battle: saved picks that are still valid, or all learnable skills by default. */
+/** Deck used in battle: saved picks that are still valid, or the first DECK_SIZE learnable skills. */
 export function effectiveLoadout(s: SaveData): string[] {
   const learn = learnableSkills(s);
   const picked = s.loadout.filter((id) => learn.includes(id));

@@ -242,3 +242,12 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .zoom .auto-btn { display: grid; place-items: center; line-height: 1; font-size: 18px; height: 48px; }
 .zoom .auto-btn small { font-size: 9px; font-weight: 700; }
 .zoom .auto-btn.on { background: var(--cyan); color: #fff; animation: breathe 1.2s infinite alternate; }
+
+/* --- Party auto-battle panel ------------------------------------------------------------------ */
+.battle-vitals .pot { color: #ffab91; }
+.deck-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; max-width: 560px; margin: 0 auto; }
+.deck-slot { background: #fffaf2; color: var(--ink); border-radius: 10px; padding: 6px 8px; display: grid; font-size: 13px; }
+.deck-slot small { font-size: 11px; color: var(--muted); }
+.deck-slot.reactive { background: #e3f2fd; }
+.deck-slot.cd { opacity: .5; }
+.deck-pick.on { background: #fff3e0; border-radius: 8px; }

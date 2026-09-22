@@ -38,6 +38,7 @@ import {
   unequip,
   usePotion,
   worldBossHp,
+  worldBossReadyAt,
 } from '../game/rules';
 import { derivedOf, mutationOf, store, type SaveData } from '../state/store';
 import { bar, el, esc } from './dom';
@@ -233,11 +234,13 @@ function renderNear(box: HTMLElement) {
     const wb = boss.boss?.worldBoss;
     const hpInfo = wb && ready ? ` · HP ${worldBossHp(l, s).toLocaleString()}/${boss.hp.toLocaleString()}` : '';
     const trial = l.kind === 'PARK' && canChangeClass(s.classId, s.level);
+    const wbWait = wb && ready ? worldBossReadyAt(l, s) - now : 0;
     return `<div class="lm-card">
       <div class="lm-title">${l.kind === 'CONVENIENCE' ? '🏪' : l.kind === 'FUEL' ? '⛽' : '🌳'} ${esc(l.label)}</div>
       <div class="lm-sub">${esc(boss.nameTh)} Lv.${boss.level}${wb ? ' (บอสโลก)' : ''} — ${ready ? `<b class="good">ปรากฏแล้ว!</b>${hpInfo}` : `เกิดใหม่ใน ${fmtWait(at - now)}`}</div>
       <div class="lm-actions">
-        ${ready ? `<button class="btn danger" data-boss="${l.id}">⚔️ ท้าบอส</button>` : ''}
+        ${ready && wbWait <= 0 ? `<button class="btn danger" data-boss="${l.id}">⚔️ ท้าบอส</button>` : ''}
+        ${ready && wbWait > 0 ? `<button class="btn" disabled>พักฟื้น ${fmtWait(wbWait)}</button>` : ''}
         ${l.kind === 'FUEL' ? `<button class="btn" data-smith="${l.id}">🔨 ร้านตีเหล็ก</button>` : ''}
         ${trial ? `<button class="btn primary" data-trial="${l.id}">🏛️ บททดสอบอาชีพ</button>` : ''}
       </div></div>`;

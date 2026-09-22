@@ -24,6 +24,12 @@ import { getWorld } from './world';
 
 export const BOSS_RADIUS_M = 50;
 export const HOME_RADIUS_M = 200;
+/** One world-boss attack window per player per 30 minutes. */
+export const WORLD_BOSS_COOLDOWN_MS = 30 * 60_000;
+
+export function worldBossReadyAt(l: Landmark, s: SaveData): number {
+  return (s.worldBosses[l.id]?.lastAttempt ?? 0) + WORLD_BOSS_COOLDOWN_MS;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Landmarks & bosses
@@ -291,8 +297,12 @@ export function applyBattleOutcome(opts: {
     for (const eq of Object.values(s.equipment)) if (eq && eq.durability > 0) eq.durability -= 1;
 
     if (opts.worldBoss && opts.landmark) {
-      s.worldBosses[opts.landmark.id] = { hp: opts.worldBoss.remainingHp, spawnedAt: Date.now() };
+      const prev = s.worldBosses[opts.landmark.id];
+      const start = prev && prev.hp === opts.worldBoss.remainingHp + opts.worldBoss.damage ? prev.spawnedAt : Date.now();
+      s.worldBosses[opts.landmark.id] = { hp: opts.worldBoss.remainingHp, spawnedAt: start, lastAttempt: Date.now() };
       outcome.worldBossDamage = opts.worldBoss.damage;
+      // Raid bosses are meant to be chipped at by many visitors: a KO is a retreat, not a death.
+      if (outcome.result === 'LOSE') outcome.result = 'FLED';
     }
 
     if (outcome.result === 'WIN') {

@@ -430,7 +430,8 @@ export class BattleScene extends Phaser.Scene {
   }
 
   private showResult(o: BattleOutcome, retreat: boolean) {
-    const title = retreat ? '⏱ หมดเวลาโจมตี' : o.result === 'WIN' ? '🏆 ชนะ!' : o.result === 'LOSE' ? '💀 พ่ายแพ้…' : '🏃 หนีสำเร็จ';
+    const knocked = !retreat && o.result === 'FLED' && o.worldBossDamage !== undefined;
+    const title = retreat ? '⏱ หมดเวลาโจมตี' : knocked ? '💫 ถูกตีกระเด็นออกมา!' : o.result === 'WIN' ? '🏆 ชนะ!' : o.result === 'LOSE' ? '💀 พ่ายแพ้…' : '🏃 หนีสำเร็จ';
     const items = Object.entries(o.loot.items)
       .map(([id, n]) => `<li>${esc(itemName(id))} ×${n}</li>`)
       .join('');

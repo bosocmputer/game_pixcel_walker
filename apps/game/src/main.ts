@@ -2,7 +2,9 @@ import Phaser from 'phaser';
 import './style.css';
 import { WorldScene } from './scenes/WorldScene';
 import { BattleScene } from './scenes/BattleScene';
-import { loadWorld } from './game/world';
+import { getWorld, loadWorld } from './game/world';
+import { bus } from './game/bus';
+import * as rules from './game/rules';
 import { walk } from './game/walk';
 import { tickRegen } from './game/rules';
 import { store } from './state/store';
@@ -48,7 +50,7 @@ function start() {
   });
 
   walk.startLocation();
-  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store } });
+  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, getWorld, rules } });
   window.setInterval(tickRegen, 15000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void walk.onVisible();

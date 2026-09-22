@@ -47,7 +47,7 @@ export interface SaveData {
   /** landmarkId → epoch ms when the boss was last defeated */
   bossKills: Record<string, number>;
   /** Async World Boss remaining HP per landmark (shared on the server in Phase 2). */
-  worldBosses: Record<string, { hp: number; spawnedAt: number }>;
+  worldBosses: Record<string, { hp: number; spawnedAt: number; lastAttempt?: number }>;
   dayKey: string;
   stepsToday: number;
   totalSteps: number;

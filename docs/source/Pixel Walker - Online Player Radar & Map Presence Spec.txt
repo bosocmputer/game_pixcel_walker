@@ -1,0 +1,108 @@
+﻿Pixel Walker: System Specification
+Online Player Radar & Real-Time Map Presence
+1. Overview & Core Vision
+The Player Radar system is a cornerstone of the "Pixel Walker" social experience. By projecting active, online players onto a real-world 8-bit GPS map, the application transforms physical environments into a shared virtual ecosystem. This feature facilitates organic discovery, allowing players to view custom Paperdoll gear, engage in spontaneous party invites, and collaborate on localized Landmark Boss raids.
+2. Technical Architecture & Spatial Indexing
+Geohash Spatial Grid & Subscriptions
+The system utilizes a Geohash precision model to manage network traffic and ensure relevant player density.
+
+
+* Geohash Precision Level 7: The world is segmented into grids of approximately 150m x 150m. Client devices subscribe to WebSocket channels for their current cell and the eight surrounding adjacent cells (a 3x3 grid covering a ~450m radius).
+* Update Frequency & Throttling:
+   * Stationary / Pocket Walk Mode: Updates occur every 10–15 seconds or upon a 15-meter displacement.
+   * Active Walk / Screen On Mode: High-frequency broadcasts every 3–5 seconds, utilizing client-side linear interpolation (Lerp) for smooth movement across the 8-bit tiles.
+Security, Privacy & Safety Controls
+Player safety is prioritized through automated masking and user-controlled visibility.
+
+
+* Fuzzy Location Blur: To mitigate stalking risks, GPS coordinates are offset by a randomized 10–30 meter vector. This blur is removed only for players in the same party or on a mutual friends list.
+* Ghost / Incognito Mode: A toggleable "Stealth Mode" hides the player's avatar from the public map. While active, the player is ineligible for proximity buffs or unsolicited party requests.
+* Safe Zones: Private residences and sensitive locations can be masked globally, ensuring avatars only appear once they enter public thoroughfares.
+3. Visual & Interactive Map Features
+8-Bit Avatar Rendering & Paperdoll Display
+The map provides high-fidelity visual representations of player progression and current activity.
+
+
+* Real-Time Equipment Visibility: Current gear, fashion skins, and weapon sprites are visible to all nearby players.
+* Title Auras: High-level achievements manifest as visual cues, such as the Pure VIT shield aura or Pure AGI shadow trails.
+* Action Status Indicators: Floating 8-bit icons denote current player states:
+   * ⚔️ In Combat: Engaged with a local mob or boss.
+   * 🚶 Walking: Active movement in Pocket Walk mode.
+   * 🛍️ Trading: Interacting with a Market or Outpost.
+   * 💤 Idle / AFK: Stationary at a Landmark.
+Proximity Interactions
+Tapping a player sprite opens a contextual menu for immediate interaction:
+
+
+1. Inspect Equipment: Detailed view of class, level, stats, and active Paperdoll layers.
+2. Instant Party Invite: One-tap requests for nearby Landmark Dungeons (e.g., 7-Eleven Bosses).
+3. Proximity Buff ("High-Five"): Moving within 10 meters of another player grants a +5% EXP or Movement Speed buff for 15 minutes.
+4. Mercenary Beacon: Request to add the player as an asynchronous mercenary for future offline support.
+4. Developer / Implementation Guide
+WebSocket Data Payload Spec
+The following JSON structure is utilized for broadcasting player state updates:{
+
+
+  "event": "PLAYER_MAP_UPDATE",
+
+
+  "player_id": "usr_98124",
+
+
+  "display_name": "Somchai_Tank",
+
+
+  "class_id": "KNIGHT",
+
+
+  "level": 18,
+
+
+  "lat": 18.7883,
+
+
+  "lng": 98.9853,
+
+
+  "heading": 180,
+
+
+  "paperdoll": {
+
+
+    "helmet": "helm_iron_02",
+
+
+    "chest": "plate_dragon_01",
+
+
+    "weapon": "shield_aegis_99",
+
+
+    "aura": "aura_pure_vit"
+
+
+  },
+
+
+  "status": "WALKING"
+
+
+}
+5. Roadmap Integration
+Phase
+	Milestone
+	Core Features
+	Phase 1
+	MVP Launch
+	WebSocket broadcasting, 8-bit sprite rendering, 1-tap Inspection
+	Phase 2
+	Social & Privacy
+	Proximity High-Five buffs, Geohash optimization, Incognito Mode
+	Phase 3
+	Advanced Visuals
+	Proximity Synergy Combos, Animated Title Auras, Custom Shaders
+	6. Project Administration
+Lead Architect: Person
+Review Date: Date
+Approval Status: File

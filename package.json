@@ -1,0 +1,12 @@
+{
+  "name": "pixel-walker",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*", "tools/*"],
+  "scripts": {
+    "dev": "npm run dev -w @pw/game",
+    "build": "npm run build -w @pw/game",
+    "test": "npm run test -w @pw/shared",
+    "typecheck": "tsc -b packages/shared apps/game",
+    "map:build": "npm run build -w @pw/osm"
+  }
+}

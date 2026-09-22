@@ -1,0 +1,51 @@
+export const STAT_KEYS = ['str', 'agi', 'vit', 'int', 'dex', 'luk'] as const;
+export type StatKey = (typeof STAT_KEYS)[number];
+export type Stats = Record<StatKey, number>;
+
+export type ClassId = 'NOVICE' | 'KNIGHT' | 'SORCERER' | 'ASSASSIN' | 'CLERIC' | 'RANGER';
+
+export type MutationId =
+  | 'PURE_TANK'
+  | 'PURE_SPEED'
+  | 'PURE_MAGE'
+  | 'PURE_STRENGTH'
+  | 'PURE_LUCK'
+  | 'PURE_DEX';
+
+export type Rarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+
+export type EquipSlot = 'helmet' | 'chest' | 'weapon' | 'offhand' | 'boots' | 'accessory';
+
+/** Additive and multiplicative modifiers applied on top of base derived stats. */
+export interface Modifiers {
+  flat?: Partial<DerivedStats & Stats>;
+  /** Multipliers, e.g. { def: 0.25 } means DEF +25%. */
+  pct?: Partial<Record<keyof DerivedStats, number>>;
+}
+
+export interface DerivedStats {
+  maxHp: number;
+  maxMp: number;
+  atk: number;
+  matk: number;
+  def: number;
+  mdef: number;
+  /** 0..1 */
+  crit: number;
+  /** 0..1 */
+  evasion: number;
+  /** ATB gauge fill per second (gauge full at 100). */
+  speed: number;
+  /** Multiplier on map/walking related bonuses. */
+  moveSpeed: number;
+  /** Multiplier on healing done. */
+  healPower: number;
+  /** Multiplier on drop chance. */
+  dropRate: number;
+  /** kg */
+  carryWeight: number;
+}
+
+export type Element = 'NEUTRAL' | 'FIRE' | 'WATER' | 'LIGHTNING' | 'EARTH' | 'HOLY' | 'SHADOW';
+
+export type LandmarkKind = 'CONVENIENCE' | 'FUEL' | 'PARK' | 'CITY';

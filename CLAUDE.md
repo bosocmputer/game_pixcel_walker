@@ -24,7 +24,7 @@ npm install
 npm test            # vitest for packages/shared
 npm run typecheck
 npm run dev         # game at http://localhost:5173
-npx tsx tools/artpreview/preview.mts [lat lng]   # art review sheets
+npm run map:build && npx tsx tools/artpreview/preview.mts [lat lng]   # map art sheet (needs a baked map)
 npx tsx tools/artpreview/heroes.mts
 ```
 

@@ -15,6 +15,7 @@ import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
+import { net } from '../game/net';
 
 const LANDMARK_RADIUS_M = 700;
 const WALK_FRAMES = [1, 0, 2, 0];
@@ -118,10 +119,17 @@ export class WorldScene extends Phaser.Scene {
       toast('เคลื่อนที่เร็วเกินไป (อยู่ในรถ?) — หยุดก่อนแล้วค่อยสู้ ความปลอดภัยมาก่อน!', 'bad');
       return;
     }
+    if (!req.run && net.pendingRun) return; // a shared fight is about to start
+    // With party members nearby, map monsters are fought together: the server pulls them in.
+    if (req.kind === 'FIELD' && !req.run && net.partyNearby()) {
+      net.openRun({ kind: 'FIELD', monsterIds: req.monsterIds, spawn: req.spawn }, !!req.auto);
+      return;
+    }
     walk.paused = true;
     walk.setSimDirection(0, 0);
     this.scene.pause();
     this.scene.launch('Battle', req);
+    bus.emit('battle:launched');
   }
 
   private onPosition(lat: number, lng: number, accuracy: number) {

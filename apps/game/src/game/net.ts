@@ -4,11 +4,12 @@
  * Also carries parties and dungeon runs (see apps/server).
  * Add `?player=2` to the URL to run a second, distinct player in another tab for testing.
  */
-import { PRESENCE_PATH, type ClientMsg, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type ServerMsg } from '@pw/shared';
+import { PARTY_RANGE_M, PRESENCE_PATH, haversine, type ClientMsg, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type RunTarget, type ServerMsg } from '@pw/shared';
 import { bus, toast } from './bus';
 import { paperdollOf } from './paperdoll';
 import { playerSetup } from './party';
 import { autoHunt } from './autohunt';
+import { walk } from './walk';
 import { store } from '../state/store';
 
 const POS_INTERVAL_MS = 1000;
@@ -81,10 +82,34 @@ class Net {
     this.send({ t: 'party:kick', id });
   }
 
-  /** Party leader: open a dungeon for everyone nearby in the party. */
-  openDungeon(dungeonId: string) {
+  /** A shared fight waiting to begin (ready check or field pull-in). */
+  pendingRun: { id: string; target: RunTarget } | null = null;
+  /** Set while we are the one opening a run: we answer our own prepare automatically. */
+  private opening: { auto: boolean; at: number } | null = null;
+
+  /** Another party member is close enough to join a fight with us. */
+  partyNearby(): boolean {
+    const me = walk.position;
+    if (!this.party || !this.connected || !me) return false;
+    const ids = new Set(this.party.members.map((m) => m.id));
+    return this.players.some((p) => ids.has(p.id) && p.id !== this.id && haversine(me, p) <= PARTY_RANGE_M);
+  }
+
+  /** Open a shared fight: a dungeon (leader, needs everyone's accept) or a field fight (pulls in nearby members). */
+  openRun(target: RunTarget, auto = false) {
     if (!this.connected) return toast('ยังไม่ได้เชื่อมต่อเซิร์ฟเวอร์', 'bad');
-    this.send({ t: 'dungeon:open', dungeonId });
+    if (this.pendingRun || (this.opening && Date.now() - this.opening.at < 5000)) return;
+    this.opening = { auto, at: Date.now() };
+    this.send({ t: 'run:open', target });
+  }
+
+  /** Answer a dungeon ready check. */
+  answerRun(runId: string, accept: boolean) {
+    this.send({ t: 'run:ready', runId, entrant: accept && this.canJoin() ? this.entrant() : null });
+  }
+
+  private canJoin(): boolean {
+    return !this.busy && !!store.data && !walk.tooFast;
   }
 
   /** This player's entry for a dungeon run: combat setup with their own potions, and their look. */
@@ -104,7 +129,7 @@ class Net {
     });
     window.setInterval(() => this.sendPos(), POS_INTERVAL_MS * 2); // keep-alive while standing still
     store.subscribe(() => this.sendState());
-    bus.on('battle:start', () => this.setBusy(true));
+    bus.on('battle:launched', () => this.setBusy(true));
     bus.on('battle:end', () => this.setBusy(false));
   }
 
@@ -172,20 +197,41 @@ class Net {
       case 'notice':
         toast(msg.text, msg.kind);
         break;
-      case 'dungeon:prepare': {
-        // Can't join while already fighting; the run starts without us.
-        const entrant = this.busy || !store.data ? null : this.entrant();
-        if (entrant) {
-          autoHunt.stop();
-          toast('🚪 กำลังเข้าดันเจี้ยน…');
-        }
-        this.send({ t: 'dungeon:ready', runId: msg.runId, entrant });
+      case 'run:prepare': {
+        this.pendingRun = { id: msg.runId, target: msg.target };
+        const mine = !!this.opening;
+        if (msg.target.kind === 'DUNGEON') autoHunt.stop();
+        // Field fights join automatically; so does whoever opened the run. Dungeons wait for "accept".
+        if (mine || !msg.needAccept) this.send({ t: 'run:ready', runId: msg.runId, entrant: this.canJoin() ? this.entrant() : null });
+        bus.emit('run:prepare', { runId: msg.runId, target: msg.target, openedBy: msg.openedBy, needAccept: msg.needAccept, timeoutMs: msg.timeoutMs, mine });
         break;
       }
-      case 'dungeon:begin':
-        if (this.busy) return toast('เข้าดันเจี้ยนไม่ได้ — กำลังต่อสู้อยู่', 'bad');
-        bus.emit('battle:start', { kind: 'DUNGEON', monsterIds: [], dungeon: { id: msg.dungeonId, seed: msg.seed, entrants: msg.entrants, meId: this.id } });
+      case 'run:status':
+        bus.emit('run:status', { runId: msg.runId, accepted: msg.accepted, waiting: msg.waiting });
         break;
+      case 'run:cancel':
+        this.pendingRun = null;
+        this.opening = null;
+        bus.emit('run:end', { runId: msg.runId });
+        toast(msg.reason, 'bad');
+        break;
+      case 'run:begin': {
+        const auto = this.opening ? this.opening.auto : autoHunt.enabled;
+        this.pendingRun = null;
+        this.opening = null;
+        bus.emit('run:end', { runId: msg.runId });
+        if (this.busy) return toast('เข้าร่วมไม่ได้ — กำลังต่อสู้อยู่', 'bad');
+        const t = msg.target;
+        if (t.kind === 'FIELD' && msg.entrants.length > 1 && !auto) toast(`👥 สู้ด้วยกันกับปาร์ตี้ (${msg.entrants.length} คน)`, 'good');
+        bus.emit('battle:start', {
+          kind: t.kind,
+          monsterIds: t.monsterIds ?? [],
+          spawn: t.spawn,
+          auto: t.kind === 'FIELD' && auto,
+          run: { target: t, seed: msg.seed, entrants: msg.entrants, meId: this.id },
+        });
+        break;
+      }
     }
   }
 

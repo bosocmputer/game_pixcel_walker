@@ -1,5 +1,5 @@
 /** Tiny typed event bus between Phaser scenes and the DOM UI. */
-import type { ClassId, DungeonEntrant, Landmark, PartyInfo, PlayerPresence, Spawn, WaveDef } from '@pw/shared';
+import type { ClassId, DungeonEntrant, Landmark, PartyInfo, PlayerPresence, RunTarget, Spawn, WaveDef } from '@pw/shared';
 
 export interface BusEvents {
   'position': { lat: number; lng: number; accuracy: number; simulated: boolean };
@@ -8,6 +8,8 @@ export interface BusEvents {
   'encounter': { monsterIds: string[] };
   'boss:challenge': { landmark: Landmark };
   'battle:start': BattleRequest;
+  /** A battle scene actually started (battle:start is only a request). */
+  'battle:launched': void;
   'battle:end': void;
   'landmark:near': { landmarks: Landmark[] };
   'toast': { text: string; kind?: 'info' | 'good' | 'bad' };
@@ -19,6 +21,10 @@ export interface BusEvents {
   'players': { players: PlayerPresence[] };
   'party': { party: PartyInfo | null };
   'party:invited': { from: string; name: string; level: number };
+  'run:prepare': { runId: string; target: RunTarget; openedBy: string; needAccept: boolean; timeoutMs: number; mine: boolean };
+  'run:status': { runId: string; accepted: string[]; waiting: string[] };
+  /** The pending run began or was cancelled. */
+  'run:end': { runId: string };
 }
 
 export interface BattleRequest {
@@ -32,8 +38,8 @@ export interface BattleRequest {
   auto?: boolean;
   /** Test arena: custom waves/scaling, no rewards and no penalties. */
   test?: { waves: WaveDef[]; hpMult: number; atkMult: number; modifiers: boolean; maxRounds?: number };
-  /** Instanced dungeon run: every member's device simulates the same (dungeonId, seed, entrants). */
-  dungeon?: { id: string; seed: number; entrants: DungeonEntrant[]; meId: string };
+  /** Shared run (dungeon or party field fight): every member's device simulates the same (target, seed, entrants). */
+  run?: { target: RunTarget; seed: number; entrants: DungeonEntrant[]; meId: string };
 }
 
 type Handler<T> = (payload: T) => void;

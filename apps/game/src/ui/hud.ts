@@ -48,7 +48,7 @@ import { bar, el, esc } from './dom';
 import { showCreator } from './creator';
 import { arenaPanel, wireArena } from './arena';
 import { net } from '../game/net';
-import { partyPanel, showInvite, wireParty } from './party';
+import { partyPanel, showInvite, showReadyCheck, wireParty } from './party';
 import { autoHunt } from '../game/autohunt';
 
 const STAT_TH: Record<StatKey, string> = {
@@ -187,6 +187,9 @@ export function mountHud() {
     if (panelName === 'party') renderPanel();
   });
   bus.on('party:invited', ({ from, name, level }) => showInvite(from, name, level));
+  bus.on('run:prepare', (r) => {
+    if (r.needAccept) showReadyCheck(r.runId, r.target, r.openedBy, r.timeoutMs, r.mine);
+  });
   bus.on('encounter', ({ monsterIds }) => {
     pendingEncounter = { monsterIds, expires: Date.now() + ENCOUNTER_TTL_MS };
     navigator.vibrate?.(120);

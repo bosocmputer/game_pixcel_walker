@@ -44,10 +44,22 @@ export interface PartyInfo {
   members: PartyMember[];
 }
 
-/** One member entering a dungeon run: their combat setup (id = player id) and look for drawing. */
+/** One member entering a run: their combat setup (id = player id) and look for drawing. */
 export interface DungeonEntrant {
   setup: UnitSetup;
   look: PlayerLook;
+}
+
+/**
+ * A shared fight. DUNGEON = opened by the leader, every member must accept. FIELD = a member
+ * engaged a map monster; party members in range are pulled in automatically.
+ */
+export interface RunTarget {
+  kind: 'DUNGEON' | 'FIELD';
+  dungeonId?: string;
+  monsterIds?: string[];
+  /** World spawn being fought (FIELD) — marked defeated for everyone on a win. */
+  spawn?: { id: string; expiresAt: number };
 }
 
 export type ClientMsg =
@@ -58,10 +70,9 @@ export type ClientMsg =
   | { t: 'party:answer'; from: string; accept: boolean }
   | { t: 'party:leave' }
   | { t: 'party:kick'; id: string }
-  /** Leader opens a dungeon for the party (or a solo player for themself). */
-  | { t: 'dungeon:open'; dungeonId: string }
-  /** Reply to dungeon:prepare. `entrant` null = can't join right now (busy). */
-  | { t: 'dungeon:ready'; runId: string; entrant: DungeonEntrant | null };
+  | { t: 'run:open'; target: RunTarget }
+  /** Reply to run:prepare. `entrant` null = decline / can't join right now. */
+  | { t: 'run:ready'; runId: string; entrant: DungeonEntrant | null };
 
 export type ServerMsg =
   | { t: 'welcome'; id: string; online: number }
@@ -69,20 +80,23 @@ export type ServerMsg =
   | { t: 'party:invited'; from: string; name: string; level: number }
   | { t: 'party:state'; party: PartyInfo | null }
   | { t: 'notice'; text: string; kind?: 'info' | 'good' | 'bad' }
-  /** Everyone in the run sends back their setup. */
-  | { t: 'dungeon:prepare'; runId: string; dungeonId: string }
+  /** Everyone in the run replies with run:ready (after pressing accept when `needAccept`). */
+  | { t: 'run:prepare'; runId: string; target: RunTarget; openedBy: string; needAccept: boolean; timeoutMs: number }
+  /** Ready-check progress (DUNGEON). */
+  | { t: 'run:status'; runId: string; accepted: string[]; waiting: string[] }
+  | { t: 'run:cancel'; runId: string; reason: string }
   /**
-   * Everyone in the run simulates the same dungeon from (dungeonId, seed, entrants) — the engine
-   * is deterministic, so all devices play out an identical fight without streaming turns.
+   * Everyone in the run simulates the same fight from (target, seed, entrants) — the engine is
+   * deterministic, so all devices play out an identical battle without streaming turns.
    */
-  | { t: 'dungeon:begin'; runId: string; dungeonId: string; seed: number; entrants: DungeonEntrant[] };
+  | { t: 'run:begin'; runId: string; target: RunTarget; seed: number; entrants: DungeonEntrant[]; openedBy: string };
 
 export const PARTY_MAX = 3;
-/** Invites and dungeon entry need players physically together. */
-export const PARTY_RANGE_M = 200;
 export const PARTY_INVITE_TTL_MS = 30_000;
-/** How long the server waits for members' setups before starting without them. */
-export const DUNGEON_READY_TIMEOUT_MS = 6000;
+/** Dungeon ready check: every member must press accept within this time. */
+export const DUNGEON_ACCEPT_TIMEOUT_MS = 20_000;
+/** Field fights: members in range answer automatically; stragglers are left out after this. */
+export const FIELD_READY_TIMEOUT_MS = 3000;
 
 /** Only players within this distance of you are sent to you. */
 export const PRESENCE_RADIUS_M = 2000;

@@ -17,6 +17,7 @@ import {
   memberLootSeed,
   memberState,
   nextWave,
+  partyFieldHpScale,
   runToEnd,
   step,
   type CombatEvent,
@@ -72,8 +73,8 @@ export class BattleScene extends Phaser.Scene {
 
   init(req: BattleRequest) {
     this.req = req;
-    this.meId = req.dungeon?.meId ?? 'me';
-    this.partyIds = new Set([this.meId, ...(req.dungeon?.entrants.map((e) => e.setup.id) ?? [])]);
+    this.meId = req.run?.meId ?? 'me';
+    this.partyIds = new Set([this.meId, ...(req.run?.entrants.map((e) => e.setup.id) ?? [])]);
     this.views.clear();
     this.eventIndex = 0;
     this.waitUntil = 0;
@@ -122,15 +123,21 @@ export class BattleScene extends Phaser.Scene {
     }
     let party: UnitSetup[] = [me];
     let seed = (Math.random() * 2 ** 31) | 0;
-    const run = this.req.dungeon;
+    let enemyScale = test ? { hp: test.hpMult, atk: test.atkMult } : undefined;
+    const run = this.req.run;
     if (run) {
       // Everyone builds the run from the same server-issued data; each brings their own potions.
-      waves = DUNGEON_BY_ID[run.id]!.waves;
-      rollModifiers = true;
       party = run.entrants.map((e) => ({ ...e.setup }));
       seed = run.seed;
       delete items.red_potion;
       delete items.blue_elixir;
+      if (run.target.kind === 'DUNGEON') {
+        waves = DUNGEON_BY_ID[run.target.dungeonId!]!.waves;
+        rollModifiers = true;
+      } else if (party.length > 1) {
+        // Party field fight: tougher monsters, but still quicker and safer than going alone.
+        enemyScale = { hp: partyFieldHpScale(party.length), atk: 1 };
+      }
     }
     this.d = createDungeon({
       party,
@@ -140,7 +147,7 @@ export class BattleScene extends Phaser.Scene {
       rollModifiers,
       bossHp,
       maxRounds,
-      enemyScale: test ? { hp: test.hpMult, atk: test.atkMult } : undefined,
+      enemyScale,
       noBossScaling: !!test,
     });
 
@@ -191,7 +198,7 @@ export class BattleScene extends Phaser.Scene {
 
   private addView(u: CombatUnit, scale: number): UnitView {
     let key: string;
-    const ally = this.req.dungeon?.entrants.find((e) => e.setup.id === u.id && u.id !== this.meId);
+    const ally = this.req.run?.entrants.find((e) => e.setup.id === u.id && u.id !== this.meId);
     if (ally) {
       const l = ally.look;
       const doll: Paperdoll = { ...l, appearance: { ...l.appearance, hairStyle: l.appearance.hairStyle as HairStyle } };
@@ -269,7 +276,8 @@ export class BattleScene extends Phaser.Scene {
     const mod = this.d.modifiers[this.d.wave];
     const wave = this.d.waves.length > 1 ? `เวฟ ${this.d.wave + 1}/${this.d.waves.length} · ` : '';
     const title =
-      this.req.dungeon ? `${DUNGEON_BY_ID[this.req.dungeon.id]!.icon} ${DUNGEON_BY_ID[this.req.dungeon.id]!.nameTh}${this.partyIds.size > 1 ? ` · ปาร์ตี้ ${this.partyIds.size} คน` : ''}`
+      this.req.run?.target.kind === 'DUNGEON' ? `${DUNGEON_BY_ID[this.req.run.target.dungeonId!]!.icon} ${DUNGEON_BY_ID[this.req.run.target.dungeonId!]!.nameTh}${this.partyIds.size > 1 ? ` · ปาร์ตี้ ${this.partyIds.size} คน` : ''}`
+      : this.partyIds.size > 1 ? `⚔️ สู้กับปาร์ตี้ ${this.partyIds.size} คน`
       : this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}`
       : this.req.kind === 'TEST' ? '🧪 สนามทดสอบ'
       : this.req.kind === 'BOSS' ? '⚔️ ดันเจี้ยนบอส' : '⚔️ ต่อสู้';
@@ -438,7 +446,7 @@ export class BattleScene extends Phaser.Scene {
         <span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button>
         <button class="chip" data-act="skip">⏭ ข้าม</button>
-        ${(this.req.kind === 'FIELD' && !this.req.auto) || this.req.kind === 'TEST' ? '<button class="chip" data-act="flee">ออก</button>' : ''}
+        ${(this.req.kind === 'FIELD' && !this.req.auto && this.partyIds.size < 2) || this.req.kind === 'TEST' ? '<button class="chip" data-act="flee">ออก</button>' : ''}
       </div>
       <div class="deck-row">${deck.join('') || '<small>ยังไม่มีสกิลในชุด — ใช้โจมตีธรรมดา</small>'}</div>
       <div class="battle-hint">ต่อสู้อัตโนมัติ · ระบบสุ่มใช้สกิลจากชุดตาม % ทุกเทิร์น</div>`;
@@ -497,7 +505,7 @@ export class BattleScene extends Phaser.Scene {
       mp: me?.mp ?? 0,
       itemsLeft: { ...store.s.bag, red_potion: potions.red_potion ?? 0, blue_elixir: potions.blue_elixir ?? 0 },
       // Party runs: personal loot — each member rolls their own drops.
-      rng: createRng(this.req.dungeon ? memberLootSeed(this.d.seed, this.meId) : this.d.seed ^ 0x9e3779b9),
+      rng: createRng(this.req.run ? memberLootSeed(this.d.seed, this.meId) : this.d.seed ^ 0x9e3779b9),
       landmark: this.req.landmark,
       kind: this.req.kind,
       spawn: this.req.spawn,

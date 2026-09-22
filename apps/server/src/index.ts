@@ -8,9 +8,12 @@
  */
 import { WebSocketServer, type WebSocket } from 'ws';
 import {
+  DUNGEON_ACCEPT_TIMEOUT_MS,
   DUNGEON_BY_ID,
-  DUNGEON_READY_TIMEOUT_MS,
+  FIELD_READY_TIMEOUT_MS,
+  MONSTERS,
   PARTY_INVITE_TTL_MS,
+  PARTY_LEASH_GRACE_MS,
   PARTY_MAX,
   PARTY_RANGE_M,
   PRESENCE_PORT,
@@ -18,11 +21,13 @@ import {
   PRESENCE_TICK_MS,
   PRESENCE_TIMEOUT_MS,
   haversine,
+  isolatedMembers,
   type ClientMsg,
   type DungeonEntrant,
   type PartyInfo,
   type PlayerLook,
   type PlayerPresence,
+  type RunTarget,
   type ServerMsg,
 } from '@pw/shared';
 
@@ -46,7 +51,9 @@ interface Party {
 
 interface Run {
   id: string;
-  dungeonId: string;
+  target: RunTarget;
+  openedBy: string;
+  needAccept: boolean;
   members: string[];
   entrants: Map<string, DungeonEntrant | null>;
   timer: NodeJS.Timeout;
@@ -58,6 +65,10 @@ const partyOf = new Map<string, string>();
 /** invitee → (inviter → expiresAt) */
 const invites = new Map<string, Map<string, number>>();
 const runs = new Map<string, Run>();
+/** Player -> pending run they are part of (one at a time). */
+const runOf = new Map<string, string>();
+/** Party member -> when they were first seen out of range. */
+const outSince = new Map<string, number>();
 let counter = 0;
 const newId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(counter++).toString(36)}`;
 
@@ -174,6 +185,7 @@ function leaveParty(id: string) {
   if (!partyId) return;
   const p = parties.get(partyId)!;
   partyOf.delete(id);
+  outSince.delete(id);
   p.members = p.members.filter((m) => m !== id);
   const s = byId(id);
   if (s) send(s.ws, { t: 'party:state', party: null });
@@ -181,6 +193,7 @@ function leaveParty(id: string) {
     // A party of one is no party.
     for (const m of p.members) {
       partyOf.delete(m);
+      outSince.delete(m);
       const ms = byId(m);
       if (ms) send(ms.ws, { t: 'party:state', party: null });
       notice(ms, 'ปาร์ตี้ถูกยุบแล้ว');
@@ -243,13 +256,20 @@ function handleParty(s: Session, msg: ClientMsg) {
       leaveParty(target);
       break;
     }
-    case 'dungeon:open':
-      openDungeon(s, String(msg.dungeonId));
+    case 'run:open':
+      if (msg.target?.kind === 'DUNGEON') openDungeon(s, String(msg.target.dungeonId));
+      else if (msg.target?.kind === 'FIELD') openField(s, msg.target);
       break;
-    case 'dungeon:ready': {
+    case 'run:ready': {
       const run = runs.get(String(msg.runId));
       if (!run || !run.members.includes(me) || run.entrants.has(me)) return;
-      run.entrants.set(me, sanitizeEntrant(s, msg.entrant));
+      const entrant = sanitizeEntrant(s, msg.entrant);
+      run.entrants.set(me, entrant);
+      if (run.needAccept) {
+        // Dungeons: everyone must accept - one "no" cancels the run.
+        if (!entrant) return cancelRun(run, `${s.name} ปฏิเสธการเข้าดันเจี้ยน`);
+        sendStatus(run);
+      }
       if (run.entrants.size === run.members.length) beginRun(run);
       break;
     }
@@ -259,44 +279,96 @@ function handleParty(s: Session, msg: ClientMsg) {
 // ---------------------------------------------------------------------------------------------
 // Dungeon runs
 
-function openDungeon(s: Session, dungeonId: string) {
-  const def = DUNGEON_BY_ID[dungeonId];
-  if (!def) return;
-  const p = parties.get(partyOf.get(s.id!) ?? '');
-  if (p && p.leader !== s.id) return notice(s, 'หัวหน้าปาร์ตี้เป็นคนเปิดดันเจี้ยน', 'bad');
-  if (s.level < def.minLevel) return notice(s, `ต้อง Lv.${def.minLevel} ขึ้นไป`, 'bad');
-  const members: string[] = [s.id!];
-  for (const id of p?.members ?? []) {
-    if (id === s.id) continue;
-    const m = byId(id);
-    const why = !m
-      ? 'ออฟไลน์'
-      : m.busy
-        ? 'กำลังต่อสู้'
-        : distance(s, m) > PARTY_RANGE_M
-          ? `อยู่ไกลเกิน ${PARTY_RANGE_M} ม.`
-          : m.level < def.minLevel
-            ? `เลเวลไม่ถึง ${def.minLevel}`
-            : '';
-    if (why) {
-      for (const x of p!.members) notice(byId(x), `${m?.name ?? 'สมาชิก'} ไม่ได้เข้าดันเจี้ยน (${why})`, 'bad');
-      continue;
-    }
-    members.push(id);
-  }
+function partyOfSession(s: Session): Party | undefined {
+  return parties.get(partyOf.get(s.id!) ?? '');
+}
+
+function startRun(target: RunTarget, opener: Session, members: string[], needAccept: boolean) {
+  const timeoutMs = needAccept ? DUNGEON_ACCEPT_TIMEOUT_MS : FIELD_READY_TIMEOUT_MS;
   const run: Run = {
     id: newId('run_'),
-    dungeonId,
+    target,
+    openedBy: opener.id!,
+    needAccept,
     members,
     entrants: new Map(),
-    timer: setTimeout(() => beginRun(run), DUNGEON_READY_TIMEOUT_MS),
+    timer: setTimeout(() => (needAccept ? cancelRun(run, `หมดเวลา — ${waitingNames(run).join(', ')} ไม่ได้กดยอมรับ`) : beginRun(run)), timeoutMs),
   };
   runs.set(run.id, run);
   for (const id of members) {
+    runOf.set(id, run.id);
     const m = byId(id);
-    if (m) send(m.ws, { t: 'dungeon:prepare', runId: run.id, dungeonId });
+    if (m) send(m.ws, { t: 'run:prepare', runId: run.id, target, openedBy: opener.name, needAccept, timeoutMs });
   }
-  console.log(`    dungeon ${dungeonId} opened by ${s.name} for ${members.length}`);
+  if (needAccept) sendStatus(run);
+  console.log(`    run ${target.kind} ${target.dungeonId ?? target.monsterIds?.join('+')} opened by ${opener.name} for ${members.length}`);
+}
+
+/** Why a party member can't join a run right now ('' = can). */
+function unavailable(opener: Session, id: string, minLevel = 1): string {
+  const m = byId(id);
+  if (!m) return 'ออฟไลน์';
+  if (runOf.has(id)) return 'กำลังเตรียมเข้าต่อสู้อื่น';
+  if (m.busy) return 'กำลังต่อสู้';
+  if (distance(opener, m) > PARTY_RANGE_M) return `อยู่ไกลเกิน ${PARTY_RANGE_M} ม.`;
+  if (m.level < minLevel) return `เลเวลไม่ถึง ${minLevel}`;
+  return '';
+}
+
+function openDungeon(s: Session, dungeonId: string) {
+  const def = DUNGEON_BY_ID[dungeonId];
+  if (!def) return;
+  const p = partyOfSession(s);
+  if (p && p.leader !== s.id) return notice(s, 'หัวหน้าปาร์ตี้เป็นคนเปิดดันเจี้ยน', 'bad');
+  if (runOf.has(s.id!)) return;
+  if (s.level < def.minLevel) return notice(s, `ต้อง Lv.${def.minLevel} ขึ้นไป`, 'bad');
+  // The whole party goes in together, so everyone has to be able to.
+  for (const id of p?.members ?? []) {
+    if (id === s.id) continue;
+    const why = unavailable(s, id, def.minLevel);
+    if (why) return notice(s, `${byId(id)?.name ?? 'สมาชิก'} เข้าไม่ได้ (${why})`, 'bad');
+  }
+  const members = [s.id!, ...(p?.members ?? []).filter((id) => id !== s.id)];
+  startRun({ kind: 'DUNGEON', dungeonId }, s, members, true);
+}
+
+function openField(s: Session, target: RunTarget) {
+  const monsterIds = (target.monsterIds ?? []).map(String).filter((id) => MONSTERS[id] && !MONSTERS[id]!.boss).slice(0, 5);
+  if (!monsterIds.length || runOf.has(s.id!)) return;
+  const p = partyOfSession(s);
+  // Party members nearby are pulled in automatically; the rest keep doing their thing.
+  const members = [s.id!, ...(p?.members ?? []).filter((id) => id !== s.id && !unavailable(s, id))];
+  const spawn = target.spawn && typeof target.spawn.id === 'string' ? { id: target.spawn.id.slice(0, 80), expiresAt: Number(target.spawn.expiresAt) || 0 } : undefined;
+  startRun({ kind: 'FIELD', monsterIds, spawn }, s, members, false);
+}
+
+function waitingNames(run: Run): string[] {
+  return run.members.filter((id) => !run.entrants.get(id)).map((id) => byId(id)?.name ?? '…');
+}
+
+function sendStatus(run: Run) {
+  const accepted = run.members.filter((id) => run.entrants.get(id)).map((id) => byId(id)?.name ?? '…');
+  const waiting = waitingNames(run);
+  for (const id of run.members) {
+    const m = byId(id);
+    if (m) send(m.ws, { t: 'run:status', runId: run.id, accepted, waiting });
+  }
+}
+
+function endRun(run: Run) {
+  runs.delete(run.id);
+  clearTimeout(run.timer);
+  for (const id of run.members) if (runOf.get(id) === run.id) runOf.delete(id);
+}
+
+function cancelRun(run: Run, reason: string) {
+  if (!runs.has(run.id)) return;
+  endRun(run);
+  for (const id of run.members) {
+    const m = byId(id);
+    if (m) send(m.ws, { t: 'run:cancel', runId: run.id, reason });
+  }
+  console.log(`    run cancelled: ${reason}`);
 }
 
 /** LAN phase: setups are trusted but pinned to the sender. Server-side stat rebuild comes with accounts. */
@@ -310,23 +382,54 @@ function sanitizeEntrant(s: Session, e: DungeonEntrant | null): DungeonEntrant |
 
 function beginRun(run: Run) {
   if (!runs.has(run.id)) return;
-  runs.delete(run.id);
-  clearTimeout(run.timer);
-  const leaderId = run.members[0]!;
-  if (!run.entrants.get(leaderId)) {
-    for (const id of run.members) notice(byId(id), 'ยกเลิกการเข้าดันเจี้ยน', 'bad');
+  endRun(run);
+  if (!run.entrants.get(run.openedBy)) {
+    for (const id of run.members) {
+      const m = byId(id);
+      if (m) send(m.ws, { t: 'run:cancel', runId: run.id, reason: 'ยกเลิกการต่อสู้' });
+    }
     return;
   }
   const entrants = run.members.map((id) => run.entrants.get(id)).filter((e): e is DungeonEntrant => !!e);
-  for (const id of run.members) {
-    if (!run.entrants.get(id)) notice(byId(id), 'คุณไม่ได้เข้าดันเจี้ยนรอบนี้', 'bad');
-  }
   const seed = Math.floor(Math.random() * 2 ** 31);
-  for (const e of entrants) {
-    const m = byId(e.setup.id);
-    if (m) send(m.ws, { t: 'dungeon:begin', runId: run.id, dungeonId: run.dungeonId, seed, entrants });
+  const openedBy = byId(run.openedBy)?.name ?? '';
+  for (const id of run.members) {
+    const m = byId(id);
+    if (!m) continue;
+    if (run.entrants.get(id)) send(m.ws, { t: 'run:begin', runId: run.id, target: run.target, seed, entrants, openedBy });
+    else send(m.ws, { t: 'run:cancel', runId: run.id, reason: 'ไม่ได้เข้าร่วมการต่อสู้รอบนี้' });
   }
-  console.log(`    dungeon ${run.dungeonId} begins with ${entrants.length} (leader ${byId(leaderId)?.name})`);
+  console.log(`    run ${run.target.kind} begins with ${entrants.length} (opened by ${openedBy})`);
+}
+
+// ---------------------------------------------------------------------------------------------
+// Party leash: wander out of range of everyone else in the party and you drop out.
+
+function checkLeash(now: number) {
+  for (const p of [...parties.values()]) {
+    const located = p.members
+      .map((id) => byId(id))
+      .filter((m): m is Session => !!m && !m.busy && !runOf.has(m.id!))
+      .map((m) => ({ id: m.id!, lat: m.lat, lng: m.lng }));
+    const out = new Set(isolatedMembers(located, PARTY_RANGE_M));
+    for (const id of [...p.members]) {
+      if (!out.has(id)) {
+        if (outSince.delete(id)) notice(byId(id), 'กลับเข้าระยะปาร์ตี้แล้ว', 'good');
+        continue;
+      }
+      const since = outSince.get(id);
+      if (since === undefined) {
+        outSince.set(id, now);
+        notice(byId(id), `⚠️ ออกนอกระยะปาร์ตี้ ${PARTY_RANGE_M} ม. — กลับมาภายใน ${PARTY_LEASH_GRACE_MS / 1000} วิ ไม่งั้นจะหลุดปาร์ตี้`, 'bad');
+      } else if (now - since > PARTY_LEASH_GRACE_MS) {
+        const name = byId(id)?.name ?? 'สมาชิก';
+        for (const other of p.members) if (other !== id) notice(byId(other), `${name} ออกนอกระยะ — หลุดจากปาร์ตี้`);
+        notice(byId(id), 'คุณออกนอกระยะ — หลุดจากปาร์ตี้แล้ว', 'bad');
+        leaveParty(id);
+        if (!parties.has(p.id)) break;
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -334,6 +437,7 @@ function beginRun(run: Run) {
 
 setInterval(() => {
   const now = Date.now();
+  checkLeash(now);
   const located = [...sessions].filter((s) => {
     if (now - s.lastSeen > PRESENCE_TIMEOUT_MS) {
       s.ws.terminate();

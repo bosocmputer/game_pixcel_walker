@@ -1,5 +1,5 @@
 /** Party panel: members, invite nearby players, and open instanced dungeons (solo or as a party). */
-import { CLASSES, DUNGEONS, MONSTERS, PARTY_MAX, PARTY_RANGE_M, haversine, type DungeonDef } from '@pw/shared';
+import { CLASSES, DUNGEON_BY_ID, DUNGEONS, MONSTERS, PARTY_MAX, PARTY_RANGE_M, haversine, type DungeonDef, type RunTarget } from '@pw/shared';
 import { bus, toast } from '../game/bus';
 import { net } from '../game/net';
 import { walk } from '../game/walk';
@@ -70,10 +70,11 @@ export function partyPanel(): string {
     ${members}
     ${party ? '<button class="btn" data-party-leave>ออกจากปาร์ตี้</button>' : ''}
     <h3>ผู้เล่นใกล้ ๆ</h3>
-    <p class="muted">ชวนได้เมื่ออยู่ห่างกันไม่เกิน ${PARTY_RANGE_M} ม. · สมาชิกปาร์ตี้เห็นกันบนแผนที่ทุกระยะ</p>
+    <p class="muted">ชวนได้เมื่ออยู่ห่างกันไม่เกิน ${PARTY_RANGE_M} ม. · เดินห่างจากทุกคนในปาร์ตี้เกิน ${PARTY_RANGE_M} ม. นาน 10 วิ = หลุดปาร์ตี้
+      · ตีมอนบนแผนที่ สมาชิกที่อยู่ใกล้จะเข้าสู้ด้วยกันอัตโนมัติ</p>
     ${nearby}
     <h3>ดันเจี้ยน</h3>
-    <p class="muted">สมาชิกที่อยู่ใกล้หัวหน้า (${PARTY_RANGE_M} ม.) เข้าด้วยกัน · บอสแกร่งขึ้นตามจำนวนคน แต่ไปหลายคนได้เปรียบกว่า
+    <p class="muted">ทั้งปาร์ตี้เข้าด้วยกัน ทุกคนต้องกด "ยอมรับ" · บอสแกร่งขึ้นตามจำนวนคน แต่ไปหลายคนได้เปรียบกว่า
       · แต่ละคนใช้ยาของตัวเอง และได้ EXP/ของดรอปของตัวเอง</p>
     ${DUNGEONS.map(dungeon).join('')}`;
 }
@@ -87,10 +88,11 @@ export function wireParty(body: HTMLElement, close: () => void) {
   on('[data-dungeon-go]', (x) => {
     const id = x.dataset.dungeonGo!;
     close();
-    if (net.inParty) return net.openDungeon(id);
+    if (net.inParty) return net.openRun({ kind: 'DUNGEON', dungeonId: id });
     // Solo: no server needed — run it locally.
     autoHunt.stop();
-    bus.emit('battle:start', { kind: 'DUNGEON', monsterIds: [], dungeon: { id, seed: (Math.random() * 2 ** 31) | 0, entrants: [net.entrant()], meId: net.id } });
+    const target = { kind: 'DUNGEON' as const, dungeonId: id };
+    bus.emit('battle:start', { kind: 'DUNGEON', monsterIds: [], run: { target, seed: (Math.random() * 2 ** 31) | 0, entrants: [net.entrant()], meId: net.id } });
   });
 }
 
@@ -118,4 +120,47 @@ export function showInvite(from: string, name: string, level: number) {
       toast('คำชวนหมดอายุ');
     }
   }, 30_000);
+}
+
+/** Dungeon ready check: everyone in the party must accept before the run starts. */
+export function showReadyCheck(runId: string, target: RunTarget, openedBy: string, timeoutMs: number, mine: boolean) {
+  const dg = DUNGEON_BY_ID[target.dungeonId ?? ''];
+  if (!dg) return;
+  document.querySelector('.modal-backdrop.ready-check')?.remove();
+  const modal = el(`<div class="modal-backdrop ready-check"><div class="modal">
+    <h2>${dg.icon} ${esc(dg.nameTh)}</h2>
+    <p>${mine ? 'รอสมาชิกทุกคนกดยอมรับ…' : `<b>${esc(openedBy)}</b> ชวนปาร์ตี้ลงดันเจี้ยน`}</p>
+    <p class="muted" data-status></p>
+    <p class="muted">เหลือเวลา <b data-left>${Math.round(timeoutMs / 1000)}</b> วิ · ทุกคนต้องยอมรับ ไม่งั้นยกเลิก</p>
+    ${mine ? '' : '<button class="btn primary" data-yes>✅ ยอมรับ</button><button class="btn" data-no>ปฏิเสธ</button>'}
+  </div></div>`);
+  document.getElementById('ui')!.appendChild(modal);
+  const end = Date.now() + timeoutMs;
+  const timer = window.setInterval(() => {
+    const left = modal.querySelector('[data-left]');
+    if (left) left.textContent = String(Math.max(0, Math.round((end - Date.now()) / 1000)));
+  }, 500);
+  const offs = [
+    bus.on('run:status', (st) => {
+      if (st.runId !== runId) return;
+      const status = modal.querySelector('[data-status]')!;
+      status.innerHTML = `✅ ${st.accepted.map(esc).join(', ') || '-'}${st.waiting.length ? `<br>⏳ รอ: ${st.waiting.map(esc).join(', ')}` : ''}`;
+    }),
+    bus.on('run:end', (e) => {
+      if (e.runId === runId) close();
+    }),
+  ];
+  function close() {
+    window.clearInterval(timer);
+    offs.forEach((off) => off());
+    modal.remove();
+  }
+  const answer = (accept: boolean) => {
+    net.answerRun(runId, accept);
+    const btns = modal.querySelectorAll<HTMLButtonElement>('[data-yes],[data-no]');
+    btns.forEach((b) => b.remove());
+    if (accept) modal.querySelector('.modal > p')!.textContent = 'ยอมรับแล้ว — รอคนอื่น…';
+  };
+  modal.querySelector('[data-yes]')?.addEventListener('click', () => answer(true));
+  modal.querySelector('[data-no]')?.addEventListener('click', () => answer(false));
 }

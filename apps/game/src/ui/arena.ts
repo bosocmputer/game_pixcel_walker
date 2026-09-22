@@ -31,7 +31,7 @@ export function arenaPanel(): string {
       <span class="spacer"></span>${extra}</div>`;
   };
   return `<h2>🧪 สนามทดสอบการต่อสู้</h2>
-    <p class="muted">เลือกมอนสเตอร์มาลองชุดสกิล — ไม่ได้รางวัล ไม่เสียของ HP ไม่ลด หลังจบจะแสดงสถิติแต่ละสกิล</p>
+    <p class="muted">เลือกมอนสเตอร์มาลองชุดสกิล — เริ่ม HP/MP เต็มทุกครั้ง ใช้ยาทดสอบ (HP 5 · MP 5) ไม่แตะของในกระเป๋า ไม่ได้รางวัล ไม่มีบทลงโทษ</p>
     <h3>🎯 หุ่นไม้ฝึกซ้อม (ไม่ตีกลับ)</h3>
     <p class="muted">ตีได้เรื่อย ๆ จนครบจำนวนรอบ ใช้ดูดาเมจต่อรอบและความถี่ของสกิล</p>
     <div class="row">จำนวนรอบ ${[10, 20, 50].map((n) => `<button class="chip-btn ${state.dummyRounds === n ? 'on' : ''}" data-drounds="${n}">${n}</button>`).join('')}</div>

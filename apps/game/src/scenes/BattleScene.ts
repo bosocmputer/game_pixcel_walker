@@ -32,6 +32,8 @@ import { autoHunt } from '../game/autohunt';
 /** World boss attack window, in rounds. */
 const WORLD_BOSS_ROUNDS = 20;
 const STEP_MS = 700;
+/** Potions provided by the test arena (never taken from the bag). */
+const TEST_KIT = { red_potion: 5, blue_elixir: 5 };
 
 interface UnitView {
   sprite: Phaser.GameObjects.Image;
@@ -100,11 +102,17 @@ export class BattleScene extends Phaser.Scene {
       maxRounds = test.maxRounds;
     }
 
-    const items: Record<string, number> = {};
-    if (s.bag.red_potion) items.red_potion = s.bag.red_potion;
-    if (s.bag.blue_elixir) items.blue_elixir = s.bag.blue_elixir;
+    // The test arena never touches real resources: full HP/MP and its own potion kit.
+    const items: Record<string, number> = test ? { ...TEST_KIT } : {};
+    if (!test && s.bag.red_potion) items.red_potion = s.bag.red_potion;
+    if (!test && s.bag.blue_elixir) items.blue_elixir = s.bag.blue_elixir;
+    const me = playerSetup(s);
+    if (test) {
+      me.hp = me.stats.maxHp;
+      me.mp = me.stats.maxMp;
+    }
     this.d = createDungeon({
-      party: [playerSetup(s)],
+      party: [me],
       waves,
       seed: (Math.random() * 2 ** 31) | 0,
       items,
@@ -388,7 +396,7 @@ export class BattleScene extends Phaser.Scene {
       <div class="battle-vitals">
         <span class="hp">HP ${Math.max(0, Math.round(me.hp))}/${Math.round(me.base.maxHp)}</span>
         <span class="mp">MP ${Math.round(me.mp)}/${Math.round(me.base.maxMp)}</span>
-        <span class="pot">ยา HP ${this.d.combat.items.red_potion ?? 0} · MP ${this.d.combat.items.blue_elixir ?? 0}</span>
+        <span class="pot">${this.req.kind === 'TEST' ? 'ยาทดสอบ' : 'ยา'} HP ${this.d.combat.items.red_potion ?? 0} · MP ${this.d.combat.items.blue_elixir ?? 0}</span>
         <span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button>
         <button class="chip" data-act="skip">⏭ ข้าม</button>
@@ -481,7 +489,7 @@ export class BattleScene extends Phaser.Scene {
       <p>โดน ${st.hits} · Critical ${st.crits} (${Math.round((st.crits / Math.max(1, st.hits)) * 100)}%) · Miss ${st.misses}
         ${Object.keys(st.statuses).length ? ` · สถานะ: ${Object.entries(st.statuses).map(([k, n]) => `${STATUS_TH[k] ?? k} ×${n}`).join(', ')}` : ''}</p>
       <table class="deck-stats"><tr><th>สกิล</th><th>ครั้ง</th><th>ดาเมจ</th></tr>${rows}</table>
-      <p class="muted">สนามทดสอบ: ไม่ได้รางวัล ไม่เสียของ HP ไม่ลด${dummy ? ' · พิษ/เลือดไหลกับหุ่นคิดจาก HP 1,000' : ''}</p>
+      <p class="muted">สนามทดสอบ: เริ่ม HP/MP เต็ม ใช้ยาทดสอบ (HP 5 · MP 5) ไม่แตะของในกระเป๋า ไม่ได้รางวัล${dummy ? ' · พิษ/เลือดไหลกับหุ่นคิดจาก HP 1,000' : ''}</p>
       <button class="btn" data-act="again">🔁 สู้ซ้ำ</button>
       <button class="btn primary" data-act="close">กลับสู่แผนที่</button></div></div>`);
     document.getElementById('ui')!.appendChild(modal);

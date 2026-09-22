@@ -226,3 +226,10 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 
 .zoom { position: absolute; right: 8px; top: calc(120px + env(safe-area-inset-top)); display: grid; gap: 6px; }
 .zoom button { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(255,250,242,.95); font-size: 20px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
+
+.sim-speed {
+  position: absolute; right: 30px; bottom: calc(222px + env(safe-area-inset-bottom));
+  border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 700; font-size: 15px;
+  background: rgba(255,250,242,.95); box-shadow: 0 3px 0 rgba(0,0,0,.25);
+}
+.sim-speed.hidden { display: none; }

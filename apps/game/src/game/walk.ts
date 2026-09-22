@@ -8,6 +8,8 @@ import { bus, toast } from './bus';
 import { degScale } from './world';
 
 const SIM_WALK_MPS = 1.4;
+/** Test-only walking speed multipliers for the simulated walker. */
+export const SIM_SPEEDS = [1, 3, 10, 30];
 const LAST_POS_KEY = 'pw.lastPos';
 /** Faster than this counts as a vehicle: fighting is disabled. */
 export const MAX_FIGHT_SPEED_KMH = 20;
@@ -41,6 +43,21 @@ class LocationController {
   private lastSaved = 0;
   private simDir = { x: 0, y: 0 };
   private simTurbo = false;
+  /** Multiplier for the simulated walker (desktop testing). */
+  simSpeed = (() => {
+    const v = Number(localStorage.getItem('pw.simSpeed'));
+    return SIM_SPEEDS.includes(v) ? v : 10;
+  })();
+
+  cycleSimSpeed(): number {
+    this.simSpeed = SIM_SPEEDS[(SIM_SPEEDS.indexOf(this.simSpeed) + 1) % SIM_SPEEDS.length]!;
+    try {
+      localStorage.setItem('pw.simSpeed', String(this.simSpeed));
+    } catch {
+      /* ignore */
+    }
+    return this.simSpeed;
+  }
 
   startLocation() {
     if (!('geolocation' in navigator)) {
@@ -72,8 +89,9 @@ class LocationController {
     this.simTurbo = turbo;
   }
 
+  /** Vehicle-speed check. The simulated walker is a test tool and is exempt (disable it before launch). */
   get tooFast(): boolean {
-    return this.speedKmh > MAX_FIGHT_SPEED_KMH;
+    return !this.simulated && this.speedKmh > MAX_FIGHT_SPEED_KMH;
   }
 
   private simStep() {
@@ -84,7 +102,7 @@ class LocationController {
       this.onFix({ ...this.position, accuracy: 5, t: Date.now() }, true);
       return;
     }
-    const meters = SIM_WALK_MPS * 0.25 * (this.simTurbo ? 6 : 1);
+    const meters = SIM_WALK_MPS * 0.25 * this.simSpeed * (this.simTurbo ? 2 : 1);
     const k = degScale(this.position.lat);
     const lat = this.position.lat - ((y / len) * meters) / k.lat;
     const lng = this.position.lng + ((x / len) * meters) / k.lng;

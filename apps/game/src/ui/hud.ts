@@ -116,6 +116,7 @@ export function mountHud() {
     <div class="topbar" data-open="char"></div>
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
+    <button class="sim-speed hidden" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button>
     <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
@@ -128,6 +129,10 @@ export function mountHud() {
   root().appendChild(hud);
 
   hud.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('[data-simspeed]')) {
+      walk.cycleSimSpeed();
+      return renderSimSpeed();
+    }
     const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
     if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
@@ -144,8 +149,14 @@ export function mountHud() {
     near = landmarks;
     renderNear(hud.querySelector('.near')!);
   });
+  const renderSimSpeed = () => {
+    const b = hud.querySelector<HTMLElement>('.sim-speed')!;
+    b.classList.toggle('hidden', !walk.simulated);
+    b.textContent = `🏃 ${walk.simSpeed}×`;
+  };
   bus.on('position', (p) => {
     hud.querySelector('.joystick')!.classList.toggle('hidden', !p.simulated);
+    renderSimSpeed();
   });
   bus.on('encounter', ({ monsterIds }) => {
     pendingEncounter = { monsterIds, expires: Date.now() + ENCOUNTER_TTL_MS };

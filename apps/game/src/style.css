@@ -16,7 +16,12 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); }
+#map { position: fixed; inset: 0; z-index: 0; background: #c3e6aa; }
 #game, #game canvas { position: fixed; inset: 0; }
+#game { z-index: 1; pointer-events: none; }
+body.in-battle #game { pointer-events: auto; }
+.maplibregl-ctrl-attrib { font-size: 10px; }
+.maplibregl-ctrl-bottom-right { bottom: 88px; }
 #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 #ui > * { pointer-events: auto; }
 button { font-family: inherit; cursor: pointer; }

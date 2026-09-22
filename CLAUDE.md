@@ -1,7 +1,8 @@
 # Pixel Walker (ก้าวข้ามมิติ) — Claude guide
 
-Location-based 16-bit RPG for the browser. The map streams worldwide from OpenFreeMap vector
-tiles (`apps/game/src/game/world.ts`); the player community launches in Chiang Mai. The owner is a solo developer
+Location-based RPG for the browser: a real map background (MapLibre + OpenFreeMap, `game/map.ts`)
+with 16-bit sprites drawn on a transparent Phaser canvas; gameplay terrain/landmarks are decoded from the
+same vector tiles (`game/world.ts`). The player community launches in Chiang Mai. The owner is a solo developer
 who builds with Claude and speaks Thai — reply in Thai, keep code/comments in English.
 
 **Design source of truth: `docs/MASTER_SPEC.md`.** `docs/source/` holds the original docs;

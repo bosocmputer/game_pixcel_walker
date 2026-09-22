@@ -1,39 +1,31 @@
+/**
+ * Overworld: the real map is rendered by MapLibre underneath (see game/map.ts); this scene
+ * only draws game sprites on a transparent canvas — the hero at the GPS position plus landmark
+ * and home icons — by projecting lat/lng to screen space every frame.
+ */
 import Phaser from 'phaser';
-import { TILE_PX, TILE_VARIANTS, buildAtlas, drawTile, heroCanvas, landmarkIcon, type Facing, type TileAtlas } from '../game/art';
+import { heroCanvas, landmarkIcon, type Facing } from '../game/art';
 import { bus, type BattleRequest } from '../game/bus';
-import {
-  CHUNK_TILES,
-  chunkRect,
-  ensureAround,
-  isLoaded,
-  landmarksAround,
-  loadingCount,
-  metersPerTile,
-  onChunkLoaded,
-  tileAt,
-  toLatLng,
-  toTile,
-} from '../game/world';
+import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
+import { centerOn, depthScale, pixelsPerMeter, project, resetNorth, zoomBy } from '../game/map';
 import { walk } from '../game/walk';
 import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 
-const RCHUNK = 32; // render chunk, in tiles (divides CHUNK_TILES)
-const RCHUNK_PX = RCHUNK * TILE_PX;
-const LANDMARK_RADIUS_M = 900;
-const ZOOMS = [1, 2, 3, 4];
+const LANDMARK_RADIUS_M = 700;
 const WALK_FRAMES = [1, 0, 2, 0];
+const HERO_SCALE = 3;
 
 export class WorldScene extends Phaser.Scene {
-  private atlas!: TileAtlas;
-  private chunks = new Map<string, { img: Phaser.GameObjects.Image; placeholder: boolean }>();
   private player!: Phaser.GameObjects.Image;
   private shadow!: Phaser.GameObjects.Ellipse;
   private accuracyRing!: Phaser.GameObjects.Arc;
   private pulse!: Phaser.GameObjects.Arc;
   private loadingText!: Phaser.GameObjects.Text;
-  private target = { x: 0, y: 0 };
+  private target: { lat: number; lng: number } | null = null;
+  private current: { lat: number; lng: number } | null = null;
+  private accuracy = 10;
   private heroBase = '';
   private facing: Facing = 'down';
   private flip = false;
@@ -44,8 +36,6 @@ export class WorldScene extends Phaser.Scene {
   private lastNearIds = '';
   private lastDataChunk = '';
   private lastLandmarkScan = 0;
-  private zoomIndex = 1;
-  private pinchStart: { dist: number; zoom: number } | null = null;
   private unsubs: (() => void)[] = [];
 
   constructor() {
@@ -53,36 +43,26 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
-    this.atlas = buildAtlas();
     for (const kind of ['CONVENIENCE', 'FUEL', 'PARK', 'HOME']) {
       if (!this.textures.exists(`lm_${kind}`)) this.textures.addCanvas(`lm_${kind}`, landmarkIcon(kind));
     }
+    this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
 
-    this.accuracyRing = this.add.circle(0, 0, 10, 0x26c6da, 0.1).setStrokeStyle(1, 0x26c6da, 0.5).setDepth(5);
-    this.pulse = this.add.circle(0, 0, 6, 0xffffff, 0).setStrokeStyle(2, 0xffa726, 0.9).setDepth(5);
+    this.accuracyRing = this.add.circle(0, 0, 10, 0x26c6da, 0.12).setStrokeStyle(2, 0x26c6da, 0.6).setDepth(5);
+    this.pulse = this.add.circle(0, 0, 10, 0xffffff, 0).setStrokeStyle(3, 0xffa726, 0.9).setDepth(5);
     this.tweens.add({ targets: this.pulse, scale: 3, alpha: 0, duration: 1600, repeat: -1 });
-    this.shadow = this.add.ellipse(0, 0, 14, 5, 0x000000, 0.3).setDepth(9);
+    this.shadow = this.add.ellipse(0, 0, 40, 14, 0x000000, 0.28).setDepth(9);
     this.refreshHero(store.s);
-    this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(0.5, 0.92);
+    this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(0.5, 0.92).setScale(HERO_SCALE);
     this.loadingText = this.add
-      .text(0, 0, 'กำลังโหลดแผนที่…', { fontFamily: 'Mali', fontSize: '14px', color: '#ffffff', backgroundColor: '#1b1f2acc', padding: { x: 8, y: 4 } })
-      .setScrollFactor(0)
+      .text(0, 0, 'กำลังโหลดข้อมูลแผนที่…', { fontFamily: 'Mali', fontSize: '14px', color: '#ffffff', backgroundColor: '#1b1f2acc', padding: { x: 8, y: 4 } })
       .setDepth(100)
       .setOrigin(0.5, 0);
 
-    const cam = this.cameras.main;
-    cam.setBackgroundColor('#2a2f3d');
-    this.zoomIndex = Number(localStorage.getItem('pw.zoom') ?? 1);
-    this.applyZoom();
-    cam.roundPixels = true;
-    this.scale.on('resize', () => this.applyZoom());
-
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,SHIFT') as Record<string, Phaser.Input.Keyboard.Key>;
-    kb.on('keydown-PLUS', () => this.zoomBy(1));
-    kb.on('keydown-MINUS', () => this.zoomBy(-1));
-    this.input.on('wheel', (_p: unknown, _o: unknown, _dx: number, dy: number) => this.zoomBy(dy < 0 ? 1 : -1));
-    this.input.addPointer(1);
+    kb.on('keydown-PLUS', () => zoomBy(0.5));
+    kb.on('keydown-MINUS', () => zoomBy(-0.5));
 
     this.unsubs.push(
       bus.on('position', (p) => this.onPosition(p.lat, p.lng, p.accuracy)),
@@ -92,8 +72,7 @@ export class WorldScene extends Phaser.Scene {
       }),
       bus.on('boss:challenge', ({ landmark }) => this.startBattle({ kind: 'BOSS', monsterIds: [], landmark })),
       bus.on('battle:start', (req) => this.startBattle(req)),
-      bus.on('zoom', ({ delta }) => this.zoomBy(delta)),
-      onChunkLoaded((cx, cy) => this.invalidateDataChunk(cx, cy)),
+      bus.on('zoom', ({ delta }) => (delta === 0 ? resetNorth() : zoomBy(delta * 0.5))),
     );
     this.events.once('shutdown', () => this.unsubs.forEach((u) => u()));
     this.events.on('resume', () => {
@@ -101,46 +80,8 @@ export class WorldScene extends Phaser.Scene {
     });
 
     this.refreshHome(store.s);
-    if (walk.position) this.onPosition(walk.position.lat, walk.position.lng, 10, true);
+    if (walk.position) this.onPosition(walk.position.lat, walk.position.lng, 10);
   }
-
-  // -------------------------------------------------------------------------------------------
-  // Camera zoom (wheel, +/- keys, pinch, HUD buttons)
-
-  private applyZoom() {
-    this.zoomIndex = Phaser.Math.Clamp(this.zoomIndex, 0, ZOOMS.length - 1);
-    this.cameras.main.setZoom(ZOOMS[this.zoomIndex]!);
-    try {
-      localStorage.setItem('pw.zoom', String(this.zoomIndex));
-    } catch {
-      /* ignore */
-    }
-    this.loadingText?.setPosition(this.scale.width / 2, 8);
-  }
-
-  zoomBy(d: number) {
-    this.zoomIndex += d;
-    this.applyZoom();
-  }
-
-  private handlePinch() {
-    const p1 = this.input.pointer1;
-    const p2 = this.input.pointer2;
-    if (p1.isDown && p2.isDown) {
-      const dist = Phaser.Math.Distance.Between(p1.x, p1.y, p2.x, p2.y);
-      if (!this.pinchStart) this.pinchStart = { dist, zoom: this.zoomIndex };
-      const steps = Math.round(Math.log2(dist / this.pinchStart.dist) * 1.5);
-      const want = Phaser.Math.Clamp(this.pinchStart.zoom + steps, 0, ZOOMS.length - 1);
-      if (want !== this.zoomIndex) {
-        this.zoomIndex = want;
-        this.applyZoom();
-      }
-    } else {
-      this.pinchStart = null;
-    }
-  }
-
-  // -------------------------------------------------------------------------------------------
 
   private startBattle(req: BattleRequest) {
     if (this.scene.isActive('Battle')) return;
@@ -150,14 +91,13 @@ export class WorldScene extends Phaser.Scene {
     this.scene.launch('Battle', req);
   }
 
-  private onPosition(lat: number, lng: number, accuracy: number, snap = false) {
+  private onPosition(lat: number, lng: number, accuracy: number) {
+    this.target = { lat, lng };
+    this.current ??= { lat, lng };
+    this.accuracy = accuracy;
+
+    // Keep gameplay data (terrain for encounters/safe zones, landmarks) streaming around us.
     const t = toTile(lat, lng);
-    this.target = { x: t.x * TILE_PX, y: t.y * TILE_PX };
-    this.accuracyRing.setRadius(Math.max(6, (accuracy / metersPerTile(lat)) * TILE_PX));
-    if (snap || (this.player.x === 0 && this.player.y === 0)) {
-      this.player.setPosition(this.target.x, this.target.y);
-      this.cameras.main.centerOn(this.target.x, this.target.y);
-    }
     const dataKey = `${Math.floor(t.x / CHUNK_TILES)},${Math.floor(t.y / CHUNK_TILES)}`;
     if (dataKey !== this.lastDataChunk) {
       this.lastDataChunk = dataKey;
@@ -199,21 +139,24 @@ export class WorldScene extends Phaser.Scene {
       this.homeSprite = null;
       return;
     }
-    const t = toTile(s.home.lat, s.home.lng);
-    if (!this.homeSprite) this.homeSprite = this.add.image(0, 0, 'lm_HOME').setScale(1.5).setDepth(8).setOrigin(0.5, 1);
-    this.homeSprite.setPosition(t.x * TILE_PX, t.y * TILE_PX);
+    if (!this.homeSprite) this.homeSprite = this.add.image(0, 0, 'lm_HOME').setScale(2.5).setDepth(8).setOrigin(0.5, 1);
   }
 
   update(time: number, delta: number) {
-    this.handlePinch();
+    if (!this.target || !this.current) return;
 
-    // Smoothly move toward the latest GPS fix (Lerp, as in the Radar spec).
-    const dx = this.target.x - this.player.x;
-    const dy = this.target.y - this.player.y;
+    // Lerp the displayed position toward the latest GPS fix, then lock the map camera to it.
     const k = 1 - Math.pow(0.002, delta / 1000);
-    this.player.x += dx * k;
-    this.player.y += dy * k;
-    const moving = Math.hypot(dx, dy) > 0.6;
+    const before = project(this.current.lat, this.current.lng);
+    this.current.lat += (this.target.lat - this.current.lat) * k;
+    this.current.lng += (this.target.lng - this.current.lng) * k;
+    const aim = project(this.target.lat, this.target.lng);
+    const dx = aim.x - before.x;
+    const dy = aim.y - before.y;
+    centerOn(this.current.lat, this.current.lng);
+    const here = project(this.current.lat, this.current.lng);
+
+    const moving = Math.hypot(dx, dy) > 1.5;
     if (moving) {
       if (Math.abs(dx) > Math.abs(dy)) {
         this.facing = 'side';
@@ -226,11 +169,10 @@ export class WorldScene extends Phaser.Scene {
       this.walkTime = 0;
     }
     const frame = moving ? WALK_FRAMES[Math.floor(this.walkTime / 160) % 4]! : 0;
-    this.player.setTexture(this.heroKey(this.facing, frame)).setFlipX(this.facing === 'side' && this.flip);
-    this.shadow.setPosition(this.player.x, this.player.y);
-    this.accuracyRing.setPosition(this.player.x, this.player.y);
-    this.pulse.setPosition(this.player.x, this.player.y);
-    this.cameras.main.centerOn(Math.round(this.player.x), Math.round(this.player.y));
+    this.player.setTexture(this.heroKey(this.facing, frame)).setFlipX(this.facing === 'side' && this.flip).setPosition(here.x, here.y);
+    this.shadow.setPosition(here.x, here.y);
+    this.pulse.setPosition(here.x, here.y);
+    this.accuracyRing.setPosition(here.x, here.y).setRadius(Math.max(12, this.accuracy * pixelsPerMeter(this.current.lat)));
 
     if (walk.simulated) {
       const K = this.keys;
@@ -240,104 +182,28 @@ export class WorldScene extends Phaser.Scene {
       else if (!document.body.dataset.joystick) walk.setSimDirection(0, 0);
     }
 
-    this.loadingText.setVisible(loadingCount() > 0);
-    this.updateChunks();
+    this.loadingText.setPosition(this.scale.width / 2, 8).setVisible(loadingCount() > 0);
     if (time - this.lastLandmarkScan > 500) {
       this.lastLandmarkScan = time;
-      this.updateLandmarks();
+      this.syncLandmarks();
     }
+    this.placeOverlays();
   }
 
-  // -------------------------------------------------------------------------------------------
-  // Map rendering: 32×32-tile render chunks drawn from streamed 256×256 data chunks
-
-  private updateChunks() {
-    const view = this.cameras.main.worldView;
-    const x0 = Math.floor(view.x / RCHUNK_PX) - 1;
-    const y0 = Math.floor(view.y / RCHUNK_PX) - 1;
-    const x1 = Math.floor(view.right / RCHUNK_PX) + 1;
-    const y1 = Math.floor(view.bottom / RCHUNK_PX) + 1;
-
-    const keep = new Set<string>();
-    for (let cy = y0; cy <= y1; cy++) {
-      for (let cx = x0; cx <= x1; cx++) {
-        const key = `rc_${cx}_${cy}`;
-        keep.add(key);
-        if (!this.chunks.has(key)) this.chunks.set(key, this.renderChunk(cx, cy, key));
-      }
-    }
-    for (const [key, c] of this.chunks) {
-      if (keep.has(key)) continue;
-      this.dropChunk(key, c.img);
-    }
-  }
-
-  private dropChunk(key: string, img: Phaser.GameObjects.Image) {
-    img.destroy();
-    if (this.textures.exists(key)) this.textures.remove(key);
-    this.chunks.delete(key);
-  }
-
-  /** Re-render the loaded data chunk plus a one-render-chunk ring (neighbour-aware edges). */
-  private invalidateDataChunk(cx: number, cy: number) {
-    const r = chunkRect(cx, cy);
-    const rx0 = Math.floor(r.x / RCHUNK) - 1;
-    const ry0 = Math.floor(r.y / RCHUNK) - 1;
-    const rx1 = Math.floor((r.x + r.size) / RCHUNK);
-    const ry1 = Math.floor((r.y + r.size) / RCHUNK);
-    for (const [key, c] of this.chunks) {
-      const [, sx, sy] = key.split('_');
-      const x = Number(sx);
-      const y = Number(sy);
-      if (x >= rx0 && x <= rx1 && y >= ry0 && y <= ry1) this.dropChunk(key, c.img);
-    }
-    this.lastNearIds = '';
-    if (walk.position) this.onPosition(walk.position.lat, walk.position.lng, 10);
-  }
-
-  private renderChunk(cx: number, cy: number, key: string) {
-    const tx0 = cx * RCHUNK;
-    const ty0 = cy * RCHUNK;
-    const loaded = isLoaded(tx0, ty0);
-    const tex = this.textures.createCanvas(key, RCHUNK_PX, RCHUNK_PX)!;
-    const ctx = tex.getContext() as unknown as CanvasRenderingContext2D;
-    if (!loaded) {
-      ensureAround(tx0, ty0, 0);
-      ctx.fillStyle = '#2a2f3d';
-      ctx.fillRect(0, 0, RCHUNK_PX, RCHUNK_PX);
-      ctx.fillStyle = '#323848';
-      for (let i = 0; i < RCHUNK; i += 2) ctx.fillRect(i * TILE_PX, 0, 1, RCHUNK_PX);
-      for (let i = 0; i < RCHUNK; i += 2) ctx.fillRect(0, i * TILE_PX, RCHUNK_PX, 1);
-    } else {
-      for (let ty = 0; ty < RCHUNK; ty++) {
-        for (let tx = 0; tx < RCHUNK; tx++) {
-          const gx = tx0 + tx;
-          const gy = ty0 + ty;
-          const variant = (((gx * 7 + gy * 13) % TILE_VARIANTS) + TILE_VARIANTS) % TILE_VARIANTS;
-          drawTile(ctx, this.atlas, tileAt(gx, gy), variant, (dx, dy) => tileAt(gx + dx, gy + dy), tx * TILE_PX, ty * TILE_PX);
-        }
-      }
-    }
-    tex.refresh();
-    const img = this.add.image(cx * RCHUNK_PX, cy * RCHUNK_PX, key).setOrigin(0).setDepth(0);
-    return { img, placeholder: !loaded };
-  }
-
-  private updateLandmarks() {
-    const here = toLatLng(this.player.x / TILE_PX, this.player.y / TILE_PX);
+  /** Create/destroy landmark sprites near the player (cheap; runs twice a second). */
+  private syncLandmarks() {
     const s = store.s;
     const now = Date.now();
     const seen = new Set<string>();
-    for (const l of landmarksAround(here.lat, here.lng, LANDMARK_RADIUS_M)) {
+    for (const l of landmarksAround(this.current!.lat, this.current!.lng, LANDMARK_RADIUS_M)) {
       seen.add(l.id);
       let c = this.landmarkSprites.get(l.id);
       if (!c) {
-        const t = toTile(l.lat, l.lng);
-        const icon = this.add.image(0, 0, `lm_${l.kind}`).setOrigin(0.5, 1).setScale(l.kind === 'PARK' ? 1.6 : 1.3);
-        const bang = this.add.text(0, -24, '!', { fontFamily: 'Silkscreen', fontSize: '14px', color: '#ff5252', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
-        c = this.add.container(t.x * TILE_PX, t.y * TILE_PX, [icon, bang]).setDepth(7);
-        c.setData('bang', bang);
-        this.tweens.add({ targets: bang, y: -29, yoyo: true, repeat: -1, duration: 500 });
+        const icon = this.add.image(0, 0, `lm_${l.kind}`).setOrigin(0.5, 1).setScale(l.kind === 'PARK' ? 3 : 2.5);
+        const bang = this.add.text(0, -44, '!', { fontFamily: 'Silkscreen', fontSize: '22px', color: '#ff5252', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+        c = this.add.container(0, 0, [icon, bang]).setDepth(7);
+        c.setData({ bang, lat: l.lat, lng: l.lng });
+        this.tweens.add({ targets: bang, y: -52, yoyo: true, repeat: -1, duration: 500 });
         this.landmarkSprites.set(l.id, c);
       }
       (c.getData('bang') as Phaser.GameObjects.Text).setVisible(bossAvailableAt(l, s, now) <= now);
@@ -346,6 +212,21 @@ export class WorldScene extends Phaser.Scene {
       if (seen.has(id)) continue;
       c.destroy();
       this.landmarkSprites.delete(id);
+    }
+  }
+
+  /** Re-project overlays every frame so they stick to the map while it zooms/rotates. */
+  private placeOverlays() {
+    const h = this.scale.height;
+    for (const c of this.landmarkSprites.values()) {
+      const p = project(c.getData('lat') as number, c.getData('lng') as number);
+      const onScreen = p.x > -80 && p.y > -80 && p.x < this.scale.width + 80 && p.y < h + 80;
+      c.setVisible(onScreen).setPosition(p.x, p.y).setScale(depthScale(p.y, h)).setDepth(7 + p.y / 10000);
+    }
+    const home = store.s.home;
+    if (home && this.homeSprite) {
+      const p = project(home.lat, home.lng);
+      this.homeSprite.setPosition(p.x, p.y).setScale(2.5 * depthScale(p.y, h));
     }
   }
 }

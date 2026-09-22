@@ -1,0 +1,121 @@
+/**
+ * Real-world background map (Pokémon GO style): MapLibre GL + OpenFreeMap "liberty" style,
+ * tilted with 3D buildings and recoloured into a game palette. The camera is locked to the
+ * player; sprites are drawn by Phaser on a transparent canvas above it using `project()`.
+ */
+import maplibregl, { type Map as MLMap } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+
+const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+export const MIN_ZOOM = 15;
+export const MAX_ZOOM = 19;
+const DEFAULT_ZOOM = 17.5;
+const PITCH = 55;
+
+let map: MLMap | null = null;
+
+/** Game palette: green land, bright water, pale roads — readable at a glance while walking. */
+function applyGameStyle(m: MLMap) {
+  const set = (id: string, prop: string, value: unknown) => {
+    if (m.getLayer(id)) m.setPaintProperty(id, prop, value);
+  };
+  for (const layer of m.getStyle().layers ?? []) {
+    const id = layer.id;
+    // No brand names in-game (MASTER_SPEC §10): hide POI labels and shields.
+    if (layer.type === 'symbol' && (id.startsWith('poi') || id.includes('shield') || id === 'airport')) {
+      m.setLayoutProperty(id, 'visibility', 'none');
+      continue;
+    }
+    if (id === 'natural_earth') m.setLayoutProperty(id, 'visibility', 'none');
+    if (layer.type === 'fill') {
+      if (id === 'water') set(id, 'fill-color', '#4fb3f2');
+      else if (id.includes('wood')) set(id, 'fill-color', '#5fb95a');
+      else if (id.includes('grass') || id === 'park' || id.includes('pitch')) set(id, 'fill-color', '#86d174');
+      else if (id === 'landuse_residential') set(id, 'fill-color', '#b5dfa0');
+      else if (id.includes('school') || id.includes('hospital') || id.includes('cemetery')) set(id, 'fill-color', '#f1dfa0');
+      else if (id === 'building') set(id, 'fill-color', '#e8ded0');
+    }
+    if (layer.type === 'line') {
+      if (id.startsWith('waterway')) set(id, 'line-color', '#4fb3f2');
+      else if (id.includes('casing')) set(id, 'line-color', '#8fae8a');
+      else if (id.includes('motorway') || id.includes('trunk_primary')) set(id, 'line-color', '#ffe28a');
+      else if (id.includes('secondary') || id.includes('minor') || id.includes('link') || id.includes('street') || id.includes('service')) set(id, 'line-color', '#ffffff');
+      else if (id.includes('path')) set(id, 'line-color', '#f4ecd6');
+    }
+  }
+  set('background', 'background-color', '#c3e6aa');
+  set('building-3d', 'fill-extrusion-color', '#efe7da');
+  set('building-3d', 'fill-extrusion-opacity', 0.85);
+}
+
+export function createMap(container: HTMLElement, lat: number, lng: number): Promise<MLMap> {
+  map = new maplibregl.Map({
+    container,
+    style: STYLE_URL,
+    center: [lng, lat],
+    zoom: Number(localStorage.getItem('pw.mapZoom') ?? DEFAULT_ZOOM),
+    pitch: PITCH,
+    bearing: 0,
+    minZoom: MIN_ZOOM,
+    maxZoom: MAX_ZOOM,
+    // The camera follows the player: no free panning, but pinch-zoom and two-finger rotate.
+    dragPan: false,
+    keyboard: false,
+    doubleClickZoom: false,
+    boxZoom: false,
+    dragRotate: true,
+    pitchWithRotate: false,
+    touchPitch: false,
+    attributionControl: { compact: true },
+  });
+  map.touchZoomRotate.enable({ around: 'center' });
+  map.scrollZoom.enable({ around: 'center' });
+  map.on('zoomend', () => {
+    try {
+      localStorage.setItem('pw.mapZoom', String(map!.getZoom()));
+    } catch {
+      /* ignore */
+    }
+  });
+  return new Promise((resolve) => {
+    map!.once('style.load', () => {
+      applyGameStyle(map!);
+      resolve(map!);
+    });
+  });
+}
+
+export function getMap(): MLMap | null {
+  return map;
+}
+
+export function centerOn(lat: number, lng: number) {
+  map?.jumpTo({ center: [lng, lat] });
+}
+
+/** Screen position (CSS px) of a lat/lng on the map canvas. */
+export function project(lat: number, lng: number): { x: number; y: number } {
+  if (!map) return { x: 0, y: 0 };
+  const p = map.project([lng, lat]);
+  return { x: p.x, y: p.y };
+}
+
+/** Approximate on-screen pixels per metre at the map centre (ignores tilt). */
+export function pixelsPerMeter(lat: number): number {
+  if (!map) return 1;
+  return (512 * 2 ** map.getZoom()) / (40075016.686 * Math.cos((lat * Math.PI) / 180));
+}
+
+export function zoomBy(delta: number) {
+  if (!map) return;
+  map.easeTo({ zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, map.getZoom() + delta)), duration: 250 });
+}
+
+export function resetNorth() {
+  map?.easeTo({ bearing: 0, duration: 300 });
+}
+
+/** Perspective size factor for a screen y (sprites far up the tilted map look smaller). */
+export function depthScale(y: number, height: number): number {
+  return 0.65 + 0.35 * Math.max(0, Math.min(1, y / height));
+}

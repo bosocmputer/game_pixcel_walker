@@ -9,6 +9,7 @@ import { DEFAULT_POS, lastKnownPosition, walk } from './game/walk';
 import { tickRegen } from './game/rules';
 import { store } from './state/store';
 import { mountHud, showOnboarding } from './ui/hud';
+import { createMap } from './game/map';
 import { el } from './ui/dom';
 
 /** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
@@ -48,6 +49,7 @@ async function start() {
   initWorld(pos.lat, pos.lng);
   const t = toTile(pos.lat, pos.lng);
   ensureAround(t.x, t.y, 1);
+  await createMap(document.getElementById('map')!, pos.lat, pos.lng);
   loading.remove();
 
   tickRegen();
@@ -57,7 +59,7 @@ async function start() {
     type: Phaser.AUTO,
     parent: 'game',
     pixelArt: true,
-    backgroundColor: '#2a2f3d',
+    transparent: true,
     // A hidden/minimized tab can report 0×0, which breaks WebGL framebuffers — keep a floor.
     scale: {
       mode: Phaser.Scale.RESIZE,

@@ -116,7 +116,7 @@ export function mountHud() {
     <div class="topbar" data-open="char"></div>
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
-    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button></div>
+    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
       <button class="walk-btn" data-act="walk"></button>

@@ -263,7 +263,7 @@ Guarded by `balance.test.ts` (every preset > 20%, spread < 50 points).
 | 3v3 parties | Engine supports N v N (2 rows/side); the player fights solo for now | No companions/Mercenaries yet — they plug in as extra `UnitSetup`s |
 | "Outfit element bonus" | `rateBonus` per element on the unit (gear/phase) + wave modifier | Gear items can grant element launch % later without engine changes |
 | Crit multiplier 1.5–2.0 | Players 1.6, monsters 1.5 | Tunable per unit via `critMult` |
-| No MP in the brief | MP kept as a launch-roll gate | The game already has MP, potions and MP-heavy mutations |
+| No MP in the brief | MP is a real resource: skills cost 6–45 MP; a skill without enough MP is never rolled; players auto-drink MP potions below 25% (HP potions below 30% first) | Makes MP potions and INT meaningful: without MP potions a Lv.10 Novice runs dry in ~70% of Goblin dungeon runs |
 | Status durations | In the affected unit's turns | Consistent with turn-based pacing |
 | Speed-strict order | One action per unit per round, speed-sorted | Predictable for players planning around boss ultimates |
 

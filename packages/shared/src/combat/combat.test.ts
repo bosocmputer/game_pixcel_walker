@@ -141,6 +141,21 @@ describe('combat engine', () => {
   });
 });
 
+describe('MP', () => {
+  it('skills spend MP and the auto MP potion kicks in when low', () => {
+    const u = { ...hero({ deck: ['quick_strike', 'power_smash'] }), mp: 20 };
+    const c = runToEnd(createCombat({ partyA: [u], partyB: [monsterSetup('training_dummy', 'd')], seed: 5, maxRounds: 8, items: { blue_elixir: 1 } }));
+    expect(of(c.events, 'SKILL').some((e) => e.unit === 'p1' && (e.mp ?? 0) > 0)).toBe(true);
+    expect(of(c.events, 'ITEM').some((e) => e.item === 'blue_elixir')).toBe(true);
+  });
+
+  it('skills without enough MP are never rolled (basic attack instead)', () => {
+    const u = { ...hero({ deck: ['power_smash'] }), mp: 0 };
+    const c = runToEnd(createCombat({ partyA: [u], partyB: [monsterSetup('training_dummy', 'd')], seed: 5, maxRounds: 6 }));
+    expect(of(c.events, 'SKILL').filter((e) => e.unit === 'p1').every((e) => e.skill === 'basic_attack')).toBe(true);
+  });
+});
+
 describe('training dummy', () => {
   it('never deals damage and survives until the round limit', () => {
     const c = runToEnd(createCombat({ partyA: [hero()], partyB: [monsterSetup('training_dummy', 'd')], seed: 3, maxRounds: 10 }));

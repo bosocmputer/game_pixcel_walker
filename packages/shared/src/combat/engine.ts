@@ -31,6 +31,9 @@ import {
 
 export const FRONT_AGGRO = 0.7;
 export const COVER_MITIGATION = 0.7;
+/** Players auto-drink below these shares of max HP / MP (HP first). */
+export const AUTO_HP_POTION = 0.3;
+export const AUTO_MP_POTION = 0.25;
 /** Training dummies measure % max-HP damage-over-time against this HP. */
 export const DUMMY_REFERENCE_HP = 1000;
 const DEFAULT_MAX_ROUNDS = 60;
@@ -330,10 +333,17 @@ function takeTurn(c: Combat, u: CombatUnit) {
   }
 
   // 2. Pre-action: auto potion, then the boss's deterministic ultimate.
-  if (u.autoPotion && u.hp < u.base.maxHp * 0.3 && (c.items['red_potion'] ?? 0) > 0) {
+  if (u.autoPotion && u.hp < u.base.maxHp * AUTO_HP_POTION && (c.items['red_potion'] ?? 0) > 0) {
     c.items['red_potion'] = (c.items['red_potion'] ?? 0) - 1;
     const amount = heal(c, u, u, CONSUMABLES.red_potion?.amount ?? 200, true);
     push(c, { type: 'ITEM', unit: u.id, item: 'red_potion', amount });
+    return endTurn(u);
+  }
+  if (u.autoPotion && u.mp < u.base.maxMp * AUTO_MP_POTION && (c.items['blue_elixir'] ?? 0) > 0) {
+    c.items['blue_elixir'] = (c.items['blue_elixir'] ?? 0) - 1;
+    const before = u.mp;
+    u.mp = Math.min(u.base.maxMp, u.mp + (CONSUMABLES.blue_elixir?.amount ?? 150));
+    push(c, { type: 'ITEM', unit: u.id, item: 'blue_elixir', amount: Math.round(u.mp - before) });
     return endTurn(u);
   }
   const ult = bossUltimate(u);
@@ -411,8 +421,9 @@ interface UseOpts {
 }
 
 function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
+  const mpSpent = opts.reactive ? 0 : skillMpCost(u, sk);
   if (!opts.reactive) {
-    u.mp -= skillMpCost(u, sk);
+    u.mp -= mpSpent;
     if (sk.cooldown > 0 && u.mutation !== 'PURE_MAGE') u.cooldowns[sk.id] = sk.cooldown + 1;
   }
   const offensive = sk.effects.some((e) => e.kind === 'DAMAGE');
@@ -434,7 +445,7 @@ function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
     }
   }
 
-  push(c, { type: 'SKILL', unit: u.id, skill: sk.id, targets: targets.map((t) => t.id), reactive: opts.reactive });
+  push(c, { type: 'SKILL', unit: u.id, skill: sk.id, targets: targets.map((t) => t.id), reactive: opts.reactive, mp: mpSpent || undefined });
 
   const landed = new Set<CombatUnit>();
   for (const effect of sk.effects) {

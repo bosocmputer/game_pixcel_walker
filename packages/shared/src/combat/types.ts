@@ -208,7 +208,7 @@ export type CombatEvent =
   | { type: 'ROUND'; round: number }
   | { type: 'TURN'; unit: string }
   | { type: 'SKIP'; unit: string; reason: StatusId }
-  | { type: 'SKILL'; unit: string; skill: string; targets: string[]; reactive?: TriggerKind }
+  | { type: 'SKILL'; unit: string; skill: string; targets: string[]; reactive?: TriggerKind; mp?: number }
   | { type: 'MISS'; source: string; target: string }
   | { type: 'DAMAGE'; source: string; target: string; amount: number; crit: boolean; block: boolean; element: Element }
   | { type: 'HEAL'; source: string; target: string; amount: number }

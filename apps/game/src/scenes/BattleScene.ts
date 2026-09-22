@@ -102,6 +102,7 @@ export class BattleScene extends Phaser.Scene {
 
     const items: Record<string, number> = {};
     if (s.bag.red_potion) items.red_potion = s.bag.red_potion;
+    if (s.bag.blue_elixir) items.blue_elixir = s.bag.blue_elixir;
     this.d = createDungeon({
       party: [playerSetup(s)],
       waves,
@@ -193,6 +194,10 @@ export class BattleScene extends Phaser.Scene {
       const pct = u.hp / u.base.maxHp;
       v.bars.fillStyle(pct > 0.5 ? 0x66bb6a : pct > 0.25 ? 0xffa726 : 0xef5350, 1).fillRect(x, y, w * pct, 5);
       if (u.shield) v.bars.fillStyle(0x80deea, 1).fillRect(x, y - 3, Math.min(w, (w * u.shield.amount) / u.base.maxHp), 2);
+      if (u.side === 'A' && u.base.maxMp > 0) {
+        v.bars.fillStyle(0x000000, 0.6).fillRect(x - 1, y + 6, w + 2, 5);
+        v.bars.fillStyle(0x42a5f5, 1).fillRect(x, y + 7, (w * Math.max(0, u.mp)) / u.base.maxMp, 3);
+      }
     }
   }
 
@@ -286,6 +291,7 @@ export class BattleScene extends Phaser.Scene {
         const offensive = e.targets.some((t) => t !== e.unit && this.d.combat.units.find((x) => x.id === t)?.side !== u.side);
         if (offensive) this.tweens.add({ targets: v.sprite, x: v.home.x + dir * 36, yoyo: true, duration: 120 / this.speed });
         const skill = SKILLS[e.skill];
+        if (e.mp) this.popup(e.unit, `−${e.mp} MP`, '#64b5f6', false, 0, 18);
         const bossUlt = u.monsterId ? MONSTERS[u.monsterId]?.boss?.skills.find((s) => s.id === e.skill) : undefined;
         if (bossUlt) {
           this.cameras.main.shake(250, 0.01);
@@ -333,7 +339,7 @@ export class BattleScene extends Phaser.Scene {
         this.popup(e.unit, '🛡 COVER', '#4dabf7', true);
         break;
       case 'ITEM':
-        this.popup(e.unit, `${CONSUMABLES[e.item]?.nameTh ?? 'ยา'} +${e.amount}`, '#80deea');
+        this.popup(e.unit, `${CONSUMABLES[e.item]?.nameTh ?? 'ยา'} +${e.amount}${e.item === 'blue_elixir' ? ' MP' : ''}`, e.item === 'blue_elixir' ? '#64b5f6' : '#80deea');
         break;
       case 'RECOVER':
         this.popup(e.unit, `+${e.amount}`, '#69f0ae');
@@ -382,7 +388,7 @@ export class BattleScene extends Phaser.Scene {
       <div class="battle-vitals">
         <span class="hp">HP ${Math.max(0, Math.round(me.hp))}/${Math.round(me.base.maxHp)}</span>
         <span class="mp">MP ${Math.round(me.mp)}/${Math.round(me.base.maxMp)}</span>
-        <span class="pot">ยา ${this.d.combat.items.red_potion ?? 0}</span>
+        <span class="pot">ยา HP ${this.d.combat.items.red_potion ?? 0} · MP ${this.d.combat.items.blue_elixir ?? 0}</span>
         <span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button>
         <button class="chip" data-act="skip">⏭ ข้าม</button>
@@ -438,7 +444,7 @@ export class BattleScene extends Phaser.Scene {
       defeated: this.d.defeated,
       hp: me?.hp ?? 0,
       mp: me?.mp ?? 0,
-      itemsLeft: { ...store.s.bag, red_potion: c.items.red_potion ?? 0 },
+      itemsLeft: { ...store.s.bag, red_potion: c.items.red_potion ?? 0, blue_elixir: c.items.blue_elixir ?? 0 },
       rng: createRng(this.d.seed ^ 0x9e3779b9),
       landmark: this.req.landmark,
       kind: this.req.kind,
@@ -471,7 +477,7 @@ export class BattleScene extends Phaser.Scene {
     const modal = el(`<div class="modal-backdrop"><div class="modal result">
       <h2>🧪 ${fled ? 'ออกจากสนาม' : dummy ? '⏱ ครบเวลา' : won ? 'ชนะ' : 'แพ้'} — ${st.rounds} รอบ</h2>
       <p>ดาเมจที่ทำ <b>${st.dealt.toLocaleString()}</b> (เฉลี่ย <b>${Math.round(st.dealt / Math.max(1, st.rounds)).toLocaleString()}</b>/รอบ)
-        · ที่ได้รับ <b>${st.taken.toLocaleString()}</b> · ฟื้นฟู <b>${st.healed.toLocaleString()}</b></p>
+        · ที่ได้รับ <b>${st.taken.toLocaleString()}</b> · ฟื้นฟู <b>${st.healed.toLocaleString()}</b> · ใช้ MP <b>${st.mpUsed.toLocaleString()}</b></p>
       <p>โดน ${st.hits} · Critical ${st.crits} (${Math.round((st.crits / Math.max(1, st.hits)) * 100)}%) · Miss ${st.misses}
         ${Object.keys(st.statuses).length ? ` · สถานะ: ${Object.entries(st.statuses).map(([k, n]) => `${STATUS_TH[k] ?? k} ×${n}`).join(', ')}` : ''}</p>
       <table class="deck-stats"><tr><th>สกิล</th><th>ครั้ง</th><th>ดาเมจ</th></tr>${rows}</table>
@@ -535,18 +541,20 @@ export interface DeckStats {
   healed: number;
   crits: number;
   misses: number;
+  mpUsed: number;
   hits: number;
   statuses: Record<string, number>;
   skills: Record<string, { uses: number; damage: number }>;
 }
 
 export function deckStats(events: CombatEvent[], meId: string): DeckStats {
-  const st: DeckStats = { rounds: 0, dealt: 0, taken: 0, healed: 0, crits: 0, misses: 0, hits: 0, statuses: {}, skills: {} };
+  const st: DeckStats = { rounds: 0, dealt: 0, taken: 0, healed: 0, crits: 0, misses: 0, mpUsed: 0, hits: 0, statuses: {}, skills: {} };
   let current = '';
   for (const e of events) {
     if (e.type === 'ROUND') st.rounds++;
     if (e.type === 'SKILL' && e.unit === meId) {
       current = e.skill;
+      st.mpUsed += e.mp ?? 0;
       (st.skills[current] ??= { uses: 0, damage: 0 }).uses++;
     } else if (e.type === 'SKILL') current = '';
     if (e.type === 'DAMAGE' && e.source === meId) {

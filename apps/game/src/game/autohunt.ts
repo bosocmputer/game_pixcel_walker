@@ -68,6 +68,9 @@ class AutoHunt {
       return this.stop('HP ต่ำและยา HP หมด');
     }
 
+    // Top up MP between fights so the deck keeps firing skills.
+    if (s.mp < derivedOf(s).maxMp * 0.25 && (s.bag.blue_elixir ?? 0) > 0) usePotion('blue_elixir');
+
     const here = walk.position;
     const target = visibleSpawns(here.lat, here.lng)
       .filter((sp) => MONSTERS[sp.monsterId]!.level - s.level <= AUTO_MAX_LEVEL_GAP)

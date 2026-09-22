@@ -20,12 +20,12 @@ export const SKILLS: Record<string, SkillDef> = {
   // ---------------------------------------------------------------- Novice
   quick_strike: S({
     id: 'quick_strike', name: 'Quick Strike', nameTh: 'ฟันรวดเร็ว', description: 'ฟัน 2 ครั้ง ครั้งละ 75% ATK',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 35, cooldown: 1, mp: 4, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 35, cooldown: 1, mp: 8, target: 'ENEMY',
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.75 }, hits: 2 }],
   }),
   first_aid: S({
     id: 'first_aid', name: 'First Aid', nameTh: 'ปฐมพยาบาล', description: 'HP ต่ำกว่า 60%: ฟื้นฟู 12% Max HP + 15',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 45, cooldown: 3, mp: 6, target: 'SELF', priority: 5, condition: 'SELF_HP_BELOW_60',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 45, cooldown: 3, mp: 12, target: 'SELF', priority: 5, condition: 'SELF_HP_BELOW_60',
     effects: [{ kind: 'HEAL', scaling: { maxHp: 0.12 }, flat: 15 }],
   }),
   lucky_dodge: S({
@@ -36,17 +36,17 @@ export const SKILLS: Record<string, SkillDef> = {
 
   power_smash: S({
     id: 'power_smash', name: 'Power Smash', nameTh: 'ทุบสุดแรง', description: '180% ATK เป้าเดียว (แรงแต่ติดยาก)',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 2, mp: 6, target: 'ENEMY', priority: 1,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 2, mp: 14, target: 'ENEMY', priority: 1,
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.8 } }],
   }),
   stone_throw: S({
     id: 'stone_throw', name: 'Stone Throw', nameTh: 'ปาหิน', description: 'ปาแถวหลัง 110% ATK (ติดบ่อย ไม่มีคูลดาวน์)',
-    kind: 'ACTIVE', element: 'EARTH', rate: 30, cooldown: 0, mp: 3, target: 'ENEMY_BACK', ranged: true,
+    kind: 'ACTIVE', element: 'EARTH', rate: 30, cooldown: 0, mp: 6, target: 'ENEMY_BACK', ranged: true,
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.1 } }],
   }),
   sweep_kick: S({
     id: 'sweep_kick', name: 'Sweep Kick', nameTh: 'เตะกวาด', description: 'ศัตรู 2 ตัวขึ้นไป: ทุกตัว 70% ATK + 20% มึน 1 เทิร์น',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 8, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', priority: 2,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 16, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', priority: 2,
     effects: [
       { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.7 } },
       { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.2 },
@@ -54,7 +54,7 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   dirty_trick: S({
     id: 'dirty_trick', name: 'Dirty Trick', nameTh: 'ลูกไม้สกปรก', description: '60% ATK และ 60% ติดพิษ 4% Max HP/เทิร์น 3 เทิร์น',
-    kind: 'ACTIVE', element: 'SHADOW', rate: 28, cooldown: 3, mp: 5, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 28, cooldown: 3, mp: 10, target: 'ENEMY',
     effects: [
       { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.6 } },
       { kind: 'STATUS', status: 'POISON', turns: 3, chance: 0.6, potency: 0.04 },
@@ -62,7 +62,7 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   fire_spark: S({
     id: 'fire_spark', name: 'Fire Spark', nameTh: 'ประกายไฟ', description: 'ไฟ 40% ATK + 180% MATK และ 30% ติดไฟ (แรงขึ้นตาม INT)',
-    kind: 'ACTIVE', element: 'FIRE', rate: 36, cooldown: 1, mp: 6, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'FIRE', rate: 36, cooldown: 1, mp: 12, target: 'ENEMY',
     effects: [
       { kind: 'DAMAGE', type: 'MAGIC', scaling: { atk: 0.4, matk: 1.8 } },
       { kind: 'STATUS', status: 'BURN', turns: 2, chance: 0.3, potency: 0.3 },
@@ -70,7 +70,7 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   aqua_splash: S({
     id: 'aqua_splash', name: 'Aqua Splash', nameTh: 'สาดน้ำ', description: 'น้ำ 40% ATK + 180% MATK และ 30% ทำให้ช้าลง 2 เทิร์น',
-    kind: 'ACTIVE', element: 'WATER', rate: 36, cooldown: 1, mp: 6, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'WATER', rate: 36, cooldown: 1, mp: 12, target: 'ENEMY',
     effects: [
       { kind: 'DAMAGE', type: 'MAGIC', scaling: { atk: 0.4, matk: 1.8 } },
       { kind: 'STATUS', status: 'SLOW', turns: 2, chance: 0.3, potency: 0.3 },
@@ -78,17 +78,17 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   war_cry: S({
     id: 'war_cry', name: 'War Cry', nameTh: 'ตะโกนศึก', description: 'ATK ตัวเอง +25% 3 เทิร์น',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 5, mp: 8, target: 'SELF', priority: 3,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 5, mp: 16, target: 'SELF', priority: 3,
     effects: [{ kind: 'BUFF', stat: 'atk', pct: 0.25, turns: 3, self: true }],
   }),
   focus: S({
     id: 'focus', name: 'Focus', nameTh: 'รวมสมาธิ', description: 'โอกาส Critical ×2 นาน 3 เทิร์น',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 20, cooldown: 5, mp: 6, target: 'SELF', priority: 3,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 20, cooldown: 5, mp: 12, target: 'SELF', priority: 3,
     effects: [{ kind: 'BUFF', stat: 'crit', pct: 1, turns: 3, self: true }],
   }),
   guard_stance: S({
     id: 'guard_stance', name: 'Guard Stance', nameTh: 'ตั้งการ์ด', description: 'HP ต่ำกว่า 60%: เกราะ 18% Max HP และ DEF +30% 2 เทิร์น',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 35, cooldown: 4, mp: 6, target: 'SELF', condition: 'SELF_HP_BELOW_60', priority: 4,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 35, cooldown: 4, mp: 12, target: 'SELF', condition: 'SELF_HP_BELOW_60', priority: 4,
     effects: [
       { kind: 'SHIELD', pctMaxHp: 0.18, turns: 2 },
       { kind: 'BUFF', stat: 'def', pct: 0.3, turns: 2, self: true },
@@ -108,7 +108,7 @@ export const SKILLS: Record<string, SkillDef> = {
   // ---------------------------------------------------------------- Knight
   shield_bash: S({
     id: 'shield_bash', name: 'Shield Bash', nameTh: 'กระแทกโล่', description: '120% ATK + 150% DEF และ 60% Stun 1 เทิร์น',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 10, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 18, target: 'ENEMY',
     effects: [
       { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.2, def: 1.5 } },
       { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.6 },
@@ -116,7 +116,7 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   taunt: S({
     id: 'taunt', name: 'Taunt', nameTh: 'คำรามดึงความสนใจ', description: 'บังคับศัตรูตีตัวเอง 2 เทิร์น และ DEF +30%',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 4, mp: 12, target: 'SELF', priority: 3,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 4, mp: 20, target: 'SELF', priority: 3,
     effects: [
       { kind: 'STATUS', status: 'TAUNTING', turns: 2, self: true },
       { kind: 'BUFF', stat: 'def', pct: 0.3, turns: 2, self: true },
@@ -135,7 +135,7 @@ export const SKILLS: Record<string, SkillDef> = {
   // ---------------------------------------------------------------- Sorcerer
   fireball: S({
     id: 'fireball', name: 'Fireball', nameTh: 'ลูกไฟทำลายล้าง', description: 'ศัตรูทุกตัว 150% MATK ไฟ + 30% ติดไฟ 2 เทิร์น',
-    kind: 'ACTIVE', element: 'FIRE', rate: 30, cooldown: 2, mp: 20, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', priority: 2,
+    kind: 'ACTIVE', element: 'FIRE', rate: 30, cooldown: 2, mp: 32, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', priority: 2,
     effects: [
       { kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1.5 } },
       { kind: 'STATUS', status: 'BURN', turns: 2, chance: 0.3, potency: 0.3 },
@@ -143,12 +143,12 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   chain_lightning: S({
     id: 'chain_lightning', name: 'Chain Lightning', nameTh: 'สายฟ้าต่อเนื่อง', description: '200% MATK ชิ่ง 3 ตัว (ลด 15%/ตัว)',
-    kind: 'ACTIVE', element: 'LIGHTNING', rate: 30, cooldown: 2, mp: 25, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'LIGHTNING', rate: 30, cooldown: 2, mp: 38, target: 'ENEMY',
     effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 2 }, chain: { jumps: 3, falloff: 0.15 } }],
   }),
   frost_nova: S({
     id: 'frost_nova', name: 'Frost Nova', nameTh: 'ระเบิดน้ำแข็ง', description: '130% MATK น้ำ และ 35% แช่แข็ง 1 เทิร์น',
-    kind: 'ACTIVE', element: 'WATER', rate: 25, cooldown: 3, mp: 18, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'WATER', rate: 25, cooldown: 3, mp: 28, target: 'ENEMY',
     effects: [
       { kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1.3 } },
       { kind: 'STATUS', status: 'FREEZE', turns: 1, chance: 0.35 },
@@ -156,19 +156,19 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   mana_shield: S({
     id: 'mana_shield', name: 'Mana Shield', nameTh: 'โล่มานา', description: 'HP ต่ำกว่า 60%: เกราะ 30% Max HP 3 เทิร์น',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 40, cooldown: 5, mp: 15, target: 'SELF', condition: 'SELF_HP_BELOW_60', priority: 4,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 40, cooldown: 5, mp: 24, target: 'SELF', condition: 'SELF_HP_BELOW_60', priority: 4,
     effects: [{ kind: 'SHIELD', pctMaxHp: 0.3, turns: 3 }],
   }),
 
   // ---------------------------------------------------------------- Assassin
   shadow_step: S({
     id: 'shadow_step', name: 'Shadow Step', nameTh: 'ก้าวผ่านเงา', description: 'จู่โจมแถวหลัง 150% ATK Critical แน่นอน',
-    kind: 'ACTIVE', element: 'SHADOW', rate: 30, cooldown: 2, mp: 12, target: 'ENEMY_BACK',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 30, cooldown: 2, mp: 20, target: 'ENEMY_BACK',
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.5 }, forceCrit: true }],
   }),
   poison_blade: S({
     id: 'poison_blade', name: 'Poison Blade', nameTh: 'คมดาบยาพิษ', description: '100% ATK และ 70% ติดพิษ 5% Max HP/เทิร์น 3 เทิร์น',
-    kind: 'ACTIVE', element: 'SHADOW', rate: 35, cooldown: 2, mp: 10, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 35, cooldown: 2, mp: 18, target: 'ENEMY',
     effects: [
       { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1 } },
       { kind: 'STATUS', status: 'POISON', turns: 3, chance: 0.7, potency: 0.05 },
@@ -188,12 +188,12 @@ export const SKILLS: Record<string, SkillDef> = {
   // ---------------------------------------------------------------- Cleric
   holy_heal: S({
     id: 'holy_heal', name: 'Holy Heal', nameTh: 'ละอองแสงเยียวยา', description: 'เพื่อน HP ต่ำกว่า 60%: ฟื้นฟูทั้งปาร์ตี้ 120% MATK + 40',
-    kind: 'ACTIVE', element: 'HOLY', rate: 50, cooldown: 2, mp: 20, target: 'ALL_ALLIES', condition: 'ALLY_HP_BELOW_60', priority: 6,
+    kind: 'ACTIVE', element: 'HOLY', rate: 50, cooldown: 2, mp: 30, target: 'ALL_ALLIES', condition: 'ALLY_HP_BELOW_60', priority: 6,
     effects: [{ kind: 'HEAL', scaling: { matk: 1.2 }, flat: 40 }],
   }),
   blessing_of_light: S({
     id: 'blessing_of_light', name: 'Blessing of Light', nameTh: 'พรแห่งแสง', description: 'ATK, DEF, Speed ทั้งปาร์ตี้ +20% 3 เทิร์น',
-    kind: 'ACTIVE', element: 'HOLY', rate: 25, cooldown: 6, mp: 30, target: 'ALL_ALLIES', priority: 1,
+    kind: 'ACTIVE', element: 'HOLY', rate: 25, cooldown: 6, mp: 45, target: 'ALL_ALLIES', priority: 1,
     effects: [
       { kind: 'BUFF', stat: 'atk', pct: 0.2, turns: 3 },
       { kind: 'BUFF', stat: 'def', pct: 0.2, turns: 3 },
@@ -202,7 +202,7 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   smite: S({
     id: 'smite', name: 'Smite', nameTh: 'พิพากษา', description: '160% MATK ธาตุศักดิ์สิทธิ์',
-    kind: 'ACTIVE', element: 'HOLY', rate: 30, cooldown: 1, mp: 12, target: 'ENEMY',
+    kind: 'ACTIVE', element: 'HOLY', rate: 30, cooldown: 1, mp: 20, target: 'ENEMY',
     effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1.6 } }],
   }),
   divine_grace: S({
@@ -214,12 +214,12 @@ export const SKILLS: Record<string, SkillDef> = {
   // ---------------------------------------------------------------- Ranger
   snipe_shot: S({
     id: 'snipe_shot', name: 'Snipe Shot', nameTh: 'ศรเพชฌฆาต', description: 'ยิงแถวหลัง 260% ATK',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 18, target: 'ENEMY_BACK', ranged: true,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 28, target: 'ENEMY_BACK', ranged: true,
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 2.6 } }],
   }),
   multi_shot: S({
     id: 'multi_shot', name: 'Arrow Rain', nameTh: 'ฝนธนู', description: 'ศัตรูทุกตัว 90% ATK',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 2, mp: 16, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', ranged: true,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 2, mp: 26, target: 'ALL_ENEMIES', condition: 'ENEMY_COUNT_2PLUS', ranged: true,
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.9 } }],
   }),
   covering_fire: S({
@@ -229,7 +229,7 @@ export const SKILLS: Record<string, SkillDef> = {
   }),
   hunter_mark: S({
     id: 'hunter_mark', name: 'Hunter Mark', nameTh: 'เครื่องหมายนักล่า', description: 'ศัตรู HP ต่ำสุด 180% ATK',
-    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 12, target: 'ENEMY_LOWEST_HP', ranged: true,
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 20, target: 'ENEMY_LOWEST_HP', ranged: true,
     effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.8 } }],
   }),
 

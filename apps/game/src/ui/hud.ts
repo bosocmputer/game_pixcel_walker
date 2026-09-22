@@ -42,6 +42,7 @@ import {
 } from '../game/rules';
 import { derivedOf, mutationOf, store, type SaveData } from '../state/store';
 import { bar, el, esc } from './dom';
+import { showCreator } from './creator';
 
 const STAT_TH: Record<StatKey, string> = {
   str: 'STR พลัง',
@@ -74,22 +75,8 @@ const ENCOUNTER_TTL_MS = 90_000;
 // Onboarding
 
 export function showOnboarding(onDone: () => void) {
-  const view = el(`<div class="onboard">
-    <div class="card">
-      <div class="logo">ก้าวข้ามมิติ</div>
-      <div class="logo-sub">PIXEL WALKER</div>
-      <p>คุณทะลุมิติมาอยู่ในเชียงใหม่ที่ซ้อนทับกับโลกจริง ทุกก้าวที่เดินคือพลัง</p>
-      <label>ชื่อนักเดินทาง<input id="name" maxlength="16" placeholder="เช่น Somchai_Tank" /></label>
-      <button class="btn primary" id="next">เริ่มต้นการเดินทาง</button>
-    </div></div>`);
-  root().appendChild(view);
-  const input = view.querySelector<HTMLInputElement>('#name')!;
-  input.focus();
-  view.querySelector('#next')!.addEventListener('click', () => {
-    const name = input.value.trim();
-    if (name.length < 2) return toast('ใส่ชื่ออย่างน้อย 2 ตัวอักษร', 'bad');
-    store.create(name);
-    view.remove();
+  showCreator(root(), (name, appearance) => {
+    store.create(name, appearance);
     showStarterChoice(onDone);
   });
 }
@@ -129,6 +116,7 @@ export function mountHud() {
     <div class="topbar" data-open="char"></div>
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
+    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
       <button class="walk-btn" data-act="walk"></button>
@@ -141,6 +129,8 @@ export function mountHud() {
   root().appendChild(hud);
 
   hud.addEventListener('click', (e) => {
+    const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
+    if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
     if (!t) return;
     if (t.dataset.act === 'walk') return walk.active ? walk.stopSession() : void walk.startSession();

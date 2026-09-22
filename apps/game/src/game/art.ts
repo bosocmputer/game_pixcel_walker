@@ -301,33 +301,131 @@ export function shadeSprite(tpl: string[], pal: Palette): HTMLCanvasElement {
   }, pw, ph);
 }
 
-/** 16×24 hero, drawn as regions: h hair/helm, s skin, e eyes, c chest, a arms(sleeve), p pants, b boots, w weapon, g belt. */
-const HERO = [
-  '................',
-  '.....hhhhhh.....',
-  '....hhhhhhhh....',
-  '...hhhhhhhhhh...',
-  '...hhhhhhhhhh...',
-  '...hhssssssh....',
-  '...hsseesees....',
-  '....ssssssss....',
-  '.....ssssss.....',
-  '......ssss......',
-  '....cccccccc..w.',
-  '...acccccccca.w.',
-  '..sacccccccas.w.',
-  '..sacccccccas.w.',
-  '..s.cccccccc.sw.',
-  '....gggggggg..w.',
-  '....pppppppp....',
-  '....ppp..ppp....',
-  '....ppp..ppp....',
-  '....ppp..ppp....',
-  '....ppp..ppp....',
-  '....bbb..bbb....',
-  '...bbbb..bbbb...',
-  '................',
-];
+/**
+ * 16×24 hero, drawn as regions: h hair/helm, s skin, e eyes, c chest, a sleeves, p pants,
+ * b boots, w weapon, g belt. Three facings (side = right; left is a horizontal flip) and three
+ * walk frames (0 = stand, 1/2 = alternate legs).
+ */
+export type Facing = 'down' | 'up' | 'side';
+
+const HEAD: Record<Facing, string[]> = {
+  down: [
+    '................',
+    '.....hhhhhh.....',
+    '....hhhhhhhh....',
+    '...hhhhhhhhhh...',
+    '...hhhhhhhhhh...',
+    '...hhssssssh....',
+    '...hsseesees....',
+    '....ssssssss....',
+    '.....ssssss.....',
+    '......ssss......',
+  ],
+  up: [
+    '................',
+    '.....hhhhhh.....',
+    '....hhhhhhhh....',
+    '...hhhhhhhhhh...',
+    '...hhhhhhhhhh...',
+    '...hhhhhhhhhh...',
+    '...hhhhhhhhhh...',
+    '....hhhhhhhh....',
+    '.....ssssss.....',
+    '......ssss......',
+  ],
+  side: [
+    '................',
+    '.....hhhhhh.....',
+    '....hhhhhhhh....',
+    '...hhhhhhhhh....',
+    '...hhhhhhhhs....',
+    '...hhhhsssss....',
+    '...hhhsssses....',
+    '....hssssss.....',
+    '.....sssss......',
+    '......sss.......',
+  ],
+};
+
+const TORSO: Record<Facing, string[]> = {
+  down: [
+    '....cccccccc..w.',
+    '...acccccccca.w.',
+    '..sacccccccas.w.',
+    '..sacccccccas.w.',
+    '..s.cccccccc.sw.',
+    '....gggggggg..w.',
+  ],
+  up: [
+    '.w..cccccccc....',
+    '.w.acccccccca...',
+    '.wsacccccccas...',
+    '.wsacccccccas...',
+    '.ws.cccccccc.s..',
+    '.w..gggggggg....',
+  ],
+  side: [
+    '.....ccccc......',
+    '.....cccccw.....',
+    '....acccccw.....',
+    '....acccccw.....',
+    '....scccccw.....',
+    '.....gggggw.....',
+  ],
+};
+
+const LEGS: Record<Facing, string[][]> = {
+  down: [
+    ['....pppppppp....', '....ppp..ppp....', '....ppp..ppp....', '....ppp..ppp....', '....ppp..ppp....', '....bbb..bbb....', '...bbbb..bbbb...', '................'],
+    ['....pppppppp....', '....ppp..ppp....', '....ppp..ppp....', '....bbb..ppp....', '...bbbb..ppp....', '.........ppp....', '.........bbb....', '........bbbb....'],
+    ['....pppppppp....', '....ppp..ppp....', '....ppp..ppp....', '....ppp..bbb....', '....ppp..bbbb...', '....ppp.........', '....bbb.........', '...bbbb.........'],
+  ],
+  up: [
+    ['....pppppppp....', '....ppp..ppp....', '....ppp..ppp....', '....ppp..ppp....', '....ppp..ppp....', '....bbb..bbb....', '...bbbb..bbbb...', '................'],
+    ['....pppppppp....', '....ppp..ppp....', '....ppp..ppp....', '....ppp..bbb....', '....ppp..bbbb...', '....ppp.........', '....bbb.........', '...bbbb.........'],
+    ['....pppppppp....', '....ppp..ppp....', '....ppp..ppp....', '....bbb..ppp....', '...bbbb..ppp....', '.........ppp....', '.........bbb....', '........bbbb....'],
+  ],
+  side: [
+    ['.....ppppp......', '.....ppppp......', '.....pp.pp......', '.....pp.pp......', '.....pp.pp......', '.....bb.bb......', '.....bbb.bbb....', '................'],
+    ['.....ppppp......', '....pppppp......', '....pp..ppp.....', '...pp....pp.....', '...pp.....pp....', '...bb.....bb....', '..bbb.....bbb...', '................'],
+    ['.....ppppp......', '.....pppp.......', '.....ppp........', '.....ppp........', '.....pp.........', '.....bb.........', '.....bbbb.......', '................'],
+  ],
+};
+
+export type HairStyle = 'short' | 'spiky' | 'long' | 'bun';
+export const HAIR_STYLES: HairStyle[] = ['short', 'spiky', 'long', 'bun'];
+export const SKIN_TONES = ['#f2c79b', '#e0ac7e', '#c68a5a', '#8d5a3a'];
+export const HAIR_COLORS = ['#2a1e1a', '#5a3a22', '#e8c46a', '#b8422e', '#3a5ec8', '#e87aa8', '#c8ccd8'];
+export const OUTFIT_COLORS = ['#ffa726', '#3f7ce0', '#3aa655', '#8e44ad', '#d64545', '#3a3f48'];
+
+function setCh(rows: string[], y: number, x: number, ch: string, onlyIfEmpty = true) {
+  const r = rows[y];
+  if (!r || x < 0 || x >= r.length) return;
+  if (onlyIfEmpty && r[x] !== '.') return;
+  rows[y] = r.slice(0, x) + ch + r.slice(x + 1);
+}
+
+function heroTemplate(facing: Facing, frame: number, hair: HairStyle, helmet: boolean): string[] {
+  const rows = [...HEAD[facing], ...TORSO[facing], ...LEGS[facing][frame % 3]!];
+  if (!helmet) {
+    if (hair === 'spiky') {
+      rows[0] = facing === 'side' ? '....h.hh.h......' : '....h.hh.hh.h...';
+    } else if (hair === 'long') {
+      const cols = facing === 'side' ? [3, 4] : [2, 3, 12, 13];
+      for (let y = 5; y <= 12; y++) for (const x of cols) setCh(rows, y, x, 'h');
+      if (facing === 'up') for (let y = 8; y <= 12; y++) for (let x = 4; x <= 11; x++) setCh(rows, y, x, 'h', false);
+    } else if (hair === 'bun') {
+      if (facing === 'side') {
+        setCh(rows, 1, 3, 'h');
+        setCh(rows, 2, 2, 'h');
+        setCh(rows, 2, 3, 'h');
+      } else {
+        rows[0] = '......hhhh......';
+      }
+    }
+  }
+  return rows;
+}
 
 /** Monster region templates (16×16). */
 const MOB: Record<string, string[]> = {
@@ -455,8 +553,18 @@ const CLASS_COLORS: Record<string, string> = {
   RANGER: '#2f9e44',
 };
 
+export interface Appearance {
+  skin: number;
+  hairStyle: HairStyle;
+  hairColor: number;
+  outfit: number;
+}
+
+export const DEFAULT_APPEARANCE: Appearance = { skin: 0, hairStyle: 'short', hairColor: 0, outfit: 0 };
+
 export interface Paperdoll {
   classId: string;
+  appearance?: Appearance;
   helmet?: string;
   chest?: string;
   weapon?: string;
@@ -473,21 +581,24 @@ export const AURA_COLORS: Record<string, string> = {
   aura_pure_dex: '#69db7c',
 };
 
-export function heroCanvas(p: Paperdoll): HTMLCanvasElement {
+export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0): HTMLCanvasElement {
+  const ap = p.appearance ?? DEFAULT_APPEARANCE;
+  const skin = SKIN_TONES[ap.skin] ?? SKIN_TONES[0]!;
+  const outfit = OUTFIT_COLORS[ap.outfit] ?? OUTFIT_COLORS[0]!;
   const naked = !p.chest;
-  const chest = naked ? '#f2c79b' : GEAR_COLORS[p.chest!] ?? CLASS_COLORS[p.classId] ?? '#ffa726';
   const pal: Palette = {
-    h: p.helmet ? GEAR_COLORS[p.helmet] ?? '#a0a8b4' : '#4a3020',
-    s: '#f2c79b',
+    h: p.helmet ? GEAR_COLORS[p.helmet] ?? '#a0a8b4' : HAIR_COLORS[ap.hairColor] ?? HAIR_COLORS[0]!,
+    s: skin,
     e: '#1c1c28',
-    c: chest,
-    a: naked ? '#f2c79b' : CLASS_COLORS[p.classId] ?? chest,
-    g: naked ? '#f2c79b' : '#5a3a22',
+    // The starter cotton shirt is dyed in the player's chosen outfit colour.
+    c: naked ? skin : p.chest === 'chest_cotton_01' ? outfit : GEAR_COLORS[p.chest!] ?? outfit,
+    a: naked ? skin : p.chest === 'chest_cotton_01' ? mul(hexRgb(outfit), 0.8).map((v) => v.toString(16).padStart(2, '0')).reduce((a, v) => a + v, '#') : outfit,
+    g: naked ? skin : '#5a3a22',
     p: naked ? '#ffffff' : '#2b3a67',
     b: p.boots ? GEAR_COLORS[p.boots] ?? '#26c6da' : '#6a4424',
     w: p.weapon ? GEAR_COLORS[p.weapon] ?? '#d8e0ec' : 'transparent',
   };
-  const body = shadeSprite(HERO, pal);
+  const body = shadeSprite(heroTemplate(facing, frame, ap.hairStyle, !!p.helmet), pal);
   if (!p.aura) return body;
   const [c, ctx] = canvas(body.width + 8, body.height + 6);
   const grad = ctx.createRadialGradient(c.width / 2, c.height * 0.55, 2, c.width / 2, c.height * 0.55, c.width / 2);

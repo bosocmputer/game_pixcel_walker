@@ -20,7 +20,7 @@ import {
   type StatKey,
 } from '@pw/shared';
 import { derivedOf, regen, store, type SaveData } from '../state/store';
-import { getWorld } from './world';
+import { landmarksAround } from './world';
 
 export const BOSS_RADIUS_M = 50;
 export const HOME_RADIUS_M = 200;
@@ -59,11 +59,7 @@ export function bossAvailableAt(l: Landmark, s: SaveData, now = Date.now()): num
 }
 
 export function nearbyLandmarks(lat: number, lng: number, radius = BOSS_RADIUS_M): Landmark[] {
-  const here = { lat, lng };
-  return getWorld()
-    .landmarks.filter((l) => Math.abs(l.lat - lat) < 0.002 && Math.abs(l.lng - lng) < 0.002)
-    .filter((l) => haversine(here, l) <= radius)
-    .sort((a, b) => haversine(here, a) - haversine(here, b));
+  return landmarksAround(lat, lng, radius);
 }
 
 export function nearHome(s: SaveData, lat: number, lng: number): boolean {

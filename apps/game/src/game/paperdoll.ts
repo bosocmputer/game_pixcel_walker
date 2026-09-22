@@ -11,6 +11,7 @@ export function paperdollOf(s: SaveData): Paperdoll {
   const mut = mutationOf(s);
   return {
     classId: s.classId,
+    appearance: s.appearance,
     helmet: layer('helmet'),
     chest: layer('chest'),
     weapon: layer('weapon'),

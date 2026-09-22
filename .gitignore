@@ -7,3 +7,4 @@ tools/osm/cache/
 *.log
 .DS_Store
 tools/artpreview/preview.png
+tools/artpreview/heroes.png

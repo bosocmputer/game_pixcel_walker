@@ -17,6 +17,7 @@ import {
   type MutationId,
   type Stats,
 } from '@pw/shared';
+import { DEFAULT_APPEARANCE, type Appearance } from '../game/art';
 
 const KEY = 'pixelwalker.save.v1';
 export const LOADOUT_SIZE = 4;
@@ -29,6 +30,7 @@ export interface EquippedItem {
 export interface SaveData {
   version: 1;
   name: string;
+  appearance: Appearance;
   createdAt: number;
   starter: 'STANDARD' | 'NAKED' | null;
   classId: ClassId;
@@ -67,10 +69,11 @@ export function todayKey(d = new Date()): string {
   return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 10);
 }
 
-export function newSave(name: string): SaveData {
+export function newSave(name: string, appearance: Appearance = DEFAULT_APPEARANCE): SaveData {
   return {
     version: 1,
     name,
+    appearance,
     createdAt: Date.now(),
     starter: null,
     classId: 'NOVICE',
@@ -111,6 +114,7 @@ class Store {
       if (this.data) {
         this.data.worldBosses ??= {};
         this.data.loadout ??= [];
+        this.data.appearance ??= { ...DEFAULT_APPEARANCE };
       }
     } catch {
       this.data = null;
@@ -123,8 +127,8 @@ class Store {
     return this.data;
   }
 
-  create(name: string) {
-    this.data = newSave(name);
+  create(name: string, appearance?: Appearance) {
+    this.data = newSave(name, appearance);
     this.commit();
   }
 

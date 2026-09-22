@@ -2,33 +2,54 @@ import Phaser from 'phaser';
 import './style.css';
 import { WorldScene } from './scenes/WorldScene';
 import { BattleScene } from './scenes/BattleScene';
-import { getWorld, loadWorld } from './game/world';
+import { ensureAround, initWorld, landmarksAround, toTile } from './game/world';
 import { bus } from './game/bus';
 import * as rules from './game/rules';
-import { walk } from './game/walk';
+import { DEFAULT_POS, lastKnownPosition, walk } from './game/walk';
 import { tickRegen } from './game/rules';
 import { store } from './state/store';
 import { mountHud, showOnboarding } from './ui/hud';
 import { el } from './ui/dom';
 
-const CITY = 'chiangmai';
+/** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
+function initialPosition(): Promise<{ lat: number; lng: number }> {
+  const fallback = lastKnownPosition() ?? DEFAULT_POS;
+  if (!('geolocation' in navigator)) return Promise.resolve(fallback);
+  return new Promise((resolve) => {
+    const timer = window.setTimeout(() => resolve(fallback), 8000);
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        window.clearTimeout(timer);
+        resolve({ lat: p.coords.latitude, lng: p.coords.longitude });
+      },
+      () => {
+        window.clearTimeout(timer);
+        resolve(fallback);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
+}
 
 async function boot() {
-  const loading = el(`<div class="loading"><div class="logo">ก้าวข้ามมิติ</div><div class="logo-sub">PIXEL WALKER</div><p>กำลังโหลดแผนที่เชียงใหม่…</p></div>`);
-  document.getElementById('ui')!.appendChild(loading);
-
-  await Promise.all([loadWorld(CITY), document.fonts?.ready]);
-  loading.remove();
-
+  await document.fonts?.ready;
   if (!store.load() || !store.s.starter) {
     if (store.data && !store.data.starter) store.reset();
     showOnboarding(start);
   } else {
-    start();
+    void start();
   }
 }
 
-function start() {
+async function start() {
+  const loading = el(`<div class="loading"><div class="logo">ก้าวข้ามมิติ</div><div class="logo-sub">PIXEL WALKER</div><p>กำลังหาตำแหน่งของคุณ…</p></div>`);
+  document.getElementById('ui')!.appendChild(loading);
+  const pos = await initialPosition();
+  initWorld(pos.lat, pos.lng);
+  const t = toTile(pos.lat, pos.lng);
+  ensureAround(t.x, t.y, 1);
+  loading.remove();
+
   tickRegen();
   mountHud();
 
@@ -36,7 +57,7 @@ function start() {
     type: Phaser.AUTO,
     parent: 'game',
     pixelArt: true,
-    backgroundColor: '#1b1f2a',
+    backgroundColor: '#2a2f3d',
     // A hidden/minimized tab can report 0×0, which breaks WebGL framebuffers — keep a floor.
     scale: {
       mode: Phaser.Scale.RESIZE,
@@ -50,7 +71,7 @@ function start() {
   });
 
   walk.startLocation();
-  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, getWorld, rules } });
+  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround } });
   window.setInterval(tickRegen, 15000);
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') void walk.onVisible();

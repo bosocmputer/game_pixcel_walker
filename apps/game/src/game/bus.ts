@@ -11,6 +11,7 @@ export interface BusEvents {
   'battle:end': void;
   'landmark:near': { landmarks: Landmark[] };
   'toast': { text: string; kind?: 'info' | 'good' | 'bad' };
+  'zoom': { delta: number };
 }
 
 export interface BattleRequest {

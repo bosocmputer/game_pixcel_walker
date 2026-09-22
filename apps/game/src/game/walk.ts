@@ -16,9 +16,21 @@ import {
 } from '@pw/shared';
 import { bus, toast } from './bus';
 import { store, rollDay } from '../state/store';
-import { inBounds, tileAt, toTile, getWorld } from './world';
+import { degScale, tileAt, toTile } from './world';
 
 const SIM_WALK_MPS = 1.4;
+const LAST_POS_KEY = 'pw.lastPos';
+/** Fallback start when GPS is unavailable: Chiang Mai old city (launch city). */
+export const DEFAULT_POS = { lat: 18.7877, lng: 98.9931 };
+
+export function lastKnownPosition(): { lat: number; lng: number } | null {
+  try {
+    const raw = localStorage.getItem(LAST_POS_KEY);
+    return raw ? (JSON.parse(raw) as { lat: number; lng: number }) : null;
+  } catch {
+    return null;
+  }
+}
 
 class WalkController {
   active = false;
@@ -52,10 +64,6 @@ class WalkController {
           accuracy: pos.coords.accuracy,
           t: pos.timestamp,
         };
-        if (!inBounds(fix.lat, fix.lng)) {
-          this.enableSimulation('คุณอยู่นอกเขตเชียงใหม่ — ใช้โหมดจำลองเดิน');
-          return;
-        }
         this.onFix(fix, false);
       },
       () => this.enableSimulation('ไม่ได้รับอนุญาต GPS — ใช้โหมดจำลอง'),
@@ -67,11 +75,7 @@ class WalkController {
     if (this.simulated) return;
     this.simulated = true;
     if (reason) toast(reason);
-    if (!this.position) {
-      const c = getWorld().meta;
-      const [s, w, n, e] = c.bbox;
-      this.position = { lat: (s + n) / 2 + 0.0035, lng: (w + e) / 2 + 0.0085 };
-    }
+    if (!this.position) this.position = lastKnownPosition() ?? DEFAULT_POS;
     this.onFix({ ...this.position, accuracy: 5, t: Date.now() }, true);
     this.simTimer = window.setInterval(() => this.simStep(), 250);
   }
@@ -88,10 +92,9 @@ class WalkController {
     const len = Math.hypot(x, y);
     if (len < 0.01) return;
     const meters = SIM_WALK_MPS * 0.25 * (this.simTurbo ? 6 : 1);
-    const meta = getWorld().meta;
-    const lat = this.position.lat - ((y / len) * meters) / meta.mPerDegLat;
-    const lng = this.position.lng + ((x / len) * meters) / meta.mPerDegLng;
-    if (!inBounds(lat, lng)) return;
+    const k = degScale(this.position.lat);
+    const lat = this.position.lat - ((y / len) * meters) / k.lat;
+    const lng = this.position.lng + ((x / len) * meters) / k.lng;
     this.onFix({ lat, lng, accuracy: 5, t: Date.now() }, true);
   }
 
@@ -130,8 +133,18 @@ class WalkController {
     }
   }
 
+  private lastSaved = 0;
+
   private onFix(fix: GpsFix, simulated: boolean) {
     this.position = { lat: fix.lat, lng: fix.lng };
+    if (fix.t - this.lastSaved > 10000) {
+      this.lastSaved = fix.t;
+      try {
+        localStorage.setItem(LAST_POS_KEY, JSON.stringify(this.position));
+      } catch {
+        /* ignore */
+      }
+    }
     bus.emit('position', { lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy, simulated });
     if (!this.active || this.paused) return;
 

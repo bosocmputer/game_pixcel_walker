@@ -4,6 +4,7 @@ export * from './data/skills';
 export * from './data/mutations';
 export * from './data/items';
 export * from './data/monsters';
+export * from './data/dungeons';
 export * from './rules/rng';
 export * from './rules/progression';
 export * from './rules/stats';

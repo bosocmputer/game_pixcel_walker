@@ -155,6 +155,8 @@ export interface CombatUnit {
   autoPotion: boolean;
   /** Never acts (training dummies). */
   passive: boolean;
+  /** Personal potion bag (party play); null = draw from the battle's shared `items`. */
+  bag: Record<string, number> | null;
 }
 
 export interface UnitSetup {
@@ -175,6 +177,8 @@ export interface UnitSetup {
   rateBonus?: Partial<Record<Element | 'ALL', number>>;
   autoPotion?: boolean;
   passive?: boolean;
+  /** Personal potion bag. Party members each bring their own; omit to use CombatConfig.items. */
+  items?: Record<string, number>;
   /** Carried over between dungeon waves. */
   cooldowns?: Record<string, number>;
   statuses?: ActiveStatus[];

@@ -128,7 +128,10 @@ describe('economy', () => {
 describe('boss scaling', () => {
   it('scales non-world boss HP to party size, never world bosses', () => {
     expect(bossHpScale('goblin_king', 1)).toBeCloseTo(1 / 4);
-    expect(bossHpScale('goblin_king', 5)).toBe(1);
+    // Sub-linear: 3 players face less than 3× the solo HP, so grouping is a net gain.
+    expect(bossHpScale('goblin_king', 3)).toBeLessThan(3 / 4);
+    expect(bossHpScale('goblin_king', 3)).toBeGreaterThan(bossHpScale('goblin_king', 2));
+    expect(bossHpScale('goblin_king', 20)).toBe(1);
     expect(bossHpScale('park_treant', 1)).toBe(1);
   });
 });

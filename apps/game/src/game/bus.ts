@@ -1,5 +1,5 @@
 /** Tiny typed event bus between Phaser scenes and the DOM UI. */
-import type { ClassId, Landmark, PlayerPresence, Spawn, WaveDef } from '@pw/shared';
+import type { ClassId, DungeonEntrant, Landmark, PartyInfo, PlayerPresence, Spawn, WaveDef } from '@pw/shared';
 
 export interface BusEvents {
   'position': { lat: number; lng: number; accuracy: number; simulated: boolean };
@@ -17,10 +17,12 @@ export interface BusEvents {
   'autohunt': { enabled: boolean };
   'net': { connected: boolean; online: number };
   'players': { players: PlayerPresence[] };
+  'party': { party: PartyInfo | null };
+  'party:invited': { from: string; name: string; level: number };
 }
 
 export interface BattleRequest {
-  kind: 'FIELD' | 'BOSS' | 'TRIAL' | 'TEST';
+  kind: 'FIELD' | 'BOSS' | 'TRIAL' | 'TEST' | 'DUNGEON';
   monsterIds: string[];
   landmark?: Landmark;
   trialClass?: ClassId;
@@ -30,6 +32,8 @@ export interface BattleRequest {
   auto?: boolean;
   /** Test arena: custom waves/scaling, no rewards and no penalties. */
   test?: { waves: WaveDef[]; hpMult: number; atkMult: number; modifiers: boolean; maxRounds?: number };
+  /** Instanced dungeon run: every member's device simulates the same (dungeonId, seed, entrants). */
+  dungeon?: { id: string; seed: number; entrants: DungeonEntrant[]; meId: string };
 }
 
 type Handler<T> = (payload: T) => void;

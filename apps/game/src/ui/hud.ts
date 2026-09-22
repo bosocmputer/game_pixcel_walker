@@ -22,7 +22,7 @@ import {
   type StatKey,
 } from '@pw/shared';
 import { bus, toast } from '../game/bus';
-import { walk } from '../game/walk';
+import { DEFAULT_POS, walk } from '../game/walk';
 import {
   allocate,
   bank,
@@ -47,6 +47,8 @@ import { LOADOUT_SIZE, derivedOf, effectiveLoadout, learnableSkills, mutationOf,
 import { bar, el, esc } from './dom';
 import { showCreator } from './creator';
 import { arenaPanel, wireArena } from './arena';
+import { net } from '../game/net';
+import { partyPanel, showInvite, wireParty } from './party';
 import { autoHunt } from '../game/autohunt';
 
 const STAT_TH: Record<StatKey, string> = {
@@ -124,11 +126,12 @@ export function mountHud() {
     <div class="net-pill offline">⚪ ออฟไลน์</div>
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
-    <button class="sim-speed hidden" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button>
+    <div class="sim-tools hidden"><button class="sim-speed" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button><button class="sim-home" data-simhome title="วาร์ปกลับจุดเริ่ม (คูเมืองเชียงใหม่)">📍</button></div>
     <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">🤖<small>AUTO</small></button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
       <button class="menu-btn" data-open="bag">🎒<span>กระเป๋า</span></button>
+      <button class="menu-btn" data-open="party">👥<span>ปาร์ตี้</span><i class="badge hidden"></i></button>
       <button class="menu-btn" data-open="home">🏠<span>บ้าน</span></button>
       <button class="menu-btn" data-open="settings">⚙️<span>ตั้งค่า</span></button>
     </div>
@@ -140,6 +143,10 @@ export function mountHud() {
     if ((e.target as HTMLElement).closest('[data-simspeed]')) {
       walk.cycleSimSpeed();
       return renderSimSpeed();
+    }
+    if ((e.target as HTMLElement).closest('[data-simhome]')) {
+      walk.teleport(DEFAULT_POS.lat, DEFAULT_POS.lng);
+      return toast('📍 วาร์ปกลับคูเมือง · คลิกขวา/กดค้างบนแผนที่เพื่อวาร์ปไปจุดนั้น');
     }
     if ((e.target as HTMLElement).closest('[data-autohunt]')) return autoHunt.toggle();
     const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
@@ -159,14 +166,27 @@ export function mountHud() {
     renderNear(hud.querySelector('.near')!);
   });
   const renderSimSpeed = () => {
+    hud.querySelector('.sim-tools')!.classList.toggle('hidden', !walk.simulated);
     const b = hud.querySelector<HTMLElement>('.sim-speed')!;
-    b.classList.toggle('hidden', !walk.simulated);
     b.textContent = `🏃 ${walk.simSpeed}×`;
   };
   bus.on('position', (p) => {
     hud.querySelector('.joystick')!.classList.toggle('hidden', !p.simulated);
     renderSimSpeed();
   });
+  const renderPartyBadge = () => {
+    const b = hud.querySelector<HTMLElement>('[data-open="party"] .badge')!;
+    b.classList.toggle('hidden', !net.party);
+    b.textContent = net.party ? String(net.party.members.length) : '';
+  };
+  bus.on('party', () => {
+    renderPartyBadge();
+    if (panelName === 'party') renderPanel();
+  });
+  bus.on('players', () => {
+    if (panelName === 'party') renderPanel();
+  });
+  bus.on('party:invited', ({ from, name, level }) => showInvite(from, name, level));
   bus.on('encounter', ({ monsterIds }) => {
     pendingEncounter = { monsterIds, expires: Date.now() + ENCOUNTER_TTL_MS };
     navigator.vibrate?.(120);
@@ -338,8 +358,11 @@ let panelEl: HTMLElement | null = null;
 let panelName = '';
 let unsubPanel: (() => void) | null = null;
 
+let lastPartyHtml = '';
+
 export function openPanel(name: string) {
   closePanel();
+  lastPartyHtml = '';
   panelName = name;
   panelEl = el(`<div class="sheet-backdrop"><div class="sheet"><button class="close" aria-label="ปิด">✕</button><div class="sheet-body"></div></div></div>`);
   root().appendChild(panelEl);
@@ -383,6 +406,17 @@ function renderPanel() {
       wireArena(body, renderPanel, closePanel);
       body.scrollTop = scroll;
       return;
+    case 'party': {
+      // Refreshes every second with presence updates — only touch the DOM when something changed.
+      const html = partyPanel();
+      if (html !== lastPartyHtml || !body.firstChild) {
+        lastPartyHtml = html;
+        body.innerHTML = html;
+        wireParty(body, closePanel);
+        body.scrollTop = scroll;
+      }
+      return;
+    }
     case 'settings':
       body.innerHTML = settingsPanel();
       break;

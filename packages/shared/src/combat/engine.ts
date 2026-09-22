@@ -87,6 +87,7 @@ function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
     flags: { miracleUsed: false, ultimateBlocked: false, phase: 0, enraged: false },
     autoPotion: !!s.autoPotion,
     passive: !!s.passive,
+    bag: s.items ? { ...s.items } : null,
   };
 }
 
@@ -161,11 +162,16 @@ export function monsterSetup(monsterId: string, id: string, opts: { hp?: number;
   };
 }
 
-/** Boss HP scaled to party size. World bosses are never scaled. */
+/**
+ * Boss HP scaled to party size. Grows sub-linearly (n^0.6) so each extra member is a net gain:
+ * support classes add survival rather than damage, and grouping up should feel rewarding.
+ * World bosses are never scaled.
+ */
+export const PARTY_SCALE_EXP = 0.6;
 export function bossHpScale(monsterId: string, partySize: number): number {
   const boss = MONSTERS[monsterId]?.boss;
   if (!boss || boss.worldBoss) return 1;
-  return Math.min(1, Math.max(0.2, partySize / (boss.recommendedParty[1] + 1)));
+  return Math.min(1, Math.max(0.2, Math.pow(Math.max(1, partySize), PARTY_SCALE_EXP) / (boss.recommendedParty[1] + 1)));
 }
 
 /** Boss ATK scaled to party size: solo players face 60% + 40% × hpScale. */
@@ -333,14 +339,15 @@ function takeTurn(c: Combat, u: CombatUnit) {
   }
 
   // 2. Pre-action: auto potion, then the boss's deterministic ultimate.
-  if (u.autoPotion && u.hp < u.base.maxHp * AUTO_HP_POTION && (c.items['red_potion'] ?? 0) > 0) {
-    c.items['red_potion'] = (c.items['red_potion'] ?? 0) - 1;
+  const bag = u.bag ?? c.items;
+  if (u.autoPotion && u.hp < u.base.maxHp * AUTO_HP_POTION && (bag['red_potion'] ?? 0) > 0) {
+    bag['red_potion'] = (bag['red_potion'] ?? 0) - 1;
     const amount = heal(c, u, u, CONSUMABLES.red_potion?.amount ?? 200, true);
     push(c, { type: 'ITEM', unit: u.id, item: 'red_potion', amount });
     return endTurn(u);
   }
-  if (u.autoPotion && u.mp < u.base.maxMp * AUTO_MP_POTION && (c.items['blue_elixir'] ?? 0) > 0) {
-    c.items['blue_elixir'] = (c.items['blue_elixir'] ?? 0) - 1;
+  if (u.autoPotion && u.mp < u.base.maxMp * AUTO_MP_POTION && (bag['blue_elixir'] ?? 0) > 0) {
+    bag['blue_elixir'] = (bag['blue_elixir'] ?? 0) - 1;
     const before = u.mp;
     u.mp = Math.min(u.base.maxMp, u.mp + (CONSUMABLES.blue_elixir?.amount ?? 150));
     push(c, { type: 'ITEM', unit: u.id, item: 'blue_elixir', amount: Math.round(u.mp - before) });

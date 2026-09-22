@@ -274,7 +274,7 @@ export function applyBattleOutcome(opts: {
   itemsLeft: Record<string, number>;
   rng: Rng;
   landmark?: Landmark;
-  kind: 'FIELD' | 'BOSS' | 'TRIAL';
+  kind: 'FIELD' | 'BOSS' | 'TRIAL' | 'DUNGEON';
   worldBoss?: { remainingHp: number; damage: number; maxHp: number };
   spawn?: { id: string; expiresAt: number };
 }): BattleOutcome {

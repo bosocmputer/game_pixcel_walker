@@ -22,6 +22,13 @@ export const RECOVERY_CHANCE = 0.5;
 export const RECOVERY_PCT = 0.15;
 const SUPPORT_CLASSES = new Set(['CLERIC']);
 
+export interface MemberState {
+  hp: number;
+  mp: number;
+  /** Remaining personal potions (null when the party shares the dungeon's `items`). */
+  items: Record<string, number> | null;
+}
+
 export interface WaveDef {
   monsterIds: string[];
   /** Boss wave (party-size scaling applies). */
@@ -39,6 +46,8 @@ export interface Dungeon {
   modifiers: (WaveModifier | null)[];
   result: 'ONGOING' | 'WIN' | 'LOSE';
   defeated: string[];
+  /** Last known state of every party member, including ones knocked out in an earlier wave. */
+  members: Record<string, MemberState>;
   /** Fixed HP for a world boss (shared HP across visitors). */
   bossHp?: number;
   /** Per-wave round cap (e.g. a world boss attack window). */
@@ -92,6 +101,7 @@ export function createDungeon(opts: {
     modifiers,
     result: 'ONGOING',
     defeated: [],
+    members: {},
     bossHp: opts.bossHp,
     maxRounds: opts.maxRounds,
     enemyScale: opts.enemyScale,
@@ -108,6 +118,7 @@ function persist(setup: UnitSetup, u: CombatUnit): UnitSetup {
     ...setup,
     hp: u.hp,
     mp: u.mp,
+    items: u.bag ? { ...u.bag } : setup.items,
     cooldowns: { ...u.cooldowns },
     statuses: u.statuses.filter((s) => s.id !== 'TAUNTING').map((s) => ({ ...s })),
   };
@@ -121,6 +132,7 @@ export function nextWave(d: Dungeon): boolean {
   const c = d.combat;
   d.defeated.push(...c.units.filter((u) => u.side === 'B' && u.hp <= 0 && u.monsterId).map((u) => u.monsterId!));
   d.items = { ...c.items };
+  for (const u of c.units) if (u.side === 'A') d.members[u.id] = snapshot(u);
   if (c.result !== 'WIN') {
     d.result = 'LOSE';
     return false;
@@ -157,4 +169,21 @@ export function nextWave(d: Dungeon): boolean {
     ...recoverEvents,
   );
   return true;
+}
+
+function snapshot(u: CombatUnit): MemberState {
+  return { hp: Math.max(0, u.hp), mp: Math.max(0, u.mp), items: u.bag ? { ...u.bag } : null };
+}
+
+/** A party member's current state: live from the running wave, else from when they last fought. */
+export function memberState(d: Dungeon, id: string): MemberState | null {
+  const u = d.combat.units.find((x) => x.id === id && x.side === 'A');
+  return u ? snapshot(u) : (d.members[id] ?? null);
+}
+
+/** Personal loot seed: every party member rolls their own drops from the shared battle seed. */
+export function memberLootSeed(seed: number, memberId: string): number {
+  let h = (seed ^ 0x9e3779b9) >>> 0;
+  for (let i = 0; i < memberId.length; i++) h = Math.imul(h ^ memberId.charCodeAt(i), 0x01000193) >>> 0;
+  return h;
 }

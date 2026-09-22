@@ -7,21 +7,25 @@ import Phaser from 'phaser';
 import {
   CLASSES,
   CONSUMABLES,
+  DUNGEON_BY_ID,
   EQUIPMENT,
   MONSTERS,
   SKILLS,
   createDungeon,
   createRng,
   landmarkWaves,
+  memberLootSeed,
+  memberState,
   nextWave,
   runToEnd,
   step,
   type CombatEvent,
   type CombatUnit,
   type Dungeon,
+  type UnitSetup,
   type WaveDef,
 } from '@pw/shared';
-import { monsterCanvas } from '../game/art';
+import { heroCanvas, monsterCanvas, type HairStyle, type Paperdoll } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { applyBattleOutcome, bossIdFor, changeClass, worldBossHp, type BattleOutcome } from '../game/rules';
 import { playerSetup } from '../game/party';
@@ -49,6 +53,9 @@ const STATUS_TH: Record<string, string> = {
 export class BattleScene extends Phaser.Scene {
   private req!: BattleRequest;
   private d!: Dungeon;
+  /** Our unit id: 'me' solo, the player id in a dungeon run (identical on every member's device). */
+  private meId = 'me';
+  private partyIds = new Set<string>();
   private views = new Map<string, UnitView>();
   private eventIndex = 0;
   private waitUntil = 0;
@@ -65,6 +72,8 @@ export class BattleScene extends Phaser.Scene {
 
   init(req: BattleRequest) {
     this.req = req;
+    this.meId = req.dungeon?.meId ?? 'me';
+    this.partyIds = new Set([this.meId, ...(req.dungeon?.entrants.map((e) => e.setup.id) ?? [])]);
     this.views.clear();
     this.eventIndex = 0;
     this.waitUntil = 0;
@@ -111,10 +120,22 @@ export class BattleScene extends Phaser.Scene {
       me.hp = me.stats.maxHp;
       me.mp = me.stats.maxMp;
     }
+    let party: UnitSetup[] = [me];
+    let seed = (Math.random() * 2 ** 31) | 0;
+    const run = this.req.dungeon;
+    if (run) {
+      // Everyone builds the run from the same server-issued data; each brings their own potions.
+      waves = DUNGEON_BY_ID[run.id]!.waves;
+      rollModifiers = true;
+      party = run.entrants.map((e) => ({ ...e.setup }));
+      seed = run.seed;
+      delete items.red_potion;
+      delete items.blue_elixir;
+    }
     this.d = createDungeon({
-      party: [me],
+      party,
       waves,
-      seed: (Math.random() * 2 ** 31) | 0,
+      seed,
       items,
       rollModifiers,
       bossHp,
@@ -170,7 +191,13 @@ export class BattleScene extends Phaser.Scene {
 
   private addView(u: CombatUnit, scale: number): UnitView {
     let key: string;
-    if (u.side === 'A') {
+    const ally = this.req.dungeon?.entrants.find((e) => e.setup.id === u.id && u.id !== this.meId);
+    if (ally) {
+      const l = ally.look;
+      const doll: Paperdoll = { ...l, appearance: { ...l.appearance, hairStyle: l.appearance.hairStyle as HairStyle } };
+      key = `hero_${JSON.stringify(doll)}_side_0`;
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, 'side', 0));
+    } else if (u.side === 'A') {
       const down = (this.scene.get('World').registry.get('heroKey') as string) ?? 'hero';
       key = down.replace(/_down_0$/, '_side_0');
       if (!this.textures.exists(key)) key = down;
@@ -219,7 +246,7 @@ export class BattleScene extends Phaser.Scene {
       step(c);
     } else if (this.advanceWave()) {
       for (const [id, v] of this.views) {
-        if (id === 'me') continue;
+        if (this.partyIds.has(id)) continue;
         v.sprite.destroy();
         v.label.destroy();
         v.bars.destroy();
@@ -242,7 +269,8 @@ export class BattleScene extends Phaser.Scene {
     const mod = this.d.modifiers[this.d.wave];
     const wave = this.d.waves.length > 1 ? `เวฟ ${this.d.wave + 1}/${this.d.waves.length} · ` : '';
     const title =
-      this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}`
+      this.req.dungeon ? `${DUNGEON_BY_ID[this.req.dungeon.id]!.icon} ${DUNGEON_BY_ID[this.req.dungeon.id]!.nameTh}${this.partyIds.size > 1 ? ` · ปาร์ตี้ ${this.partyIds.size} คน` : ''}`
+      : this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}`
       : this.req.kind === 'TEST' ? '🧪 สนามทดสอบ'
       : this.req.kind === 'BOSS' ? '⚔️ ดันเจี้ยนบอส' : '⚔️ ต่อสู้';
     const limit = this.worldBossStartHp ? ` / ${WORLD_BOSS_ROUNDS}` : this.req.test?.maxRounds ? ` / ${this.req.test.maxRounds}` : '';
@@ -384,8 +412,18 @@ export class BattleScene extends Phaser.Scene {
   private lastPanel = '';
 
   private renderPanel() {
-    const me = this.d.combat.units.find((u) => u.id === 'me');
-    if (!me) return;
+    const me = this.d.combat.units.find((u) => u.id === this.meId);
+    if (!me) {
+      // Knocked out in an earlier wave: the party fights on without us.
+      const html = `<div class="battle-vitals"><span class="hp">💀 หมดสติ — รอเพื่อนสู้ต่อ</span><span class="spacer"></span>
+        <button class="chip" data-act="speed">${this.speed}×</button><button class="chip" data-act="skip">⏭ ข้าม</button></div>`;
+      if (html === this.lastPanel) return;
+      this.lastPanel = html;
+      this.panel.innerHTML = html;
+      this.wirePanelButtons();
+      return;
+    }
+    const bag = me.bag ?? this.d.combat.items;
     const deck = me.deck.map((id) => {
       const sk = SKILLS[id]!;
       const cd = Math.max(0, (me.cooldowns[id] ?? 0) - 1);
@@ -396,7 +434,7 @@ export class BattleScene extends Phaser.Scene {
       <div class="battle-vitals">
         <span class="hp">HP ${Math.max(0, Math.round(me.hp))}/${Math.round(me.base.maxHp)}</span>
         <span class="mp">MP ${Math.round(me.mp)}/${Math.round(me.base.maxMp)}</span>
-        <span class="pot">${this.req.kind === 'TEST' ? 'ยาทดสอบ' : 'ยา'} HP ${this.d.combat.items.red_potion ?? 0} · MP ${this.d.combat.items.blue_elixir ?? 0}</span>
+        <span class="pot">${this.req.kind === 'TEST' ? 'ยาทดสอบ' : 'ยา'} HP ${bag.red_potion ?? 0} · MP ${bag.blue_elixir ?? 0}</span>
         <span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button>
         <button class="chip" data-act="skip">⏭ ข้าม</button>
@@ -407,6 +445,10 @@ export class BattleScene extends Phaser.Scene {
     if (html === this.lastPanel) return;
     this.lastPanel = html;
     this.panel.innerHTML = html;
+    this.wirePanelButtons();
+  }
+
+  private wirePanelButtons() {
     this.panel.querySelector('[data-act="speed"]')?.addEventListener('click', () => {
       this.speed = this.speed === 1 ? 2 : this.speed === 2 ? 4 : 1;
       localStorage.setItem('pw.battleSpeed', String(this.speed));
@@ -442,18 +484,20 @@ export class BattleScene extends Phaser.Scene {
     this.finished = true;
     if (this.req.kind === 'TEST') return this.showTestReport(fled);
     const c = this.d.combat;
-    const me = c.units.find((u) => u.id === 'me');
+    const me = memberState(this.d, this.meId);
     const boss = c.units.find((u) => u.isBoss);
     const windowOver = !!this.worldBossStartHp && c.result === 'LOSE' && (me?.hp ?? 0) > 0;
     const result = fled || windowOver ? 'FLED' : this.d.result === 'WIN' ? 'WIN' : 'LOSE';
+    const potions = me?.items ?? c.items;
 
     const outcome = applyBattleOutcome({
       result,
       defeated: this.d.defeated,
       hp: me?.hp ?? 0,
       mp: me?.mp ?? 0,
-      itemsLeft: { ...store.s.bag, red_potion: c.items.red_potion ?? 0, blue_elixir: c.items.blue_elixir ?? 0 },
-      rng: createRng(this.d.seed ^ 0x9e3779b9),
+      itemsLeft: { ...store.s.bag, red_potion: potions.red_potion ?? 0, blue_elixir: potions.blue_elixir ?? 0 },
+      // Party runs: personal loot — each member rolls their own drops.
+      rng: createRng(this.req.dungeon ? memberLootSeed(this.d.seed, this.meId) : this.d.seed ^ 0x9e3779b9),
       landmark: this.req.landmark,
       kind: this.req.kind,
       spawn: this.req.spawn,
@@ -477,7 +521,7 @@ export class BattleScene extends Phaser.Scene {
   private showTestReport(fled: boolean) {
     const won = this.d.result === 'WIN';
     const dummy = this.d.combat.units.filter((u) => u.side === 'B').every((u) => u.passive);
-    const st = deckStats(this.currentArchived ? this.allEvents : this.allEvents.concat(this.d.combat.events), 'me');
+    const st = deckStats(this.currentArchived ? this.allEvents : this.allEvents.concat(this.d.combat.events), this.meId);
     const rows = Object.entries(st.skills)
       .sort((a, b) => b[1].uses - a[1].uses)
       .map(([id, v]) => `<tr><td>${esc(SKILLS[id]?.nameTh ?? MONSTERS[id]?.nameTh ?? id)}</td><td>${v.uses}</td><td>${v.damage.toLocaleString()}</td></tr>`)

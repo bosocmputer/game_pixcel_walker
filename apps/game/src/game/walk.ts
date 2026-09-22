@@ -9,7 +9,7 @@ import { degScale } from './world';
 
 const SIM_WALK_MPS = 1.4;
 /** Test-only walking speed multipliers for the simulated walker. */
-export const SIM_SPEEDS = [1, 3, 10, 30];
+export const SIM_SPEEDS = [1, 3, 10, 30, 100, 300];
 const LAST_POS_KEY = 'pw.lastPos';
 /** Faster than this counts as a vehicle: fighting is disabled. */
 export const MAX_FIGHT_SPEED_KMH = 20;
@@ -57,6 +57,14 @@ class LocationController {
       /* ignore */
     }
     return this.simSpeed;
+  }
+
+  /** Test-only: jump the simulated walker somewhere (right-click / long-press on the map). */
+  teleport(lat: number, lng: number) {
+    if (!this.simulated) return;
+    this.lastFix = null;
+    this.speedKmh = 0;
+    this.onFix({ lat, lng, accuracy: 5, t: Date.now() }, true);
   }
 
   startLocation() {

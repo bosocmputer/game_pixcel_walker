@@ -7,6 +7,7 @@ import Phaser from 'phaser';
 import type { PlayerPresence } from '@pw/shared';
 import { heroCanvas, type Facing, type HairStyle, type Paperdoll } from '../game/art';
 import { depthScale, project, zoomScale } from '../game/map';
+import { net } from '../game/net';
 
 const WALK_FRAMES = [1, 0, 2, 0];
 
@@ -47,7 +48,8 @@ export class RemotePlayers {
       }
       r.data = p;
       r.target = { lat: p.lat, lng: p.lng };
-      r.label.setText(`${p.name} Lv.${p.level}`);
+      const ally = !!net.party?.members.some((m) => m.id === p.id);
+      r.label.setText(`${ally ? '👥 ' : ''}${p.name} Lv.${p.level}`).setColor(ally ? '#9cff9c' : '#ffffff');
       r.busy.setVisible(p.busy);
       this.ensureTextures(r);
     }

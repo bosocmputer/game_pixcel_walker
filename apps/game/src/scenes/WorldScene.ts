@@ -95,7 +95,17 @@ export class WorldScene extends Phaser.Scene {
     const map = getMap();
     const onTap = (e: { point: { x: number; y: number } }) => this.onTap(e.point.x, e.point.y);
     map?.on('click', onTap);
-    this.events.once('shutdown', () => map?.off('click', onTap));
+    // Sim mode test tool: right-click (desktop) / long-press (Android) teleports there.
+    const onWarp = (e: { lngLat: { lat: number; lng: number }; preventDefault?: () => void }) => {
+      if (!walk.simulated || !this.scene.isActive()) return;
+      walk.teleport(e.lngLat.lat, e.lngLat.lng);
+      toast('✨ วาร์ปแล้ว (โหมดทดสอบ)');
+    };
+    map?.on('contextmenu', onWarp);
+    this.events.once('shutdown', () => {
+      map?.off('click', onTap);
+      map?.off('contextmenu', onWarp);
+    });
     pruneKills();
 
     this.refreshHome(store.s);
@@ -116,7 +126,8 @@ export class WorldScene extends Phaser.Scene {
 
   private onPosition(lat: number, lng: number, accuracy: number) {
     this.target = { lat, lng };
-    this.current ??= { lat, lng };
+    // Big jumps (teleport, 300× sim speed) snap instead of gliding across the city.
+    if (!this.current || haversine(this.current, this.target) > 300) this.current = { lat, lng };
     this.accuracy = accuracy;
 
     // Keep gameplay data (terrain for encounters/safe zones, landmarks) streaming around us.

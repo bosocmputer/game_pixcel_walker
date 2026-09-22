@@ -1,11 +1,14 @@
 /**
  * Presence client: connects to the presence server (proxied at /ws on the same origin), sends
  * our position/look and publishes nearby players on the bus. Reconnects automatically.
+ * Also carries parties and dungeon runs (see apps/server).
  * Add `?player=2` to the URL to run a second, distinct player in another tab for testing.
  */
-import { PRESENCE_PATH, type ClientMsg, type PlayerLook, type ServerMsg } from '@pw/shared';
-import { bus } from './bus';
+import { PRESENCE_PATH, type ClientMsg, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type ServerMsg } from '@pw/shared';
+import { bus, toast } from './bus';
 import { paperdollOf } from './paperdoll';
+import { playerSetup } from './party';
+import { autoHunt } from './autohunt';
 import { store } from '../state/store';
 
 const POS_INTERVAL_MS = 1000;
@@ -26,7 +29,7 @@ function playerId(): string {
   return slot ? `${id}_${slot}` : id;
 }
 
-function look(): PlayerLook {
+export function look(): PlayerLook {
   const d = paperdollOf(store.s);
   return {
     appearance: d.appearance ?? { skin: 0, hairStyle: 'short', hairColor: 0, outfit: 0 },
@@ -49,6 +52,49 @@ class Net {
   private lastSent = 0;
   private busy = false;
   private lastState = '';
+  /** Current party (null = solo). */
+  party: PartyInfo | null = null;
+  /** Latest nearby players from the server. */
+  players: PlayerPresence[] = [];
+
+  get inParty(): boolean {
+    return !!this.party;
+  }
+
+  get isLeader(): boolean {
+    return !this.party || this.party.leader === this.id;
+  }
+
+  invite(to: string) {
+    this.send({ t: 'party:invite', to });
+  }
+
+  answerInvite(from: string, accept: boolean) {
+    this.send({ t: 'party:answer', from, accept });
+  }
+
+  leaveParty() {
+    this.send({ t: 'party:leave' });
+  }
+
+  kick(id: string) {
+    this.send({ t: 'party:kick', id });
+  }
+
+  /** Party leader: open a dungeon for everyone nearby in the party. */
+  openDungeon(dungeonId: string) {
+    if (!this.connected) return toast('ยังไม่ได้เชื่อมต่อเซิร์ฟเวอร์', 'bad');
+    this.send({ t: 'dungeon:open', dungeonId });
+  }
+
+  /** This player's entry for a dungeon run: combat setup with their own potions, and their look. */
+  entrant(): DungeonEntrant {
+    const s = store.s;
+    const setup = playerSetup(s);
+    setup.id = this.id;
+    setup.items = { red_potion: s.bag.red_potion ?? 0, blue_elixir: s.bag.blue_elixir ?? 0 };
+    return { setup, look: look() };
+  }
 
   start() {
     this.connect();
@@ -95,15 +141,52 @@ class Net {
         this.online = msg.online;
         bus.emit('net', { connected: true, online: msg.online });
       }
-      if (msg.t === 'players') bus.emit('players', { players: msg.players });
+      this.onMessage(msg);
     };
     ws.onclose = () => {
       if (this.connected) bus.emit('net', { connected: false, online: 0 });
+      this.players = [];
       this.connected = false;
       bus.emit('players', { players: [] });
+      // The server keeps the party through a short reconnect; show solo until it resends.
+      this.party = null;
+      bus.emit('party', { party: null });
       this.scheduleReconnect();
     };
     ws.onerror = () => ws.close();
+  }
+
+  private onMessage(msg: ServerMsg) {
+    switch (msg.t) {
+      case 'players':
+        this.players = msg.players;
+        bus.emit('players', { players: msg.players });
+        break;
+      case 'party:state':
+        this.party = msg.party;
+        bus.emit('party', { party: msg.party });
+        break;
+      case 'party:invited':
+        bus.emit('party:invited', { from: msg.from, name: msg.name, level: msg.level });
+        break;
+      case 'notice':
+        toast(msg.text, msg.kind);
+        break;
+      case 'dungeon:prepare': {
+        // Can't join while already fighting; the run starts without us.
+        const entrant = this.busy || !store.data ? null : this.entrant();
+        if (entrant) {
+          autoHunt.stop();
+          toast('🚪 กำลังเข้าดันเจี้ยน…');
+        }
+        this.send({ t: 'dungeon:ready', runId: msg.runId, entrant });
+        break;
+      }
+      case 'dungeon:begin':
+        if (this.busy) return toast('เข้าดันเจี้ยนไม่ได้ — กำลังต่อสู้อยู่', 'bad');
+        bus.emit('battle:start', { kind: 'DUNGEON', monsterIds: [], dungeon: { id: msg.dungeonId, seed: msg.seed, entrants: msg.entrants, meId: this.id } });
+        break;
+    }
   }
 
   private scheduleReconnect() {

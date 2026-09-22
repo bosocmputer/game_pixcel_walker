@@ -24,7 +24,7 @@ export class WorldScene extends Phaser.Scene {
   private shadow!: Phaser.GameObjects.Ellipse;
   private accuracyRing!: Phaser.GameObjects.Arc;
   private pulse!: Phaser.GameObjects.Arc;
-  private rangeRing!: Phaser.GameObjects.Ellipse;
+  private rangeRing!: Phaser.GameObjects.Graphics;
   private loadingText!: Phaser.GameObjects.Text;
   private target: { lat: number; lng: number } | null = null;
   private current: { lat: number; lng: number } | null = null;
@@ -54,7 +54,7 @@ export class WorldScene extends Phaser.Scene {
     }
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
 
-    this.rangeRing = this.add.ellipse(0, 0, 10, 10, 0xffa726, 0.07).setStrokeStyle(2, 0xffa726, 0.65).setDepth(4);
+    this.rangeRing = this.add.graphics().setDepth(4);
     this.accuracyRing = this.add.circle(0, 0, 10, 0x26c6da, 0.12).setStrokeStyle(2, 0x26c6da, 0.6).setDepth(5);
     this.pulse = this.add.circle(0, 0, 10, 0xffffff, 0).setStrokeStyle(3, 0xffa726, 0.9).setDepth(5);
     this.tweens.add({ targets: this.pulse, scale: 3, alpha: 0, duration: 1600, repeat: -1 });
@@ -196,11 +196,7 @@ export class WorldScene extends Phaser.Scene {
       .setScale(HERO_SCALE * zs);
     this.shadow.setPosition(here.x, here.y).setScale(zs);
     this.pulse.setPosition(here.x, here.y);
-    // Play-radius ring: project points FIGHT_RANGE_M north/east to get the tilted ellipse size.
-    const r = FIGHT_RANGE_M;
-    const pn = project(this.current.lat + r / 110574, this.current.lng);
-    const pe = project(this.current.lat, this.current.lng + r / (111320 * Math.cos((this.current.lat * Math.PI) / 180)));
-    this.rangeRing.setPosition(here.x, here.y).setSize(Math.hypot(pe.x - here.x, pe.y - here.y) * 2, Math.hypot(pn.x - here.x, pn.y - here.y) * 2);
+    this.drawRangeRing(this.current.lat, this.current.lng);
     this.accuracyRing.setPosition(here.x, here.y).setRadius(Math.max(12, this.accuracy * pixelsPerMeter(this.current.lat)));
 
     if (walk.simulated) {
@@ -221,6 +217,19 @@ export class WorldScene extends Phaser.Scene {
       this.syncMonsters();
     }
     this.placeOverlays();
+  }
+
+  /** Play-radius ring: the true ground circle projected, so it stays right under any rotation/tilt. */
+  private drawRangeRing(lat: number, lng: number) {
+    const mLat = FIGHT_RANGE_M / 110574;
+    const mLng = FIGHT_RANGE_M / (111320 * Math.cos((lat * Math.PI) / 180));
+    const pts: Phaser.Math.Vector2[] = [];
+    for (let i = 0; i < 32; i++) {
+      const a = (i / 32) * Math.PI * 2;
+      const p = project(lat + Math.sin(a) * mLat, lng + Math.cos(a) * mLng);
+      pts.push(new Phaser.Math.Vector2(p.x, p.y));
+    }
+    this.rangeRing.clear().fillStyle(0xffa726, 0.07).fillPoints(pts, true).lineStyle(2, 0xffa726, 0.7).strokePoints(pts, true);
   }
 
   /** Create/destroy landmark sprites near the player (cheap; runs twice a second). */

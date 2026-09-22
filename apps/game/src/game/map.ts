@@ -7,8 +7,10 @@ import maplibregl, { type Map as MLMap } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
-export const MIN_ZOOM = 15;
-export const MAX_ZOOM = 19;
+export const MIN_ZOOM = 13;
+export const MAX_ZOOM = 20;
+const MIN_PITCH = 0;
+const MAX_PITCH = 75;
 /** Zoomed out enough to see the whole 120 m play radius on a phone. */
 const DEFAULT_ZOOM = 16.6;
 const ZOOM_KEY = 'pw.mapZoom.v2';
@@ -66,12 +68,16 @@ export function createMap(container: HTMLElement, lat: number, lng: number): Pro
     doubleClickZoom: false,
     boxZoom: false,
     dragRotate: true,
-    pitchWithRotate: false,
-    touchPitch: false,
+    pitchWithRotate: true,
+    touchPitch: true,
+    maxPitch: MAX_PITCH,
     attributionControl: { compact: true },
   });
   map.touchZoomRotate.enable({ around: 'center' });
   map.scrollZoom.enable({ around: 'center' });
+  map.scrollZoom.setWheelZoomRate(1 / 120);
+  map.scrollZoom.setZoomRate(1 / 50);
+  enableOrbitDrag(container);
   map.on('zoomend', () => {
     try {
       localStorage.setItem(ZOOM_KEY, String(map!.getZoom()));
@@ -91,8 +97,17 @@ export function getMap(): MLMap | null {
   return map;
 }
 
+let follow: [number, number] | null = null;
+
+/**
+ * Keep the camera on the player. Skipped while a camera animation runs (wheel zoom, zoom
+ * buttons, compass) — jumping every frame would cancel it; those animations target the
+ * player position themselves.
+ */
 export function centerOn(lat: number, lng: number) {
-  map?.jumpTo({ center: [lng, lat] });
+  follow = [lng, lat];
+  if (!map || map.isEasing()) return;
+  map.jumpTo({ center: follow });
 }
 
 /** Screen position (CSS px) of a lat/lng on the map canvas. */
@@ -110,11 +125,43 @@ export function pixelsPerMeter(lat: number): number {
 
 export function zoomBy(delta: number) {
   if (!map) return;
-  map.easeTo({ zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, map.getZoom() + delta)), duration: 250 });
+  map.easeTo({ center: follow ?? map.getCenter(), zoom: Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, map.getZoom() + delta)), duration: 250 });
 }
 
 export function resetNorth() {
-  map?.easeTo({ bearing: 0, duration: 300 });
+  map?.easeTo({ center: follow ?? map.getCenter(), bearing: 0, pitch: PITCH, duration: 300 });
+}
+
+/**
+ * Pokémon GO style camera: one-finger / left-mouse drag orbits around the player —
+ * horizontal = rotate (bearing), vertical = tilt (pitch). Two-finger gestures stay with
+ * MapLibre (pinch zoom + rotate). Short taps still reach MapLibre's click (fight).
+ */
+function enableOrbitDrag(container: HTMLElement) {
+  const pointers = new Set<number>();
+  let last: { x: number; y: number } | null = null;
+  container.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    pointers.add(e.pointerId);
+    last = pointers.size === 1 ? { x: e.clientX, y: e.clientY } : null;
+  });
+  container.addEventListener('pointermove', (e) => {
+    if (!map || !last || pointers.size !== 1 || !pointers.has(e.pointerId)) return;
+    const dx = e.clientX - last.x;
+    const dy = e.clientY - last.y;
+    last = { x: e.clientX, y: e.clientY };
+    map.jumpTo({
+      bearing: map.getBearing() - dx * 0.35,
+      pitch: Math.max(MIN_PITCH, Math.min(MAX_PITCH, map.getPitch() - dy * 0.25)),
+    });
+  });
+  const end = (e: PointerEvent) => {
+    pointers.delete(e.pointerId);
+    last = null;
+  };
+  container.addEventListener('pointerup', end);
+  container.addEventListener('pointercancel', end);
+  container.addEventListener('pointerleave', end);
 }
 
 /** Perspective size factor for a screen y (sprites far up the tilted map look smaller). */

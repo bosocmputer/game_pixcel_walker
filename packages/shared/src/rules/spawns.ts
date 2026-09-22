@@ -8,12 +8,14 @@ import { createRng, pick } from './rng';
 
 /** Spawn cell size in degrees (~110 m of latitude). */
 export const SPAWN_CELL_DEG = 0.001;
-/** Spawns rotate every 10 minutes. */
-export const SPAWN_SLOT_MS = 10 * 60_000;
-/** Max spawns rolled per cell (before terrain rejection). */
-export const SPAWNS_PER_CELL = 3;
-/** Chance that each roll produces a monster. */
-export const SPAWN_CHANCE = 0.4;
+/** Spawns rotate every 5 minutes (defeated ones come back on the next slot). */
+export const SPAWN_SLOT_MS = 5 * 60_000;
+/** Spawn rolls per cell. */
+export const SPAWNS_PER_CELL = 6;
+/** Chance that each roll produces a monster (~3.6 per ~110 m cell). */
+export const SPAWN_CHANCE = 0.6;
+/** Extra positions tried when a roll lands somewhere blocked (e.g. a rooftop). */
+const PLACEMENT_TRIES = 4;
 /** Must be this close (metres) to start a fight. */
 export const FIGHT_RANGE_M = 40;
 /** Players are grouped into 5-level bands so friends of similar level share spawns. */
@@ -73,11 +75,23 @@ export function spawnsForCell(
   const out: Spawn[] = [];
   for (let i = 0; i < SPAWNS_PER_CELL; i++) {
     const roll = rng();
-    const lat = (cy + rng()) * SPAWN_CELL_DEG;
-    const lng = (cx + rng()) * SPAWN_CELL_DEG;
     const choice = rng();
+    // Always draw the same number of positions so later rolls stay stable across devices.
+    const spots = Array.from({ length: PLACEMENT_TRIES }, () => ({
+      lat: (cy + rng()) * SPAWN_CELL_DEG,
+      lng: (cx + rng()) * SPAWN_CELL_DEG,
+    }));
     if (roll >= SPAWN_CHANCE) continue;
-    const terrain = terrainAt(lat, lng);
+    let lat = 0;
+    let lng = 0;
+    let terrain: Terrain | null = null;
+    for (const spot of spots) {
+      terrain = terrainAt(spot.lat, spot.lng);
+      if (terrain) {
+        ({ lat, lng } = spot);
+        break;
+      }
+    }
     if (!terrain) continue;
     const pool = spawnPool(terrain, band);
     if (!pool.length) continue;

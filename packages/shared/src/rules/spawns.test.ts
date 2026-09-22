@@ -34,3 +34,18 @@ describe('spawns', () => {
     expect(spawnPool('ROAD', 0)).toContain('pixel_slime');
   });
 });
+
+describe('spawn density', () => {
+  it('averages roughly 3+ monsters per cell on open terrain', () => {
+    const n = spawnsAround(18.7877, 98.9931, 0.005, T0, 3, road).length;
+    const cells = 11 * 11;
+    expect(n / cells).toBeGreaterThan(3);
+  });
+
+  it('relocates spawns that land on blocked spots instead of dropping them', () => {
+    let calls = 0;
+    const halfBlocked = () => (calls++ % 2 === 0 ? null : ('ROAD' as const));
+    const n = spawnsAround(18.7877, 98.9931, 0.005, T0, 3, halfBlocked).length;
+    expect(n / (11 * 11)).toBeGreaterThan(3);
+  });
+});

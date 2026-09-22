@@ -1,6 +1,9 @@
 {
   "name": "pixel-walker",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "workspaces": [
     "packages/*",
     "apps/*",

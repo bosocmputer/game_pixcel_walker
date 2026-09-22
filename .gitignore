@@ -9,3 +9,4 @@ tools/osm/cache/
 tools/artpreview/preview.png
 tools/artpreview/heroes.png
 apps/game/public/maps/
+*.tsbuildinfo

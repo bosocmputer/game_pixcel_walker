@@ -2,11 +2,36 @@
 
 Location-based RPG for the browser: a real map background (MapLibre + OpenFreeMap, `game/map.ts`)
 with 16-bit sprites drawn on a transparent Phaser canvas; gameplay terrain/landmarks are decoded from the
-same vector tiles (`game/world.ts`). The player community launches in Chiang Mai. The owner is a solo developer
-who builds with Claude and speaks Thai — reply in Thai, keep code/comments in English.
+same vector tiles (`game/world.ts`). The player community launches in Chiang Mai. A small Thai team builds it
+with Claude Code — reply in Thai, keep code/comments in English.
 
 **Design source of truth: `docs/MASTER_SPEC.md`.** `docs/source/` holds the original docs;
 where they disagree with MASTER_SPEC, MASTER_SPEC wins. Update MASTER_SPEC when a design decision changes.
+How to install/run everything: `README.md`.
+
+## กฎการทำงานของทีม (บังคับ)
+
+หลายคนทำโปรเจกต์นี้สลับกัน ทุกคนใช้ Claude Code — กฎนี้มีไว้ให้คนถัดไปรู้เสมอว่าเกิดอะไรขึ้น
+
+**ก่อนเริ่มงานทุกครั้ง**
+1. `git pull` ให้เป็นล่าสุด แล้ว `npm install` (เผื่อมี dependency ใหม่)
+2. อ่าน `docs/ROADMAP.md` และ 3 รายการบนสุดของ `CHANGELOG.md` แล้วสรุปสถานะให้คนสั่งงานฟังสั้น ๆ
+3. ถ้างานที่จะทำอยู่ใน ROADMAP ให้ใส่ชื่อคนรับงานไว้ในหัวข้อ "กำลังทำ" จะได้ไม่ทำชนกัน
+
+**หลังทำงานเสร็จ (ก่อน commit) — ขาดไม่ได้**
+1. เพิ่มรายการ **บนสุด** ของ `CHANGELOG.md` ตามรูปแบบในไฟล์: วันที่ · หัวข้อ · ชื่อคนทำ · เพิ่ม / แก้ไข / แก้บั๊ก ·
+   ไฟล์หลักที่แตะ · ผลทดสอบ · งานค้าง/ข้อควรรู้ (1 งาน/1 session = 1 รายการ, เขียนภาษาไทย)
+2. อัปเดต `docs/ROADMAP.md`: ย้ายงานที่เสร็จไป "เสร็จแล้ว", เพิ่มงานใหม่/ปัญหาที่เจอ/เรื่องที่รอตัดสินใจ, แก้วันที่อัปเดต
+3. ถ้าเปลี่ยนดีไซน์เกม (ตัวเลข สูตร กติกา) → อัปเดต `docs/MASTER_SPEC.md` (และ `docs/COMBAT_SPEC.md` ถ้าเกี่ยวกับการต่อสู้)
+4. ถ้าเพิ่ม/เปลี่ยนวิธีรัน คำสั่ง พอร์ต หรือ env → อัปเดต `README.md`
+5. รัน `npm test` และ `npm run typecheck` ให้ผ่าน ถ้าไม่ผ่านห้าม commit (หรือเขียนเหตุผลไว้ใน CHANGELOG ช่อง "ค้าง")
+
+**Git**
+- ทำงานบน branch ของตัวเอง: `feature/<เรื่อง>` หรือ `fix/<เรื่อง>` แล้วเปิด Pull Request เข้า `main`
+  (แก้เอกสารเล็ก ๆ push เข้า `main` ตรงได้) — ก่อน push ให้ `git pull --rebase` เสมอ
+- ข้อความ commit ภาษาอังกฤษ บรรทัดแรกบอกว่าทำอะไร เช่น `Party co-op field fights`
+- ห้าม commit ไฟล์ลับ (`.env`, คีย์ API, รหัสผ่าน) และ `node_modules/`, `dist/`
+- ห้าม force-push `main`
 
 ## Layout
 ```
@@ -15,7 +40,7 @@ packages/shared   Game rules + data, pure TypeScript, no DOM. Used by client AND
   src/combat      party auto turn-based engine, dungeons (see docs/COMBAT_SPEC.md)
   src/rules       progression, stats, spawns, walk validation, loot, economy, rng
 apps/game         Phaser 3 + Vite PWA client
-apps/server       Presence server (Node + ws), LAN testing phase — protocol in packages/shared/src/net
+apps/server       Presence server (Node + ws): nearby players, parties, dungeon/field runs — protocol in packages/shared/src/net
 tools/osm         Legacy offline baker (OSM → tilemap for one city); the game streams tiles live now
 tools/artpreview  Renders map/sprite sheets to PNG for reviewing procedural art without a browser
 supabase/         (Phase 1) migrations + edge functions — server-authoritative rewards

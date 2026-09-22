@@ -10,12 +10,14 @@ const state = {
   hpMult: 1,
   atkMult: 1,
   modifiers: false,
+  dummyRounds: 20,
+  dummyCount: 1,
 };
 
 const ELEMENT_ICON: Record<string, string> = { NEUTRAL: '', FIRE: '🔥', WATER: '💧', LIGHTNING: '⚡', EARTH: '🪨', HOLY: '✨', SHADOW: '🌑' };
 
 export function arenaPanel(): string {
-  const field = Object.values(MONSTERS).filter((m) => !m.boss).sort((a, b) => a.level - b.level);
+  const field = Object.values(MONSTERS).filter((m) => !m.boss && !m.passive).sort((a, b) => a.level - b.level);
   const bosses = Object.values(MONSTERS).filter((m) => m.boss).sort((a, b) => a.level - b.level);
   const chip = (group: 'hp' | 'atk', v: number, label: string) =>
     `<button class="chip-btn ${(group === 'hp' ? state.hpMult : state.atkMult) === v ? 'on' : ''}" data-mult="${group}:${v}">${label}</button>`;
@@ -30,6 +32,12 @@ export function arenaPanel(): string {
   };
   return `<h2>🧪 สนามทดสอบการต่อสู้</h2>
     <p class="muted">เลือกมอนสเตอร์มาลองชุดสกิล — ไม่ได้รางวัล ไม่เสียของ HP ไม่ลด หลังจบจะแสดงสถิติแต่ละสกิล</p>
+    <h3>🎯 หุ่นไม้ฝึกซ้อม (ไม่ตีกลับ)</h3>
+    <p class="muted">ตีได้เรื่อย ๆ จนครบจำนวนรอบ ใช้ดูดาเมจต่อรอบและความถี่ของสกิล</p>
+    <div class="row">จำนวนรอบ ${[10, 20, 50].map((n) => `<button class="chip-btn ${state.dummyRounds === n ? 'on' : ''}" data-drounds="${n}">${n}</button>`).join('')}</div>
+    <div class="row">จำนวนหุ่น ${[1, 3].map((n) => `<button class="chip-btn ${state.dummyCount === n ? 'on' : ''}" data-dcount="${n}">${n} ตัว</button>`).join('')}</div>
+    <button class="btn primary" data-dummy="training_dummy">🪵 หุ่นไม้ (DEF 0)</button>
+    <button class="btn" data-dummy="armored_dummy">🛡️ หุ่นเกราะ (DEF/MDEF 100)</button>
     <h3>ทีมศัตรู (${state.lineup.length}/${MAX_LINEUP})</h3>
     <div class="deck-now">${lineup}</div>
     <h4>ความโหด</h4>
@@ -70,14 +78,28 @@ export function wireArena(body: HTMLElement, rerender: () => void, close: () => 
     state.lineup = [];
     rerender();
   });
-  const start = (waves: WaveDef[]) => {
+  const start = (waves: WaveDef[], maxRounds?: number, dummy = false) => {
     close();
     bus.emit('battle:start', {
       kind: 'TEST',
       monsterIds: waves[0]!.monsterIds,
-      test: { waves, hpMult: state.hpMult, atkMult: state.atkMult, modifiers: state.modifiers },
+      test: dummy
+        ? { waves, hpMult: 1, atkMult: 1, modifiers: false, maxRounds }
+        : { waves, hpMult: state.hpMult, atkMult: state.atkMult, modifiers: state.modifiers },
     });
   };
+  on('[data-drounds]', (x) => {
+    state.dummyRounds = Number(x.dataset.drounds);
+    rerender();
+  });
+  on('[data-dcount]', (x) => {
+    state.dummyCount = Number(x.dataset.dcount);
+    rerender();
+  });
+  on('[data-dummy]', (x) => {
+    const id = x.dataset.dummy!;
+    start([{ monsterIds: Array.from({ length: state.dummyCount }, () => id) }], state.dummyRounds, true);
+  });
   on('[data-arena-go]', () => state.lineup.length && start([{ monsterIds: [...state.lineup] }]));
   on('[data-dungeon]', (x) => {
     const id = x.dataset.dungeon!;

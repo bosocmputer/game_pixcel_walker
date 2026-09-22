@@ -27,7 +27,7 @@ export interface BattleRequest {
   /** Started by Auto Hunt: auto-battle at high speed, result closes itself. */
   auto?: boolean;
   /** Test arena: custom waves/scaling, no rewards and no penalties. */
-  test?: { waves: WaveDef[]; hpMult: number; atkMult: number; modifiers: boolean };
+  test?: { waves: WaveDef[]; hpMult: number; atkMult: number; modifiers: boolean; maxRounds?: number };
 }
 
 type Handler<T> = (payload: T) => void;

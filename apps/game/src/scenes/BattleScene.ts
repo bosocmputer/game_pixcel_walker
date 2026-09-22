@@ -97,6 +97,7 @@ export class BattleScene extends Phaser.Scene {
     if (test) {
       waves = test.waves;
       rollModifiers = test.modifiers;
+      maxRounds = test.maxRounds;
     }
 
     const items: Record<string, number> = {};
@@ -170,7 +171,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const sprite = this.add.image(0, 0, key).setScale(scale).setOrigin(0.5, 1).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add
-      .text(0, 0, `${u.name} Lv.${u.level}`, { fontFamily: 'Mali', fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+      .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: 'Mali', fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0)
       .setDepth(11);
     const bars = this.add.graphics().setDepth(11);
@@ -184,7 +185,7 @@ export class BattleScene extends Phaser.Scene {
       const v = this.views.get(u.id);
       if (!v) continue;
       v.bars.clear();
-      if (u.hp <= 0) continue;
+      if (u.hp <= 0 || u.passive) continue;
       const w = Math.max(50, v.sprite.displayWidth * 0.9);
       const x = v.home.x - w / 2;
       const y = v.home.y + 18;
@@ -231,7 +232,7 @@ export class BattleScene extends Phaser.Scene {
       this.req.kind === 'TRIAL' ? `🏛️ บททดสอบ ${CLASSES[this.req.trialClass!].nameTh}`
       : this.req.kind === 'TEST' ? '🧪 สนามทดสอบ'
       : this.req.kind === 'BOSS' ? '⚔️ ดันเจี้ยนบอส' : '⚔️ ต่อสู้';
-    const limit = this.worldBossStartHp ? ` / ${WORLD_BOSS_ROUNDS}` : '';
+    const limit = this.worldBossStartHp ? ` / ${WORLD_BOSS_ROUNDS}` : this.req.test?.maxRounds ? ` / ${this.req.test.maxRounds}` : '';
     this.header.setText(`${title}\n${wave}รอบ ${c.round}${limit}${mod && mod.id !== 'calm' ? `\n🌐 ${mod.nameTh}` : ''}`);
   }
 
@@ -461,16 +462,20 @@ export class BattleScene extends Phaser.Scene {
 
   private showTestReport(fled: boolean) {
     const won = this.d.result === 'WIN';
+    const dummy = this.d.combat.units.filter((u) => u.side === 'B').every((u) => u.passive);
     const st = deckStats(this.currentArchived ? this.allEvents : this.allEvents.concat(this.d.combat.events), 'me');
     const rows = Object.entries(st.skills)
       .sort((a, b) => b[1].uses - a[1].uses)
       .map(([id, v]) => `<tr><td>${esc(SKILLS[id]?.nameTh ?? MONSTERS[id]?.nameTh ?? id)}</td><td>${v.uses}</td><td>${v.damage.toLocaleString()}</td></tr>`)
       .join('');
     const modal = el(`<div class="modal-backdrop"><div class="modal result">
-      <h2>🧪 ${fled ? 'ออกจากสนาม' : won ? 'ชนะ' : 'แพ้'} — ${st.rounds} รอบ</h2>
-      <p>ดาเมจที่ทำ <b>${st.dealt.toLocaleString()}</b> · ที่ได้รับ <b>${st.taken.toLocaleString()}</b> · ฟื้นฟู <b>${st.healed.toLocaleString()}</b></p>
+      <h2>🧪 ${fled ? 'ออกจากสนาม' : dummy ? '⏱ ครบเวลา' : won ? 'ชนะ' : 'แพ้'} — ${st.rounds} รอบ</h2>
+      <p>ดาเมจที่ทำ <b>${st.dealt.toLocaleString()}</b> (เฉลี่ย <b>${Math.round(st.dealt / Math.max(1, st.rounds)).toLocaleString()}</b>/รอบ)
+        · ที่ได้รับ <b>${st.taken.toLocaleString()}</b> · ฟื้นฟู <b>${st.healed.toLocaleString()}</b></p>
+      <p>โดน ${st.hits} · Critical ${st.crits} (${Math.round((st.crits / Math.max(1, st.hits)) * 100)}%) · Miss ${st.misses}
+        ${Object.keys(st.statuses).length ? ` · สถานะ: ${Object.entries(st.statuses).map(([k, n]) => `${STATUS_TH[k] ?? k} ×${n}`).join(', ')}` : ''}</p>
       <table class="deck-stats"><tr><th>สกิล</th><th>ครั้ง</th><th>ดาเมจ</th></tr>${rows}</table>
-      <p class="muted">สนามทดสอบ: ไม่ได้รางวัล ไม่เสียของ HP ไม่ลด</p>
+      <p class="muted">สนามทดสอบ: ไม่ได้รางวัล ไม่เสียของ HP ไม่ลด${dummy ? ' · พิษ/เลือดไหลกับหุ่นคิดจาก HP 1,000' : ''}</p>
       <button class="btn" data-act="again">🔁 สู้ซ้ำ</button>
       <button class="btn primary" data-act="close">กลับสู่แผนที่</button></div></div>`);
     document.getElementById('ui')!.appendChild(modal);
@@ -528,11 +533,15 @@ export interface DeckStats {
   dealt: number;
   taken: number;
   healed: number;
+  crits: number;
+  misses: number;
+  hits: number;
+  statuses: Record<string, number>;
   skills: Record<string, { uses: number; damage: number }>;
 }
 
 export function deckStats(events: CombatEvent[], meId: string): DeckStats {
-  const st: DeckStats = { rounds: 0, dealt: 0, taken: 0, healed: 0, skills: {} };
+  const st: DeckStats = { rounds: 0, dealt: 0, taken: 0, healed: 0, crits: 0, misses: 0, hits: 0, statuses: {}, skills: {} };
   let current = '';
   for (const e of events) {
     if (e.type === 'ROUND') st.rounds++;
@@ -542,8 +551,12 @@ export function deckStats(events: CombatEvent[], meId: string): DeckStats {
     } else if (e.type === 'SKILL') current = '';
     if (e.type === 'DAMAGE' && e.source === meId) {
       st.dealt += e.amount;
+      st.hits++;
+      if (e.crit) st.crits++;
       if (current) st.skills[current]!.damage += e.amount;
     }
+    if (e.type === 'MISS' && e.source === meId) st.misses++;
+    if (e.type === 'STATUS' && e.target !== meId && current) st.statuses[e.status] = (st.statuses[e.status] ?? 0) + 1;
     if (e.type === 'TICK' && e.target !== meId) st.dealt += e.amount;
     if (e.type === 'DAMAGE' && e.target === meId) st.taken += e.amount;
     if (e.type === 'HEAL' && e.target === meId) st.healed += e.amount;

@@ -31,6 +31,8 @@ import {
 
 export const FRONT_AGGRO = 0.7;
 export const COVER_MITIGATION = 0.7;
+/** Training dummies measure % max-HP damage-over-time against this HP. */
+export const DUMMY_REFERENCE_HP = 1000;
 const DEFAULT_MAX_ROUNDS = 60;
 const HARD_CC: StatusId[] = ['STUN', 'FREEZE', 'ROOT'];
 
@@ -81,6 +83,7 @@ function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
     usedOnce: [],
     flags: { miracleUsed: false, ultimateBlocked: false, phase: 0, enraged: false },
     autoPotion: !!s.autoPotion,
+    passive: !!s.passive,
   };
 }
 
@@ -132,6 +135,7 @@ export function monsterSetup(monsterId: string, id: string, opts: { hp?: number;
     element: m.element,
     monsterId,
     isBoss: !!m.boss,
+    passive: !!m.passive,
     deck: m.deck ?? [],
     hp: opts.hp !== undefined ? Math.min(maxHp, opts.hp) : maxHp,
     stats: {
@@ -147,7 +151,7 @@ export function monsterSetup(monsterId: string, id: string, opts: { hp?: number;
       crit: 0.05,
       critResist: Math.min(0.2, m.level * 0.002),
       critMult: 1.5,
-      block: m.boss ? 0.1 : 0.04,
+      block: m.passive ? 0 : m.boss ? 0.1 : 0.04,
       blockReduce: 0.4,
       healPower: 1,
     },
@@ -296,6 +300,17 @@ function end(c: Combat, result: CombatResult) {
 }
 
 function takeTurn(c: Combat, u: CombatUnit) {
+  if (u.passive) {
+    // Training dummies never act, but their statuses still tick down.
+    for (const s of [...u.statuses]) {
+      if (s.id !== 'POISON' && s.id !== 'BURN' && s.id !== 'BLEED') continue;
+      // % DoTs are measured against a 1,000 HP reference so the numbers stay meaningful.
+      const amount = Math.max(1, Math.round(s.id === 'BURN' ? s.potency : DUMMY_REFERENCE_HP * s.potency));
+      push(c, { type: 'TICK', target: u.id, status: s.id, amount });
+      damage(c, getUnit(c, s.sourceId) ?? u, u, amount);
+    }
+    return endTurn(u);
+  }
   push(c, { type: 'TURN', unit: u.id });
   for (const k of Object.keys(u.cooldowns)) u.cooldowns[k] = Math.max(0, (u.cooldowns[k] ?? 0) - 1);
 

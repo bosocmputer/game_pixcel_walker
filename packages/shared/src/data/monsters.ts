@@ -34,6 +34,8 @@ export interface MonsterDef {
   deck?: string[];
   /** Formation row (default FRONT). */
   row?: Row;
+  /** Never acts (training dummies). */
+  passive?: boolean;
 }
 
 export interface BossSkill {
@@ -138,6 +140,18 @@ export const MONSTERS: Record<string, MonsterDef> = {
     hp: 1100, mp: 40, atk: 90, matk: 60, def: 80, mdef: 50, speed: 20, evasion: 0.02,
     exp: 500, gold: [60, 120], drops: [],
     sprite: 'mob_sapling',
+  },
+
+  // --- Training dummies (test arena only; never spawn) ---
+  training_dummy: {
+    id: 'training_dummy', name: 'Training Dummy', nameTh: 'หุ่นไม้ฝึกซ้อม', level: 1, element: 'NEUTRAL',
+    hp: 9999999, mp: 0, atk: 0, matk: 0, def: 0, mdef: 0, speed: 0, evasion: 0,
+    exp: 0, gold: [0, 0], drops: [], sprite: 'mob_dummy', passive: true,
+  },
+  armored_dummy: {
+    id: 'armored_dummy', name: 'Armored Dummy', nameTh: 'หุ่นเกราะฝึกซ้อม', level: 20, element: 'NEUTRAL',
+    hp: 9999999, mp: 0, atk: 0, matk: 0, def: 100, mdef: 100, speed: 0, evasion: 0,
+    exp: 0, gold: [0, 0], drops: [], sprite: 'mob_dummy_armored', passive: true,
   },
 
   // --- Landmark bosses ---

@@ -141,6 +141,16 @@ describe('combat engine', () => {
   });
 });
 
+describe('training dummy', () => {
+  it('never deals damage and survives until the round limit', () => {
+    const c = runToEnd(createCombat({ partyA: [hero()], partyB: [monsterSetup('training_dummy', 'd')], seed: 3, maxRounds: 10 }));
+    expect(of(c.events, 'DAMAGE').some((e) => e.target === 'p1')).toBe(false);
+    expect(of(c.events, 'DAMAGE').filter((e) => e.target === 'd').length).toBeGreaterThan(5);
+    expect(c.round).toBeGreaterThanOrEqual(10);
+    expect(c.units.find((u) => u.id === 'p1')!.hp).toBe(c.units.find((u) => u.id === 'p1')!.base.maxHp);
+  });
+});
+
 describe('dungeon', () => {
   it('persists HP across waves and ends after the boss wave', () => {
     const d = createDungeon({ party: [hero({ level: 16 })], waves: landmarkWaves('goblin_king'), seed: 9, items: { red_potion: 5 }, rollModifiers: false });

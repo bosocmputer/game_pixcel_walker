@@ -153,6 +153,8 @@ export interface CombatUnit {
   flags: { miracleUsed: boolean; ultimateBlocked: boolean; phase: number; enraged: boolean };
   /** Party-side consumables this unit may auto-use (players only). */
   autoPotion: boolean;
+  /** Never acts (training dummies). */
+  passive: boolean;
 }
 
 export interface UnitSetup {
@@ -172,6 +174,7 @@ export interface UnitSetup {
   deck: string[];
   rateBonus?: Partial<Record<Element | 'ALL', number>>;
   autoPotion?: boolean;
+  passive?: boolean;
   /** Carried over between dungeon waves. */
   cooldowns?: Record<string, number>;
   statuses?: ActiveStatus[];

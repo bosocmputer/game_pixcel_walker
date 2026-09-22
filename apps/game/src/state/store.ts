@@ -5,6 +5,7 @@
 import {
   CLASSES,
   EQUIPMENT,
+  SKILLS,
   STARTER_KITS,
   computeDerived,
   detectMutation,
@@ -18,6 +19,7 @@ import {
 } from '@pw/shared';
 
 const KEY = 'pixelwalker.save.v1';
+export const LOADOUT_SIZE = 4;
 
 export interface EquippedItem {
   itemId: string;
@@ -43,6 +45,8 @@ export interface SaveData {
   /** Unequipped gear keeps its durability. */
   gearBag: EquippedItem[];
   equipment: Partial<Record<EquipSlot, EquippedItem>>;
+  /** Skills the auto-battle may pick from (Pocket Ninja style loadout), max LOADOUT_SIZE. */
+  loadout: string[];
   home: { lat: number; lng: number; setAt: number } | null;
   /** landmarkId → epoch ms when the boss was last defeated */
   bossKills: Record<string, number>;
@@ -81,6 +85,7 @@ export function newSave(name: string): SaveData {
     bag: {},
     gearBag: [],
     equipment: {},
+    loadout: [],
     home: null,
     bossKills: {},
     worldBosses: {},
@@ -103,7 +108,10 @@ class Store {
     try {
       const raw = localStorage.getItem(KEY);
       this.data = raw ? (JSON.parse(raw) as SaveData) : null;
-      if (this.data) this.data.worldBosses ??= {};
+      if (this.data) {
+        this.data.worldBosses ??= {};
+        this.data.loadout ??= [];
+      }
     } catch {
       this.data = null;
     }
@@ -211,4 +219,16 @@ export function rollDay(s: SaveData) {
     s.dayKey = k;
     s.stepsToday = 0;
   }
+}
+
+/** Active class skills (excluding the basic attack) the player may put in the loadout. */
+export function learnableSkills(s: SaveData): string[] {
+  return CLASSES[s.classId].skills.filter((id) => id !== 'basic_attack' && SKILLS[id]?.kind === 'ACTIVE');
+}
+
+/** Loadout used in battle: saved picks that are still valid, or all learnable skills by default. */
+export function effectiveLoadout(s: SaveData): string[] {
+  const learn = learnableSkills(s);
+  const picked = s.loadout.filter((id) => learn.includes(id));
+  return (picked.length ? picked : learn).slice(0, LOADOUT_SIZE);
 }

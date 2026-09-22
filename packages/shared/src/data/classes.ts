@@ -25,7 +25,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'EXP จากการเดิน +10% จนถึง Lv.10',
       modifiers: {},
     },
-    skills: ['basic_attack'],
+    skills: ['basic_attack', 'quick_strike', 'first_aid'],
   },
   KNIGHT: {
     id: 'KNIGHT',

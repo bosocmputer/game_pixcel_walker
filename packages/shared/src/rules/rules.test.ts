@@ -7,7 +7,6 @@ import {
   advance,
   command,
   replay,
-  autoCommand,
   deathGoldLoss,
   detectMutation,
   expToNext,
@@ -158,20 +157,21 @@ describe('combat', () => {
     expect(a.events).toEqual(b.events);
   });
 
-  it('manual battles replay to the same result from the command log', () => {
+  it('auto battles replay exactly from setup + seed', () => {
     const setup = {
-      players: [player({ controller: 'MANUAL' })],
+      players: [player({ loadout: ['shield_bash', 'taunt'] })],
       enemies: [{ monsterId: 'alley_rat' }, { monsterId: 'alley_rat' }],
     };
-    const b = createBattle(setup, 99);
-    advance(b);
-    while (b.result === 'ONGOING' && b.awaiting) {
-      command(b, autoCommand(b, b.awaiting));
-      advance(b);
-    }
-    const r = replay(setup, 99, b.log);
+    const b = advance(createBattle(setup, 99));
+    const r = replay(setup, 99, []);
     expect(r.result).toBe(b.result);
     expect(r.events).toEqual(b.events);
+  });
+
+  it('only rolls skills from the loadout', () => {
+    const b = advance(createBattle({ players: [player({ loadout: ['taunt'] })], enemies: [{ monsterId: 'soi_dog_spirit' }] }, 4));
+    const used = new Set(b.events.filter((e) => e.type === 'ACT' && e.unit === 'p1').map((e) => (e as { skill: string }).skill));
+    expect([...used].every((s) => s === 'taunt' || s === 'basic_attack' || s.startsWith('item:'))).toBe(true);
   });
 
   it('scales non-world boss HP to party size, never world bosses', () => {

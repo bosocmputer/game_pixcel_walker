@@ -47,6 +47,30 @@ export const SKILLS: Record<string, SkillDef> = {
     description: 'โจมตีธรรมดา 100% ATK',
   },
 
+  // Novice
+  quick_strike: {
+    id: 'quick_strike',
+    name: 'Quick Strike',
+    nameTh: 'ฟันรวดเร็ว',
+    kind: 'ACTIVE',
+    mp: 6,
+    cooldown: 4,
+    target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.4 } }],
+    description: 'โจมตีเร็ว 140% ATK',
+  },
+  first_aid: {
+    id: 'first_aid',
+    name: 'First Aid',
+    nameTh: 'ปฐมพยาบาล',
+    kind: 'ACTIVE',
+    mp: 8,
+    cooldown: 14,
+    target: 'SELF',
+    effects: [{ kind: 'HEAL', scaling: { maxHp: 0.08 }, flat: 15 }],
+    description: 'ฟื้นฟู HP ตัวเอง 8% + 15',
+  },
+
   // Knight
   shield_bash: {
     id: 'shield_bash',

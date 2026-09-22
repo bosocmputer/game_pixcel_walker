@@ -1,179 +1,399 @@
 /**
- * Procedural 8-bit art: map tileset and character/monster sprites are generated at boot from
- * tiny pixel templates, so the game ships with zero image assets.
+ * Procedural 16-bit art. Everything is generated at boot — the game ships with zero image
+ * assets. Tiles use 5-step color ramps, dithering and neighbour-aware overlays (3/4-view
+ * building facades, cast shadows, shorelines, curbs). Sprites are authored as flat region
+ * masks and get automatic bevel shading + selective outlines, the classic 16-bit look.
  */
-import { TILE, TILE_COLORS, type TileId } from '@pw/shared';
+import { TILE, type TileId } from '@pw/shared';
 
 export const TILE_PX = 16;
+export const TILE_VARIANTS = 4;
 
 type RGB = [number, number, number];
-const hex = ([r, g, b]: RGB) => `rgb(${r},${g},${b})`;
-const shade = ([r, g, b]: RGB, k: number): RGB => [
-  Math.max(0, Math.min(255, Math.round(r * k))),
-  Math.max(0, Math.min(255, Math.round(g * k))),
-  Math.max(0, Math.min(255, Math.round(b * k))),
-];
+type Ramp = [RGB, RGB, RGB, RGB, RGB]; // darkest → lightest
 
-/** Deterministic hash noise so every tile variant looks the same on every device. */
+const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
+const css = ([r, g, b]: RGB, a = 1) => (a === 1 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a})`);
+const mul = ([r, g, b]: RGB, k: number): RGB => [clamp(r * k), clamp(g * k), clamp(b * k)];
+const hexRgb = (h: string): RGB => {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+};
+const ramp = (hex: string): Ramp => {
+  const c = hexRgb(hex);
+  return [mul(c, 0.55), mul(c, 0.75), c, mul(c, 1.15), mul(c, 1.3)];
+};
+
+/** Deterministic hash noise so tiles look identical on every device. */
 function noise(x: number, y: number, seed: number): number {
-  let h = (x * 374761393 + y * 668265263 + seed * 2147483647) | 0;
+  let h = (x * 374761393 + y * 668265263 + seed * 1442695041) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
+/** 4×4 Bayer matrix for ordered dithering. */
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => v / 16);
+const dither = (x: number, y: number) => BAYER[(y % 4) * 4 + (x % 4)]!;
 
-export const TILE_VARIANTS = 4;
-
-/** Canvas with one row per TileId and TILE_VARIANTS columns. */
-export function buildTileset(): HTMLCanvasElement {
-  const ids = Object.values(TILE) as TileId[];
+function canvas(w = TILE_PX, h = TILE_PX): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement('canvas');
-  c.width = TILE_PX * TILE_VARIANTS;
-  c.height = TILE_PX * ids.length;
-  const ctx = c.getContext('2d')!;
+  c.width = w;
+  c.height = h;
+  return [c, c.getContext('2d')!];
+}
 
-  for (const id of ids) {
-    for (let v = 0; v < TILE_VARIANTS; v++) {
-      const ox = v * TILE_PX;
-      const oy = id * TILE_PX;
-      const base = TILE_COLORS[id] as RGB;
-      for (let y = 0; y < TILE_PX; y++) {
-        for (let x = 0; x < TILE_PX; x++) {
-          const n = noise(x, y, id * 31 + v);
-          let col = base;
-          switch (id) {
-            case TILE.GREEN:
-              if (n > 0.93) col = shade(base, 1.2);
-              else if (n < 0.08) col = shade(base, 0.82);
-              break;
-            case TILE.FOREST: {
-              // Round tree canopies
-              const cx = (x % 8) - 3.5, cy = (y % 8) - 3.5;
-              const r = Math.hypot(cx, cy);
-              col = r < 3 ? shade(base, 1.15 - r * 0.05) : shade(base, 0.7);
-              if (n > 0.9) col = shade(base, 1.35);
-              break;
-            }
-            case TILE.FARMLAND:
-              col = (y + v) % 4 === 0 ? shade(base, 0.85) : base;
-              break;
-            case TILE.WATER:
-              col = (y % 6 === (x + v * 2) % 6 && n > 0.4) ? shade(base, 1.25) : base;
-              break;
-            case TILE.BUILDING:
-              if (x === 0 || y === 0) col = shade(base, 1.2);
-              else if (x === TILE_PX - 1 || y === TILE_PX - 1) col = shade(base, 0.7);
-              else if (y % 4 === 0) col = shade(base, 0.9);
-              break;
-            case TILE.SAFE:
-              if (n > 0.95) col = [255, 240, 180];
-              break;
-            case TILE.ROAD_MAJOR:
-            case TILE.ROAD_MINOR:
-            case TILE.PATH:
-              if (n > 0.92) col = shade(base, 0.92);
-              break;
-            default:
-              if (n > 0.9) col = shade(base, 0.93);
-              else if (n < 0.05) col = shade(base, 1.06);
-          }
-          ctx.fillStyle = hex(col);
-          ctx.fillRect(ox + x, oy + y, 1, 1);
-        }
-      }
+function paint(fn: (x: number, y: number) => RGB | null, w = TILE_PX, h = TILE_PX): HTMLCanvasElement {
+  const [c, ctx] = canvas(w, h);
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const col = fn(x, y);
+      if (!col) continue;
+      const i = (y * w + x) * 4;
+      img.data[i] = col[0];
+      img.data[i + 1] = col[1];
+      img.data[i + 2] = col[2];
+      img.data[i + 3] = 255;
     }
   }
+  ctx.putImageData(img, 0, 0);
   return c;
 }
 
 // ---------------------------------------------------------------------------------------------
-// Sprites
+// Palette (warm Lanna tones: terracotta roofs, teak, jungle greens)
+
+const P = {
+  ground: ramp('#c9bf9f'),
+  grass: ramp('#6fbf4a'),
+  forest: ramp('#2f8a3e'),
+  farm: ramp('#b9c95a'),
+  water: ramp('#3f8fdc'),
+  roof: ramp('#c8663e'),
+  roofAlt: ramp('#9a5a3c'),
+  wall: ramp('#efe0c0'),
+  safe: ramp('#e8cf8a'),
+  path: ramp('#d9cfb4'),
+  road: ramp('#8e8f99'),
+  roadMajor: ramp('#6f7080'),
+  curb: ramp('#d8d8d0'),
+};
+
+// ---------------------------------------------------------------------------------------------
+// Tiles
+
+export interface TileAtlas {
+  base: Record<number, HTMLCanvasElement[]>;
+  roof: HTMLCanvasElement[];
+  facade: HTMLCanvasElement[];
+  ridge: HTMLCanvasElement;
+  shadow: HTMLCanvasElement;
+  shore: HTMLCanvasElement[]; // N E S W
+  curb: HTMLCanvasElement[]; // N E S W
+  lane: HTMLCanvasElement;
+}
+
+function baseTile(id: TileId, v: number): HTMLCanvasElement {
+  return paint((x, y) => {
+    const n = noise(x, y, id * 97 + v * 13);
+    const d = dither(x, y);
+    switch (id) {
+      case TILE.GREEN: {
+        const r = P.grass;
+        if (n > 0.94) return r[4];
+        if ((x + v * 3) % 7 === 0 && y % 5 === (v % 5) && n > 0.4) return r[3]; // grass tufts
+        return n + d * 0.3 < 0.25 ? r[1] : r[2];
+      }
+      case TILE.FOREST: {
+        // Overlapping round canopies lit from the top-left
+        const r = P.forest;
+        const cx = ((x + v * 5) % 8) - 3.5, cy = ((y + (v >> 1) * 3) % 8) - 3.5;
+        const dist = Math.hypot(cx + 0.8, cy + 0.8);
+        if (dist > 4.2) return r[0];
+        const lit = -(cx + cy) / 7 + n * 0.3 + d * 0.2;
+        return lit > 0.55 ? r[4] : lit > 0.2 ? r[3] : lit > -0.3 ? r[2] : r[1];
+      }
+      case TILE.FARMLAND: {
+        const r = P.farm;
+        const row = (y + v) % 4;
+        return row === 0 ? r[1] : row === 1 && n > 0.5 ? r[3] : r[2];
+      }
+      case TILE.WATER: {
+        const r = P.water;
+        const wave = (x + y * 2 + v * 4) % 11 === 0 && n > 0.3;
+        if (wave) return r[4];
+        return (y + (n > 0.5 ? 1 : 0)) % 6 === 0 && d > 0.5 ? r[3] : r[2];
+      }
+      case TILE.SAFE: {
+        // Temple paving slabs
+        const r = P.safe;
+        if (x % 8 === 0 || y % 8 === 0) return r[1];
+        if (x % 8 === 1 || y % 8 === 1) return r[3];
+        return n > 0.9 ? r[4] : r[2];
+      }
+      case TILE.PATH: {
+        const r = P.path;
+        return n > 0.92 ? r[1] : n < 0.08 ? r[3] : r[2];
+      }
+      case TILE.ROAD_MINOR: {
+        const r = P.road;
+        return n > 0.93 ? r[1] : n < 0.05 ? r[3] : r[2];
+      }
+      case TILE.ROAD_MAJOR: {
+        const r = P.roadMajor;
+        return n > 0.93 ? r[1] : n < 0.05 ? r[3] : r[2];
+      }
+      case TILE.BUILDING:
+        return P.roof[2];
+      default: {
+        // Packed-earth town ground: near-flat with sparse pebbles and dry-grass flecks.
+        const r = P.ground;
+        if (n > 0.985) return r[1];
+        if (n < 0.012) return P.grass[1];
+        if (n > 0.9 && d > 0.6) return mul(r[2], 0.95);
+        return r[2];
+      }
+    }
+  });
+}
+
+function roofTile(v: number): HTMLCanvasElement {
+  const r = v % 2 ? P.roofAlt : P.roof;
+  return paint((x, y) => {
+    const n = noise(x, y, 500 + v);
+    if (y % 4 === 3) return r[1]; // tile rows
+    if (y % 4 === 0) return r[3];
+    const shift = Math.floor(y / 4) % 2 ? 2 : 0;
+    if ((x + shift) % 4 === 0) return r[1];
+    return n > 0.92 ? r[4] : r[2];
+  });
+}
+
+function facadeTile(v: number): HTMLCanvasElement {
+  // Top 7px: roof eave; bottom 9px: wall with windows / door
+  const r = v % 2 ? P.roofAlt : P.roof;
+  const w = P.wall;
+  const door = v === 3;
+  return paint((x, y) => {
+    if (y < 6) return y === 5 ? r[0] : y % 3 === 2 ? r[1] : r[2];
+    if (y === 6) return w[0];
+    if (y === 15) return w[0];
+    if (door && x >= 6 && x <= 9 && y >= 9) return y === 9 ? mul(w[0], 0.8) : x === 6 ? [90, 55, 35] : [120, 75, 45];
+    const win = (x % 8 >= 2 && x % 8 <= 5) && y >= 8 && y <= 12;
+    if (win) {
+      if (y === 8 || x % 8 === 2) return [40, 70, 110];
+      return (x % 8 === 3 && y === 9) ? [210, 240, 255] : [90, 150, 210];
+    }
+    return x === 0 ? w[1] : noise(x, y, 700 + v) > 0.93 ? w[3] : w[2];
+  });
+}
+
+function strip(dir: 0 | 1 | 2 | 3, width: number, color: (x: number, y: number, depth: number) => RGB | null) {
+  return paint((x, y) => {
+    const depth = dir === 0 ? y : dir === 1 ? TILE_PX - 1 - x : dir === 2 ? TILE_PX - 1 - y : x;
+    return depth < width ? color(x, y, depth) : null;
+  });
+}
+
+export function buildAtlas(): TileAtlas {
+  const base: TileAtlas['base'] = {};
+  for (const id of Object.values(TILE) as TileId[]) {
+    base[id] = Array.from({ length: TILE_VARIANTS }, (_, v) => baseTile(id, v));
+  }
+  const [shadow, sctx] = canvas();
+  sctx.fillStyle = 'rgba(20,25,40,0.35)';
+  sctx.fillRect(0, 0, TILE_PX, 5);
+  sctx.fillStyle = 'rgba(20,25,40,0.18)';
+  sctx.fillRect(0, 5, TILE_PX, 2);
+
+  const [ridge, rctx] = canvas();
+  rctx.fillStyle = css(P.roof[4]);
+  rctx.fillRect(0, 0, TILE_PX, 1);
+  rctx.fillStyle = css(P.roof[0]);
+  rctx.fillRect(0, 1, TILE_PX, 1);
+
+  const [lane, lctx] = canvas();
+  lctx.fillStyle = 'rgba(255,230,120,0.9)';
+  lctx.fillRect(6, 7, 4, 2);
+
+  const dirs = [0, 1, 2, 3] as const;
+  return {
+    base,
+    roof: Array.from({ length: TILE_VARIANTS }, (_, v) => roofTile(v)),
+    facade: Array.from({ length: TILE_VARIANTS }, (_, v) => facadeTile(v)),
+    ridge,
+    shadow,
+    lane,
+    shore: dirs.map((d) =>
+      strip(d, 3, (x, y, depth) => (depth === 0 ? P.water[4] : depth === 1 ? (noise(x, y, 900 + d) > 0.4 ? P.water[3] : null) : dither(x, y) > 0.75 ? P.water[3] : null)),
+    ),
+    curb: dirs.map((d) => strip(d, 2, (_x, _y, depth) => (depth === 0 ? P.curb[3] : P.curb[1]))),
+  };
+}
+
+const isRoad = (t: number) => t === TILE.ROAD_MAJOR || t === TILE.ROAD_MINOR;
+
+/** Draws one map tile with neighbour-aware overlays. `at(dx, dy)` reads neighbouring tiles. */
+export function drawTile(
+  ctx: CanvasRenderingContext2D,
+  atlas: TileAtlas,
+  id: number,
+  variant: number,
+  at: (dx: number, dy: number) => number,
+  px: number,
+  py: number,
+) {
+  if (id === TILE.BUILDING) {
+    const below = at(0, 1);
+    ctx.drawImage(below === TILE.BUILDING ? atlas.roof[variant]! : atlas.facade[variant]!, px, py);
+    if (at(0, -1) !== TILE.BUILDING) ctx.drawImage(atlas.ridge, px, py);
+    return;
+  }
+  ctx.drawImage(atlas.base[id]![variant]!, px, py);
+  if (at(0, -1) === TILE.BUILDING) ctx.drawImage(atlas.shadow, px, py);
+
+  const nb = [at(0, -1), at(1, 0), at(0, 1), at(-1, 0)];
+  if (id === TILE.WATER) {
+    nb.forEach((t, d) => t !== TILE.WATER && t !== TILE.BUILDING && ctx.drawImage(atlas.shore[d]!, px, py));
+  } else if (isRoad(id)) {
+    nb.forEach((t, d) => !isRoad(t) && t !== TILE.PATH && ctx.drawImage(atlas.curb[d]!, px, py));
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Sprites: flat region masks → auto bevel shading + selective outline
+
+type Palette = Record<string, string>;
 
 /**
- * Templates: each char is a palette key, '.' is transparent. 16×16 unless noted.
- * Palette letters are resolved per sprite so the same shape can be recolored.
+ * Renders a template where every char is a region key. Pixels on a region's top/left edge are
+ * lit, bottom/right edges are shaded, a soft vertical gradient adds volume, and transparent
+ * pixels next to the sprite get a darkened-neighbour outline.
  */
-const T = {
-  hero: [
-    '................',
-    '......hhhh......',
-    '.....hhhhhh.....',
-    '.....hssssh.....',
-    '.....sesses.....',
-    '.....ssssss.....',
-    '......ssss......',
-    '....ccccccccw...',
-    '...scccccccsw...',
-    '...scccccccsw...',
-    '...s.cccccc.w...',
-    '.....cccccc.....',
-    '.....pp..pp.....',
-    '.....pp..pp.....',
-    '.....bb..bb.....',
-    '....bbb..bbb....',
-  ],
+export function shadeSprite(tpl: string[], pal: Palette): HTMLCanvasElement {
+  const h = tpl.length;
+  const w = Math.max(...tpl.map((r) => r.length));
+  const pw = w + 2;
+  const ph = h + 2; // 1px border for the outline
+  const key = (x: number, y: number) => {
+    const ch = tpl[y]?.[x];
+    return ch && ch !== '.' && pal[ch] && pal[ch] !== 'transparent' ? ch : null;
+  };
+  const colorAt = (x: number, y: number): RGB | null => {
+    const k = key(x, y);
+    if (!k) return null;
+    let c = hexRgb(pal[k]!);
+    const edgeLit = key(x, y - 1) !== k || key(x - 1, y) !== k;
+    const edgeDark = key(x, y + 1) !== k || key(x + 1, y) !== k;
+    if (edgeLit && !edgeDark) c = mul(c, 1.22);
+    else if (edgeDark && !edgeLit) c = mul(c, 0.74);
+    return mul(c, 1.08 - (0.16 * y) / h);
+  };
+  return paint((X, Y) => {
+    const x = X - 1;
+    const y = Y - 1;
+    const c = colorAt(x, y);
+    if (c) return c;
+    for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+      const n = colorAt(x + dx, y + dy);
+      if (n) return mul(n, 0.3);
+    }
+    return null;
+  }, pw, ph);
+}
+
+/** 16×24 hero, drawn as regions: h hair/helm, s skin, e eyes, c chest, a arms(sleeve), p pants, b boots, w weapon, g belt. */
+const HERO = [
+  '................',
+  '.....hhhhhh.....',
+  '....hhhhhhhh....',
+  '...hhhhhhhhhh...',
+  '...hhhhhhhhhh...',
+  '...hhssssssh....',
+  '...hsseesees....',
+  '....ssssssss....',
+  '.....ssssss.....',
+  '......ssss......',
+  '....cccccccc..w.',
+  '...acccccccca.w.',
+  '..sacccccccas.w.',
+  '..sacccccccas.w.',
+  '..s.cccccccc.sw.',
+  '....gggggggg..w.',
+  '....pppppppp....',
+  '....ppp..ppp....',
+  '....ppp..ppp....',
+  '....ppp..ppp....',
+  '....ppp..ppp....',
+  '....bbb..bbb....',
+  '...bbbb..bbbb...',
+  '................',
+];
+
+/** Monster region templates (16×16). */
+const MOB: Record<string, string[]> = {
   slime: [
     '................', '................', '................', '................',
-    '................', '.......oo.......', '.....oggggo.....', '....ogglggggo...',
-    '...oglllggggo...', '...ogggeggeggo..', '..ogggggggggggo.', '..ogggggggggggo.',
-    '..oggggddgggggo.', '...ogggggggggo..', '....ooooooooo...', '................',
+    '.......gg.......', '.....gggggg.....', '....gllggggg....', '...glllgggggg...',
+    '...ggggggggggg..', '..gggeggggegggg.', '..gggeggggegggg.', '..ggggggggggggg.',
+    '..ggggmmmmggggg.', '...ggggggggggg..', '....ggggggggg...', '................',
   ],
   rat: [
     '................', '................', '................', '................',
-    '................', '..gg........gg..', '..glg......glg..', '...gggggggggg...',
-    '..gggeggggegggg.', '..ggggggggggggg.', '...ggggnnggggg..', '....gggggggggg.t',
-    '....gg.gg.gg.gttt', '................', '................', '................',
+    '..ee........ee..', '..eie......eie..', '...gggggggggg...', '..ggkggggggkggg.',
+    '..ggggggggggggg.', '...gggggnngggg..', '....gggggggggg.t', '....gggggggggtt.',
+    '....gg.gg.gg.gt.', '...............t', '................', '................',
   ],
   dog: [
     '................', '..g..........g..', '..gg........gg..', '..gggggggggggg..',
-    '..ggeggggggegg..', '..gggggggggggg..', '...gggnnnnggg...', '....gggggggg....',
+    '..ggkggggggkgg..', '..gggggggggggg..', '...gggnnnnggg...', '....gwwggwwg....',
     '...lgggggggggl..', '..lggggggggggl..', '..lggggggggggl..', '..lgg.gggg.ggl..',
     '..gg..gg..gg.gg.', '................', '................', '................',
   ],
   fish: [
     '................', '................', '................', '................',
-    '.....gggggg.....', '...gglllllggg.tt', '..ggllllllggggtt', '.gegglllllgggtt.',
+    '.....gggggg.....', '...gglllllggg.tt', '..ggllllllggggtt', '.gkgglllllgggtt.',
     '.ggggggggggggtt.', '..gggggggggggtt.', '...gggggggggg.tt', '.....gggggg.....',
     '................', '................', '................', '................',
   ],
   sprite: [
     '................', '.......gg.......', '......gllg......', '.....gllllg.....',
-    '....glleelllg...', '...gllllllllg...', '..gglllllllgg...', '.g.glllllllg.g..',
+    '....gllkklllg...', '...gllllllllg...', '..gglllllllgg...', '.g.glllllllg.g..',
     'g...glllllg...g.', '.....glllg......', '......ggg.......', '.......g........',
     '.......g........', '................', '................', '................',
   ],
   car: [
     '................', '................', '................', '...gggggggggg...',
     '..gllllllllllg..', '..gllwwllwwllg..', '..gllwwllwwllg..', '.gggggggggggggg.',
-    '.geeggggggggeeg.', '.gggggggggggggg.', '.gggggggggggggg.', '..nn........nn..',
+    '.gkkggggggggkkg.', '.gggggggggggggg.', '.gggggggggggggg.', '..nn........nn..',
     '..nn........nn..', '................', '................', '................',
   ],
   bat: [
     '................', '................', '................', 'g..............g',
-    'gg....g..g....gg', 'ggg...gggg...ggg', 'gggg.geggeg.gggg', 'gggggggggggggggg',
+    'gg....g..g....gg', 'ggg...gggg...ggg', 'gggg.gkggkg.gggg', 'gggggggggggggggg',
     '.gggggllllggggg.', '..ggg.llll.ggg..', '...g...ll...g...', '................',
     '................', '................', '................', '................',
   ],
   lizard: [
     '................', '................', '................', '................',
-    '...........gg...', '..........geggg.', '.t.......ggggggn', 'ttt..gggggggggg.',
+    '...........gg...', '..........gkggg.', '.t.......ggggggn', 'ttt..gggggggggg.',
     '.tggggllllllgg..', '..ggglllllllgg..', '...gggggggggg...', '...g.g....g.g...',
     '..gg.gg..gg.gg..', '................', '................', '................',
   ],
   ghost: [
     '................', '.....gggggg.....', '....gllllllg....', '...gllllllllg...',
-    '...glelllelllg..', '...gllllllllg...', '...glllnnlllg...', '...gllllllllg...',
+    '...glklllklllg..', '...gllllllllg...', '...glllnnlllg...', '...gllllllllg...',
     '..gllllllllllg..', '..gllllllllllg..', '..gllllllllllg..', '..glgllglllglg..',
     '..g.g..g.g..g.g.', '................', '................', '................',
   ],
   sapling: [
     '................', '.....g.gg.g.....', '....gggggggg....', '...gglggggllgg..',
-    '...gggggggggg...', '....gegggegg....', '.....gggggg.....', '......tttt......',
+    '...gggggggggg...', '....gkgggkgg....', '.....gggggg.....', '......tttt......',
     '.....tttttt.....', '....tt.tt.tt....', '....t..tt..t....', '.....t.tt.t.....',
     '....tt.tt.tt....', '................', '................', '................',
   ],
   goblinKing: [
     '....y.y..y.y....', '....yyyyyyyy....', '....yryyyyry....', '...gggggggggg...',
-    '..ggeeggggeegg..', '.lgggggggggggl..', '..ggggnnnnggg...', '...gggwwwwggg...',
+    '..ggkkggggkkgg..', '.lgggggggggggl..', '..ggggnnnnggg...', '...gggwwwwggg...',
     '..ccccccccccccw.', '.gccccccccccccgw', '.gcccyyyyccccgw.', '.gccccccccccccg.',
     '..cccccccccccc..', '...gg......gg...', '..ggg......ggg..', '................',
   ],
@@ -185,72 +405,53 @@ const T = {
   ],
   treant: [
     '...g.gggggg.g...', '..ggglllllgggg..', '.gglllggglllggg.', 'gglllgggggllllgg',
-    '.gggggggggggggg.', '....tttttttt....', '...ttettttettt..', '...tttttttttt...',
+    '.gggggggggggggg.', '....tttttttt....', '...ttkttttkttt..', '...tttttttttt...',
     '..ttttnnnntttt..', '.t.tttttttttt.t.', 't..tttttttttt..t', '...tttttttttt...',
     '..ttt.tttt.ttt..', '.tt..tt..tt..tt.', 'tt..tt....tt..tt', '................',
   ],
-} satisfies Record<string, string[]>;
-
-type Palette = Record<string, string>;
-
-const MOB_PALETTES: Record<string, { tpl: keyof typeof T; pal: Palette }> = {
-  mob_slime: { tpl: 'slime', pal: { o: '#1a4d80', g: '#40a0f0', l: '#b0e0ff', e: '#102030', d: '#2070c0' } },
-  mob_rat: { tpl: 'rat', pal: { g: '#8a7f78', l: '#f0a0a0', e: '#ff3030', n: '#402020', t: '#d08080' } },
-  mob_dog: { tpl: 'dog', pal: { g: '#3a3050', l: '#6a50a0', e: '#ff50ff', n: '#ffffff' } },
-  mob_carp: { tpl: 'fish', pal: { g: '#f07020', l: '#ffffff', e: '#000000', t: '#f0a040' } },
-  mob_leaf: { tpl: 'sprite', pal: { g: '#207030', l: '#80e060', e: '#ffff80' } },
-  mob_songthaew: { tpl: 'car', pal: { g: '#d02020', l: '#ff6060', w: '#a0e0ff', e: '#ffe060', n: '#202020' } },
-  mob_bat: { tpl: 'bat', pal: { g: '#301050', l: '#ff40c0', e: '#40ffff' } },
-  mob_lizard: { tpl: 'lizard', pal: { g: '#c03010', l: '#ffa030', e: '#ffff00', n: '#ff6000', t: '#801000' } },
-  mob_wraith: { tpl: 'ghost', pal: { g: '#606880', l: '#d0d8e8', e: '#20ffa0', n: '#303040' } },
-  mob_sapling: { tpl: 'sapling', pal: { g: '#309040', l: '#80d060', e: '#ff4040', t: '#6a4020' } },
-  boss_goblin_king: { tpl: 'goblinKing', pal: { y: '#ffd040', r: '#ff2040', g: '#50a040', e: '#ffff00', n: '#302010', w: '#ffffff', c: '#7030a0', l: '#50a040' } },
-  boss_octane: { tpl: 'robot', pal: { l: '#b0b0b0', w: '#303030', r: '#ff3020', g: '#f0c020', y: '#20c0f0', n: '#202020', o: '#ff8020' } },
-  boss_treant: { tpl: 'treant', pal: { g: '#206a30', l: '#50b050', t: '#6a4a2a', e: '#ffe040', n: '#301808' } },
 };
 
-function drawTemplate(tpl: string[], pal: Palette, scale = 1): HTMLCanvasElement {
-  const w = Math.max(...tpl.map((r) => r.length));
-  const c = document.createElement('canvas');
-  c.width = w * scale;
-  c.height = tpl.length * scale;
-  const ctx = c.getContext('2d')!;
-  tpl.forEach((row, y) => {
-    [...row].forEach((ch, x) => {
-      const col = pal[ch];
-      if (!col) return;
-      ctx.fillStyle = col;
-      ctx.fillRect(x * scale, y * scale, scale, scale);
-    });
-  });
-  return c;
-}
+const MOB_PALETTES: Record<string, { tpl: string; pal: Palette }> = {
+  mob_slime: { tpl: 'slime', pal: { g: '#48a8f0', l: '#c8ecff', e: '#102030', m: '#1f6fb8' } },
+  mob_rat: { tpl: 'rat', pal: { g: '#9a8f86', e: '#c08a8a', i: '#f0b0b0', k: '#ff3030', n: '#402020', t: '#d08080' } },
+  mob_dog: { tpl: 'dog', pal: { g: '#4a3c68', l: '#7a5cb8', k: '#ff50ff', n: '#20182c', w: '#ffffff' } },
+  mob_carp: { tpl: 'fish', pal: { g: '#f07828', l: '#fff4e8', k: '#000000', t: '#f0a848' } },
+  mob_leaf: { tpl: 'sprite', pal: { g: '#2a8a3a', l: '#8ce868', k: '#ffff90' } },
+  mob_songthaew: { tpl: 'car', pal: { g: '#d42828', l: '#ff7070', w: '#a8e4ff', k: '#ffe060', n: '#282828' } },
+  mob_bat: { tpl: 'bat', pal: { g: '#3a1860', l: '#ff48c8', k: '#48ffff' } },
+  mob_lizard: { tpl: 'lizard', pal: { g: '#c83818', l: '#ffa838', k: '#ffff00', n: '#ff6800', t: '#881800' } },
+  mob_wraith: { tpl: 'ghost', pal: { g: '#687090', l: '#dce4f0', k: '#28ffa8', n: '#303048' } },
+  mob_sapling: { tpl: 'sapling', pal: { g: '#389848', l: '#88d868', k: '#ff4848', t: '#6e4424' } },
+  boss_goblin_king: { tpl: 'goblinKing', pal: { y: '#ffd448', r: '#ff2848', g: '#58a848', k: '#ffff00', n: '#302010', w: '#ffffff', c: '#7838a8', l: '#58a848' } },
+  boss_octane: { tpl: 'robot', pal: { l: '#b8b8c0', w: '#303038', r: '#ff3828', g: '#f0c828', y: '#28c8f0', n: '#202028', o: '#ff8828' } },
+  boss_treant: { tpl: 'treant', pal: { g: '#247438', l: '#58b858', t: '#6e4e2e', k: '#ffe448', n: '#301808' } },
+};
 
 export function monsterCanvas(sprite: string): HTMLCanvasElement {
   const m = MOB_PALETTES[sprite] ?? MOB_PALETTES.mob_slime!;
-  return drawTemplate(T[m.tpl], m.pal);
+  return shadeSprite(MOB[m.tpl]!, m.pal);
 }
 
 /** Paperdoll colors per equipped item sprite key. */
 const GEAR_COLORS: Record<string, string> = {
-  chest_cotton_01: '#e8e0c8',
-  plate_fuel_01: '#f0c020',
-  plate_dragon_01: '#c03030',
-  helm_iron_02: '#9aa0a8',
-  weapon_wood_01: '#a0703a',
-  weapon_broadsword_01: '#d0d8e0',
-  weapon_club_01: '#e07050',
-  weapon_staff_star_01: '#80c0ff',
-  shield_aegis_99: '#ffd040',
-  boots_runner_01: '#26C6DA',
+  chest_cotton_01: '#e8dcc0',
+  plate_fuel_01: '#f0c028',
+  plate_dragon_01: '#c83030',
+  helm_iron_02: '#a0a8b4',
+  weapon_wood_01: '#a8743c',
+  weapon_broadsword_01: '#d8e0ec',
+  weapon_club_01: '#e07858',
+  weapon_staff_star_01: '#88c8ff',
+  shield_aegis_99: '#ffd448',
+  boots_runner_01: '#26c6da',
 };
 
 const CLASS_COLORS: Record<string, string> = {
-  NOVICE: '#FFA726',
+  NOVICE: '#ffa726',
   KNIGHT: '#5c7cfa',
   SORCERER: '#9c36b5',
-  ASSASSIN: '#343a40',
-  CLERIC: '#f8f9fa',
+  ASSASSIN: '#3a3f48',
+  CLERIC: '#f4f4fa',
   RANGER: '#2f9e44',
 };
 
@@ -274,50 +475,50 @@ export const AURA_COLORS: Record<string, string> = {
 
 export function heroCanvas(p: Paperdoll): HTMLCanvasElement {
   const naked = !p.chest;
+  const chest = naked ? '#f2c79b' : GEAR_COLORS[p.chest!] ?? CLASS_COLORS[p.classId] ?? '#ffa726';
   const pal: Palette = {
-    h: p.helmet ? GEAR_COLORS[p.helmet] ?? '#9aa0a8' : '#3a2a20',
+    h: p.helmet ? GEAR_COLORS[p.helmet] ?? '#a0a8b4' : '#4a3020',
     s: '#f2c79b',
-    e: '#202020',
-    c: naked ? '#f2c79b' : GEAR_COLORS[p.chest!] ?? CLASS_COLORS[p.classId] ?? '#FFA726',
+    e: '#1c1c28',
+    c: chest,
+    a: naked ? '#f2c79b' : CLASS_COLORS[p.classId] ?? chest,
+    g: naked ? '#f2c79b' : '#5a3a22',
     p: naked ? '#ffffff' : '#2b3a67',
-    b: p.boots ? GEAR_COLORS[p.boots] ?? '#26C6DA' : '#5a3a20',
-    w: p.weapon ? GEAR_COLORS[p.weapon] ?? '#d0d8e0' : 'transparent',
+    b: p.boots ? GEAR_COLORS[p.boots] ?? '#26c6da' : '#6a4424',
+    w: p.weapon ? GEAR_COLORS[p.weapon] ?? '#d8e0ec' : 'transparent',
   };
-  const body = drawTemplate(T.hero, pal);
+  const body = shadeSprite(HERO, pal);
   if (!p.aura) return body;
-  const c = document.createElement('canvas');
-  c.width = 20;
-  c.height = 20;
-  const ctx = c.getContext('2d')!;
-  ctx.fillStyle = AURA_COLORS[p.aura] ?? '#ffffff';
-  ctx.globalAlpha = 0.45;
-  ctx.beginPath();
-  ctx.ellipse(10, 11, 9, 10, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalAlpha = 1;
-  ctx.drawImage(body, 2, 2);
+  const [c, ctx] = canvas(body.width + 8, body.height + 6);
+  const grad = ctx.createRadialGradient(c.width / 2, c.height * 0.55, 2, c.width / 2, c.height * 0.55, c.width / 2);
+  grad.addColorStop(0, css(hexRgb(AURA_COLORS[p.aura] ?? '#ffffff'), 0.65));
+  grad.addColorStop(1, css(hexRgb(AURA_COLORS[p.aura] ?? '#ffffff'), 0));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.drawImage(body, 4, 4);
   return c;
 }
 
+const ICONS: Record<string, { tpl: string[]; pal: Palette }> = {
+  CONVENIENCE: {
+    tpl: ['..rrrrrrrrrr..', '.rrrrrrrrrrrr.', 'rrrrrrrrrrrrrr', 'yyyyyyyyyyyyyy', 'wwwwwwwwwwwwww', 'wggwwggwwggwww', 'wggwwggwwggwww', 'wwwwwwwwwwwwww', 'wwdddwwwggggww', 'wwdddwwwggggww', 'wwdddwwwwwwwww', 'wwdddwwwwwwwww', 'kkkkkkkkkkkkkk'],
+    pal: { r: '#ff7043', y: '#ffca28', w: '#fafafa', g: '#80deea', d: '#6d4c41', k: '#555555' },
+  },
+  FUEL: {
+    tpl: ['.ggggggg......', '.gwwwwwg......', '.gwwwwwg...k..', '.ggggggg...k..', '.ggggggg..kk..', '.ggggggg..k...', '.ggyyygg..k...', '.ggyyygg.kk...', '.ggggggg......', '.ggggggg......', 'kkkkkkkkk.....', 'kkkkkkkkk.....'],
+    pal: { g: '#e53935', w: '#fafafa', y: '#ffd54f', k: '#555555' },
+  },
+  PARK: {
+    tpl: ['.....gggg.....', '...gggggggg...', '..gglgggggggg.', '.gglllgggggggg', '.gggggggglggg.', '..gggggggggg..', '...gggggggg...', '......tt......', '......tt......', '......tt......', '.....tttt.....'],
+    pal: { g: '#2e7d32', l: '#66bb6a', t: '#6d4c41' },
+  },
+  HOME: {
+    tpl: ['......rr......', '.....rrrr.....', '....rrrrrr....', '...rrrrrrrr...', '..rrrrrrrrrr..', '.rrrrrrrrrrrr.', '..wwwwwwwwww..', '..wbbwwwwddw..', '..wbbwwwwddw..', '..wwwwwwwddw..', '..wwwwwwwddw..', '..kkkkkkkkkk..'],
+    pal: { r: '#ffa726', w: '#fff3e0', b: '#80deea', d: '#6d4c41', k: '#555555' },
+  },
+};
+
 export function landmarkIcon(kind: string): HTMLCanvasElement {
-  const icons: Record<string, { tpl: string[]; pal: Palette }> = {
-    CONVENIENCE: {
-      tpl: ['..rrrrrrrr..', '.rrrrrrrrrr.', 'rrrrrrrrrrrr', 'wwwwwwwwwwww', 'wggwwggwwggw', 'wggwwggwwggw', 'wwwwwwwwwwww', 'wwdddwwggggw', 'wwdddwwggggw', 'wwdddwwwwwww', 'wwdddwwwwwww', 'kkkkkkkkkkkk'],
-      pal: { r: '#ff7043', w: '#fafafa', g: '#80deea', d: '#6d4c41', k: '#424242' },
-    },
-    FUEL: {
-      tpl: ['.gggggg.....', '.gwwwwg.....', '.gwwwwg..k..', '.gggggg..k..', '.gggggg.kk..', '.gggggg.k...', '.ggyygg.k...', '.ggyyggkk...', '.gggggg.....', '.gggggg.....', 'kkkkkkkk....', 'kkkkkkkk....'],
-      pal: { g: '#e53935', w: '#fafafa', y: '#ffd54f', k: '#424242' },
-    },
-    PARK: {
-      tpl: ['....gggg....', '..gggggggg..', '.gglgggggggg', 'gglllgggggg.', 'gggggggglgg.', '.gggggggggg.', '..gggggggg..', '.....tt.....', '.....tt.....', '.....tt.....', '....tttt....', '..........'],
-      pal: { g: '#2e7d32', l: '#66bb6a', t: '#6d4c41' },
-    },
-    HOME: {
-      tpl: ['.....rr.....', '....rrrr....', '...rrrrrr...', '..rrrrrrrr..', '.rrrrrrrrrr.', 'rrrrrrrrrrrr', '.wwwwwwwwww.', '.wbbwwwwddw.', '.wbbwwwwddw.', '.wwwwwwwddw.', '.wwwwwwwddw.', '.kkkkkkkkkk.'],
-      pal: { r: '#FFA726', w: '#fff3e0', b: '#80deea', d: '#6d4c41', k: '#424242' },
-    },
-  };
-  const i = icons[kind] ?? icons.PARK!;
-  return drawTemplate(i.tpl, i.pal);
+  const i = ICONS[kind] ?? ICONS.PARK!;
+  return shadeSprite(i.tpl, i.pal);
 }

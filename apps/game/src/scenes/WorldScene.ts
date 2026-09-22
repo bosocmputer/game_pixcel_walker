@@ -1,18 +1,18 @@
 import Phaser from 'phaser';
-import { EQUIPMENT, MUTATIONS } from '@pw/shared';
-import { TILE_PX, TILE_VARIANTS, buildTileset, heroCanvas, landmarkIcon, type Paperdoll } from '../game/art';
+import { TILE_PX, TILE_VARIANTS, buildAtlas, drawTile, heroCanvas, landmarkIcon, type TileAtlas } from '../game/art';
 import { bus, type BattleRequest } from '../game/bus';
 import { getWorld, toTile } from '../game/world';
 import { walk } from '../game/walk';
 import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
-import { store, mutationOf, type SaveData } from '../state/store';
+import { store, type SaveData } from '../state/store';
+import { paperdollOf } from '../game/paperdoll';
 
 const CHUNK = 32;
 const CHUNK_PX = CHUNK * TILE_PX;
 const LANDMARK_VIEW_TILES = 90;
 
 export class WorldScene extends Phaser.Scene {
-  private tileset!: HTMLCanvasElement;
+  private atlas!: TileAtlas;
   private chunks = new Map<string, Phaser.GameObjects.Image>();
   private player!: Phaser.GameObjects.Image;
   private accuracyRing!: Phaser.GameObjects.Arc;
@@ -29,7 +29,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
-    this.tileset = buildTileset();
+    this.atlas = buildAtlas();
     for (const kind of ['CONVENIENCE', 'FUEL', 'PARK', 'HOME']) {
       if (!this.textures.exists(`lm_${kind}`)) this.textures.addCanvas(`lm_${kind}`, landmarkIcon(kind));
     }
@@ -91,15 +91,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   private refreshHero(s: SaveData) {
-    const mut = mutationOf(s);
-    const doll: Paperdoll = {
-      classId: s.classId,
-      helmet: s.equipment.helmet && s.equipment.helmet.durability > 0 ? spriteOf(s.equipment.helmet.itemId) : undefined,
-      chest: s.equipment.chest && s.equipment.chest.durability > 0 ? spriteOf(s.equipment.chest.itemId) : undefined,
-      weapon: s.equipment.weapon && s.equipment.weapon.durability > 0 ? spriteOf(s.equipment.weapon.itemId) : undefined,
-      boots: s.equipment.boots && s.equipment.boots.durability > 0 ? spriteOf(s.equipment.boots.itemId) : undefined,
-      aura: mut ? MUTATIONS[mut].aura : null,
-    };
+    const doll = paperdollOf(s);
     const key = `hero_${JSON.stringify(doll)}`;
     if (key === this.heroKey) return;
     if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll));
@@ -175,7 +167,12 @@ export class WorldScene extends Phaser.Scene {
         if (gx >= meta.width || gy >= meta.height) continue;
         const id = tiles[gy * meta.width + gx]!;
         const variant = (gx * 7 + gy * 13) % TILE_VARIANTS;
-        ctx.drawImage(this.tileset, variant * TILE_PX, id * TILE_PX, TILE_PX, TILE_PX, tx * TILE_PX, ty * TILE_PX, TILE_PX, TILE_PX);
+        const at = (dx: number, dy: number) => {
+          const x = gx + dx;
+          const y = gy + dy;
+          return x < 0 || y < 0 || x >= meta.width || y >= meta.height ? 0 : tiles[y * meta.width + x]!;
+        };
+        drawTile(ctx as unknown as CanvasRenderingContext2D, this.atlas, id, variant, at, tx * TILE_PX, ty * TILE_PX);
       }
     }
     tex.refresh();
@@ -211,6 +208,3 @@ export class WorldScene extends Phaser.Scene {
   }
 }
 
-function spriteOf(itemId: string): string | undefined {
-  return EQUIPMENT[itemId]?.sprite;
-}

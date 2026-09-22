@@ -100,6 +100,8 @@ export interface PlayerSetup {
   hp?: number;
   mp?: number;
   controller: 'MANUAL' | 'AUTO';
+  /** Skills the auto-battle may roll from (basic attack is always available). */
+  loadout?: string[];
 }
 
 export interface BattleSetup {
@@ -216,7 +218,7 @@ export function createBattle(setup: BattleSetup, seed: number): Battle {
     mp: Math.min(p.derived.maxMp, p.mp ?? p.derived.maxMp),
     gauge: rng() * 40,
     turns: 0,
-    skills: classSkills(p.classId),
+    skills: ['basic_attack', ...(p.loadout ?? classSkills(p.classId)).filter((id) => id !== 'basic_attack' && SKILLS[id]?.kind === 'ACTIVE')],
     cooldowns: {},
     statuses: [],
     buffs: [],
@@ -732,7 +734,11 @@ function bossAttack(b: Battle, boss: Unit, skill: BossSkill) {
   }
 }
 
-/** Simple auto-battle policy for players (and Mercenaries). */
+/**
+ * Pocket-Ninja style auto policy for players and Mercenaries: heal/potion when in danger,
+ * otherwise roll a random ready skill from the loadout (75%) or basic-attack. Uses the battle
+ * RNG, so a fully automatic battle replays exactly from (setup, seed).
+ */
 export function autoCommand(b: Battle, unitId: string): Command {
   const u = getUnit(b, unitId);
   if (!u) throw new Error('Unknown unit');
@@ -742,7 +748,7 @@ export function autoCommand(b: Battle, unitId: string): Command {
 
   const hurt = allies.some((a) => a.hp < a.base.maxHp * 0.4);
   const healSkill = usable.find((s) => s.effects.some((e) => e.kind === 'HEAL'));
-  if (hurt && healSkill) return { type: 'SKILL', unitId, skillId: healSkill.id };
+  if (hurt && healSkill && b.rng() < 0.7) return { type: 'SKILL', unitId, skillId: healSkill.id };
 
   if (u.hp < u.base.maxHp * 0.3 && (b.items['red_potion'] ?? 0) > 0 && b.itemCooldown <= 0) {
     return { type: 'ITEM', unitId, itemId: 'red_potion' };
@@ -750,11 +756,10 @@ export function autoCommand(b: Battle, unitId: string): Command {
 
   const boss = foes.find((f) => f.isBoss);
   const target = boss ?? [...foes].sort((x, y) => x.hp - y.hp)[0];
-  const attack = usable
-    .filter((s) => s.id !== 'basic_attack' && s.effects.some((e) => e.kind === 'DAMAGE'))
-    .sort((x, y) => y.mp - x.mp)[0];
-  const buff = usable.find((s) => s.effects.some((e) => e.kind === 'BUFF' || e.kind === 'MANA_SHIELD'));
-  // Must not consume battle RNG: manual commands are replayed without calling this.
-  if (buff && u.turns % 3 === 0) return { type: 'SKILL', unitId, skillId: buff.id };
-  return { type: 'SKILL', unitId, skillId: attack?.id ?? 'basic_attack', targetId: target?.id };
+  const rolls = usable.filter((s) => s.id !== 'basic_attack' && !s.effects.some((e) => e.kind === 'HEAL' && !hurt));
+  if (rolls.length && b.rng() < 0.75) {
+    const pick = rolls[Math.floor(b.rng() * rolls.length)]!;
+    return { type: 'SKILL', unitId, skillId: pick.id, targetId: target?.id };
+  }
+  return { type: 'SKILL', unitId, skillId: 'basic_attack', targetId: target?.id };
 }

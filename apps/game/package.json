@@ -9,7 +9,9 @@
     "preview": "vite preview --host"
   },
   "dependencies": {
+    "@mapbox/vector-tile": "^2.0.5",
     "@pw/shared": "*",
+    "pbf": "^4.0.2",
     "phaser": "^3.87.0"
   },
   "devDependencies": {

@@ -100,8 +100,8 @@ Browser นับก้าวเบื้องหลังไม่ได้ �
   - ตีได้ครั้งละ **60 วินาที** และ **1 ครั้ง/30 นาที/คน**
   - ถูกบอสโลกตีจนหมด HP = **"ถูกตีกระเด็น"** ไม่มีบทลงโทษความตาย (ต้องการให้คนแวะช่วยกันตี ไม่ใช่กลัว)
 - บอส (ยกเว้นบอสโลก) ปรับตามจำนวนคนในปาร์ตี้: HP × `party/(recMax+1)` (ขั้นต่ำ 20%), ATK × `0.6 + 0.4 × hpScale`
-- ปรับสมดุลจาก PDF ด้วยการจำลอง (`balance.test.ts`): Goblin King ATK 120→105, Octane Overlord ATK 280→240 / DEF 150→110
-  - เป้าหมาย: Lv.10 ตีคนเดียว ~60% ชนะ, Knight Lv.12 ~100%, Knight Lv.20 vs Octane ~50%
+- ปรับสมดุลจาก PDF ด้วยการจำลอง (`balance.test.ts`): Goblin King ATK 120 (คงเดิม หลังเพิ่มสกิล Novice), Octane Overlord ATK 280→215 / DEF 150→100
+  - เป้าหมาย: Lv.10 ตีคนเดียว ~70% ชนะ, Knight Lv.12 ~100%, Knight Lv.20 vs Octane ~30%
 - Aggro/Loot ตาม PDF หัวข้อ 6.2
 
 ## 11. Home Base & Outposts

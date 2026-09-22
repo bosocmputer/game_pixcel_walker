@@ -1,0 +1,17 @@
+{
+  "name": "@pw/osm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsx build.ts chiangmai"
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.60",
+    "@pw/shared": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

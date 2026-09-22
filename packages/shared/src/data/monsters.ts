@@ -123,7 +123,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   // --- Landmark bosses ---
   goblin_king: {
     id: 'goblin_king', name: 'Convenience Goblin King', nameTh: 'พญาก็อบลินประจำร้านสะดวกซื้อ', level: 10,
-    element: 'NEUTRAL', hp: 5000, mp: 200, atk: 120, matk: 60, def: 45, mdef: 30, speed: 24, evasion: 0.05,
+    element: 'NEUTRAL', hp: 5000, mp: 200, atk: 105, matk: 60, def: 45, mdef: 30, speed: 24, evasion: 0.05,
     exp: 1500, gold: [500, 1000],
     drops: [
       { itemId: 'convenience_club', chance: 0.05 },
@@ -140,7 +140,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
   octane_overlord: {
     id: 'octane_overlord', name: 'Octane Overlord', nameTh: 'หุ่นยนต์หัวจ่ายน้ำมันผู้บ้าคลั่ง', level: 20,
-    element: 'FIRE', hp: 18000, mp: 500, atk: 280, matk: 200, def: 150, mdef: 90, speed: 22, evasion: 0.03,
+    element: 'FIRE', hp: 18000, mp: 500, atk: 240, matk: 200, def: 110, mdef: 90, speed: 22, evasion: 0.03,
     exp: 6000, gold: [2500, 2500],
     drops: [
       { itemId: 'fuel_plate', chance: 0.08 },

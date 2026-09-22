@@ -1,0 +1,10 @@
+{
+  "name": "ก้าวข้ามมิติ: Pixel Walker",
+  "short_name": "Pixel Walker",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1b1f2a",
+  "theme_color": "#FFA726",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

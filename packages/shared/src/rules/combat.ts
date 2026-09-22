@@ -104,7 +104,7 @@ export interface PlayerSetup {
 
 export interface BattleSetup {
   players: PlayerSetup[];
-  enemies: { monsterId: string; hp?: number; hpScale?: number }[];
+  enemies: { monsterId: string; hp?: number; hpScale?: number; atkScale?: number }[];
   /** Shared consumables for the player side. */
   items?: Record<string, number>;
   env?: BattleEnv;
@@ -149,18 +149,26 @@ export function monsterDerived(m: MonsterDef): DerivedStats {
   };
 }
 
+/** Boss ATK scaled to party size: solo players face 60% + 40% × hpScale. */
+export function bossAtkScale(monsterId: string, partySize: number): number {
+  return 0.6 + 0.4 * bossHpScale(monsterId, partySize);
+}
+
 /** Boss HP scaled to party size (MASTER_SPEC §10). World bosses are never scaled. */
 export function bossHpScale(monsterId: string, partySize: number): number {
   const boss = MONSTERS[monsterId]?.boss;
   if (!boss || boss.worldBoss) return 1;
-  return Math.min(1, Math.max(0.25, partySize / boss.recommendedParty[1]));
+  // Baseline is one more than the recommended max so a solo player sees ~1/4 HP.
+  return Math.min(1, Math.max(0.2, partySize / (boss.recommendedParty[1] + 1)));
 }
 
-function makeMonsterUnit(monsterId: string, id: string, hp?: number, hpScale = 1): Unit {
+function makeMonsterUnit(monsterId: string, id: string, hp?: number, hpScale = 1, atkScale = 1): Unit {
   const m = MONSTERS[monsterId];
   if (!m) throw new Error(`Unknown monster ${monsterId}`);
   const base = monsterDerived(m);
   base.maxHp = Math.round(base.maxHp * hpScale);
+  base.atk = Math.round(base.atk * atkScale);
+  base.matk = Math.round(base.matk * atkScale);
   return {
     id,
     side: 'ENEMY',
@@ -220,7 +228,7 @@ export function createBattle(setup: BattleSetup, seed: number): Battle {
     controller: p.controller,
   }));
   const enemies = setup.enemies.map((e, i) => {
-    const u = makeMonsterUnit(e.monsterId, `e${i}`, e.hp, e.hpScale);
+    const u = makeMonsterUnit(e.monsterId, `e${i}`, e.hp, e.hpScale, e.atkScale);
     u.gauge = rng() * 30;
     return u;
   });
@@ -298,9 +306,13 @@ export function canUseSkill(u: Unit, skillId: string): boolean {
 // ---------------------------------------------------------------------------------------------
 // Simulation
 
-/** Runs the clock until a manual unit must choose, or the battle ends. */
-export function advance(b: Battle): Battle {
-  while (b.result === 'ONGOING' && !b.awaiting && b.tick < MAX_TICKS) {
+/**
+ * Runs the clock until a manual unit must choose, the battle ends, or `maxTicks` clock ticks
+ * have elapsed (the client passes a small budget each frame to animate in real time).
+ */
+export function advance(b: Battle, maxTicks = Infinity): Battle {
+  let ticks = 0;
+  while (b.result === 'ONGOING' && !b.awaiting && b.tick < MAX_TICKS && ticks < maxTicks) {
     const ready = b.units
       .filter((u) => alive(u) && u.gauge >= GAUGE_FULL)
       .sort((x, y) => y.gauge - x.gauge || x.id.localeCompare(y.id));
@@ -315,6 +327,7 @@ export function advance(b: Battle): Battle {
       continue;
     }
     step(b);
+    ticks++;
     checkEnd(b);
   }
   if (b.result === 'ONGOING' && b.tick >= MAX_TICKS) end(b, 'LOSE');

@@ -11,3 +11,4 @@ export * from './rules/walk';
 export * from './rules/economy';
 export * from './rules/loot';
 export * from './rules/combat';
+export * from './data/map';

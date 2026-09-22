@@ -8,9 +8,9 @@ export const EVASION_CAP = 0.6;
 /** Raw derived stats from total (base + allocated + gear) primary stats. */
 export function baseDerived(stats: Stats, level: number): DerivedStats {
   return {
-    maxHp: 100 + stats.vit * 12 + level * 10,
+    maxHp: 100 + stats.vit * 15 + level * 12,
     maxMp: 50 + stats.int * 8 + level * 5,
-    atk: stats.str * 2 + stats.dex * 0.5,
+    atk: stats.str * 3 + stats.dex + level * 2,
     matk: stats.int * 2.5,
     def: stats.vit * 1.5,
     mdef: stats.int * 0.5 + stats.vit * 0.5,
@@ -58,6 +58,8 @@ export function computeDerived(input: CharacterSheetInput): DerivedStats {
   const passive = input.mutation ? [] : [CLASSES[input.classId].passive.modifiers];
   const { stats, flat, pct } = applyModifiers(input.stats, [...input.gear, ...passive]);
   const d = baseDerived(stats, input.level);
+  // Rangers draw power from DEX instead of STR (MASTER_SPEC §6).
+  if (input.classId === 'RANGER') d.atk += stats.dex * 2;
 
   for (const [k, v] of Object.entries(flat)) d[k as keyof DerivedStats] += v as number;
   for (const [k, v] of Object.entries(pct)) d[k as keyof DerivedStats] *= 1 + (v as number);

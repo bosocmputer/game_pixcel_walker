@@ -82,7 +82,7 @@ describe('stats', () => {
       stats: baseStats(),
       gear: [{ flat: { str: 10, atk: 3 } }],
     });
-    expect(d.atk).toBe(Math.round((5 + 10) * 2 + 5 * 0.5 + 3));
+    expect(d.atk).toBe((5 + 10) * 3 + 5 + 1 * 2 + 3);
   });
 });
 
@@ -175,7 +175,7 @@ describe('combat', () => {
   });
 
   it('scales non-world boss HP to party size, never world bosses', () => {
-    expect(bossHpScale('goblin_king', 1)).toBeCloseTo(1 / 3);
+    expect(bossHpScale('goblin_king', 1)).toBeCloseTo(1 / 4);
     expect(bossHpScale('goblin_king', 5)).toBe(1);
     expect(bossHpScale('park_treant', 1)).toBe(1);
   });

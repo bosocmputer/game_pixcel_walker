@@ -15,6 +15,7 @@ import {
   canChangeClass,
   expToNext,
   mutationProgress,
+  totalStats,
   type ClassId,
   type EquipSlot,
   type Landmark,
@@ -49,16 +50,9 @@ import { showCreator } from './creator';
 import { arenaPanel, wireArena } from './arena';
 import { net } from '../game/net';
 import { partyPanel, showInvite, showReadyCheck, wireParty } from './party';
+import { equipWindowHtml, gearStatBonus, itemIcon, statText, wireEquipWindow, SLOT_NAME } from './equipWindow';
+import { paperdollOf } from '../game/paperdoll';
 import { autoHunt } from '../game/autohunt';
-
-const STAT_TH: Record<StatKey, string> = {
-  str: 'STR พลัง',
-  agi: 'AGI ว่องไว',
-  vit: 'VIT อึด',
-  int: 'INT ปัญญา',
-  dex: 'DEX แม่นยำ',
-  luk: 'LUK โชค',
-};
 
 const SLOT_TH: Record<EquipSlot, string> = {
   helmet: 'หมวก',
@@ -401,17 +395,63 @@ function renderPanel() {
   }
   body.scrollTop = scroll;
   wirePanel(body);
+  if (panelName === 'char') {
+    wireEquipWindow(
+      body,
+      (slot) => {
+        charSlot = charSlot === slot ? null : slot;
+        renderPanel();
+      },
+      () => paperdollOf(store.s),
+    );
+  }
+}
+
+/** Slot selected in the character panel's equipment window. */
+let charSlot: EquipSlot | null = null;
+
+function charEquipWindow(s: SaveData): string {
+  const slots = Object.fromEntries(
+    (Object.keys(SLOT_NAME) as EquipSlot[]).map((slot) => {
+      const eq = s.equipment[slot];
+      return [slot, eq ? { itemId: eq.itemId, durability: eq.durability, max: EQUIPMENT[eq.itemId]?.maxDurability } : null];
+    }),
+  );
+  let picker = '';
+  if (charSlot) {
+    const eq = s.equipment[charSlot];
+    const worn = eq
+      ? `<div class="pick on">${itemIcon(eq.itemId, 'pick-ico')}<span><b>${esc(EQUIPMENT[eq.itemId]?.nameTh ?? eq.itemId)}</b>
+          <small>${statText(eq.itemId)} · ${eq.durability}/${EQUIPMENT[eq.itemId]?.maxDurability}${eq.durability <= 0 ? ' — พัง! (ไม่มีผล)' : ''}</small></span>
+          <button type="button" class="mini" data-unequip="${charSlot}">ถอด</button></div>`
+      : '';
+    const bag = s.gearBag
+      .map((g, i) => ({ g, i }))
+      .filter(({ g }) => EQUIPMENT[g.itemId]?.slot === charSlot)
+      .map(({ g, i }) => `<div class="pick">${itemIcon(g.itemId, 'pick-ico')}<span><b>${esc(EQUIPMENT[g.itemId]!.nameTh)}</b>
+          <small>${statText(g.itemId)} · ${g.durability}/${EQUIPMENT[g.itemId]!.maxDurability}</small></span>
+          <button type="button" class="mini" data-equip="${i}">สวม</button></div>`)
+      .join('');
+    picker = worn + (bag || `<p class="muted pick-empty">ไม่มี${SLOT_NAME[charSlot]}ในกระเป๋า — หาได้จากมอนสเตอร์หรือซื้อที่บ้าน</p>`);
+  }
+  const wornIds = Object.values(s.equipment).filter((e) => e && e.durability > 0).map((e) => e!.itemId);
+  const d = derivedOf(s);
+  return equipWindowHtml({
+    title: 'ไอเทมที่สวมใส่',
+    slots,
+    selected: charSlot,
+    picker,
+    stats: totalStats(s.allocated),
+    bonus: gearStatBonus(wornIds),
+    derived: d,
+    statPoints: s.unspentPoints,
+    extra: [['Drop', `×${d.dropRate.toFixed(2)}`]],
+  });
 }
 
 function charPanel(s: SaveData): string {
-  const d = derivedOf(s);
   const mut = mutationOf(s);
   const prog = mutationProgress(s.allocated);
-  const rows = STAT_KEYS.map(
-    (k) => `<div class="stat-row"><span>${STAT_TH[k]}</span><b>${5 + s.allocated[k]}</b>
-      <button class="mini" data-alloc="${k}" ${s.unspentPoints ? '' : 'disabled'}>+1</button>
-      <button class="mini" data-alloc5="${k}" ${s.unspentPoints >= 5 ? '' : 'disabled'}>+5</button></div>`,
-  ).join('');
   const mutText = mut
     ? `<div class="mut-box on"><b>${esc(MUTATIONS[mut].titleTh)}</b> — ${esc(MUTATIONS[mut].passive)}<br>
         ✅ ${MUTATIONS[mut].upside.map(esc).join('<br>✅ ')}${MUTATIONS[mut].downside.length ? '<br>⚠️ ' + MUTATIONS[mut].downside.map(esc).join('<br>⚠️ ') : ''}</div>`
@@ -419,17 +459,9 @@ function charPanel(s: SaveData): string {
         <div class="mut-prog">${bar(prog.share, MUTATION_THRESHOLD, 'mut')}<small>${prog.stat.toUpperCase()} ${(prog.share * 100).toFixed(0)}%</small></div></div>`;
   return `<h2>${esc(s.name)} <small>Lv.${s.level} ${esc(CLASSES[s.classId].nameTh)}</small></h2>
     <p class="muted">${esc(CLASSES[s.classId].passive.name)}: ${esc(mut ? 'ถูกแทนที่ด้วย Mutation' : CLASSES[s.classId].passive.description)}</p>
-    <h3>Stat Points คงเหลือ: <span class="accent">${s.unspentPoints}</span></h3>
-    ${rows}
+    ${charEquipWindow(s)}
+    <p class="muted">แตะช่องอุปกรณ์เพื่อถอด/สวมของในกระเป๋า · ${s.unspentPoints ? `มี Status Point <b class="accent">${s.unspentPoints}</b> — กด + ที่ค่าสถานะ` : 'เก็บเลเวลเพื่อรับ Status Point'}</p>
     ${mutText}
-    <h3>ค่าพลัง</h3>
-    <div class="grid2">
-      <span>HP</span><b>${d.maxHp}</b><span>MP</span><b>${d.maxMp}</b>
-      <span>ATK</span><b>${d.atk}</b><span>MATK</span><b>${d.matk}</b>
-      <span>DEF</span><b>${d.def}</b><span>MDEF</span><b>${d.mdef}</b>
-      <span>Critical</span><b>${(d.crit * 100).toFixed(1)}%</b><span>Evasion</span><b>${(d.evasion * 100).toFixed(1)}%</b>
-      <span>ATB Speed</span><b>${d.speed.toFixed(1)}</b><span>Drop</span><b>×${d.dropRate.toFixed(2)}</b>
-    </div>
     <h3>สถิติ</h3>
     <div class="grid2">
       <span>ชนะ</span><b>${s.stats.battlesWon}</b><span>บอส</span><b>${s.stats.bossesKilled}</b>
@@ -474,32 +506,29 @@ function deckEditor(s: SaveData): string {
 
 function itemLine(id: string, extra = ''): string {
   const def = EQUIPMENT[id];
-  if (!def) return esc(CONSUMABLES[id]?.nameTh ?? id);
+  if (!def) return `${itemIcon(id, 'li-ico')}<b>${esc(CONSUMABLES[id]?.nameTh ?? id)}</b>`;
   const stats = Object.entries(def.modifiers.flat ?? {}).map(([k, v]) => `${k.toUpperCase()} +${v}`).join(', ');
-  return `<span style="color:${RARITY_COLOR[def.rarity]}">■</span> <b>${esc(def.nameTh)}</b> <small>${esc(stats)}${extra}</small>`;
+  return `${itemIcon(id, 'li-ico')}<b style="color:${RARITY_COLOR[def.rarity] === '#FFFFFF' ? 'inherit' : RARITY_COLOR[def.rarity]}">${esc(def.nameTh)}</b> <small>${esc(stats)}${extra}</small>`;
 }
 
 function bagPanel(s: SaveData): string {
-  const slots = (Object.keys(SLOT_TH) as EquipSlot[]).map((slot) => {
-    const eq = s.equipment[slot];
-    if (!eq) return `<div class="slot empty"><span>${SLOT_TH[slot]}</span><em>ว่าง</em></div>`;
-    const def = EQUIPMENT[eq.itemId]!;
-    const broken = eq.durability <= 0;
-    return `<div class="slot ${broken ? 'broken' : ''}"><span>${SLOT_TH[slot]}</span>
-      <div>${itemLine(eq.itemId)}<br><small>ความทนทาน ${eq.durability}/${def.maxDurability}${broken ? ' — พัง! (ไม่มีผล)' : ''}</small></div>
-      <button class="mini" data-unequip="${slot}">ถอด</button></div>`;
-  }).join('');
+  const worn = (Object.keys(SLOT_NAME) as EquipSlot[])
+    .map((slot) => {
+      const eq = s.equipment[slot];
+      return `<span class="worn-chip ${eq && eq.durability <= 0 ? 'broken' : ''}" title="${SLOT_NAME[slot]}">${eq ? itemIcon(eq.itemId, 'li-ico') : `<img class="li-ico ghost" src="/assets/items/slot_${slot}.png" alt="">`}</span>`;
+    })
+    .join('');
   const gear = s.gearBag
     .map((g, i) => `<div class="row">${itemLine(g.itemId, ` · ${g.durability}/${EQUIPMENT[g.itemId]?.maxDurability}`)}
       <span class="spacer"></span><button class="mini" data-equip="${i}">สวม</button><button class="mini" data-sell="${i}">ขาย</button></div>`)
     .join('');
   const cons = Object.entries(s.bag)
     .filter(([, n]) => n > 0)
-    .map(([id, n]) => `<div class="row"><b>${esc(CONSUMABLES[id]?.nameTh ?? id)}</b> ×${n}<span class="spacer"></span>
+    .map(([id, n]) => `<div class="row">${itemLine(id)} ×${n}<span class="spacer"></span>
       <button class="mini" data-use="${id}">ใช้</button></div>`)
     .join('');
   return `<h2>🎒 กระเป๋า <small>🪙 ${s.gold.toLocaleString()} · ฝากไว้ ${s.bankGold.toLocaleString()}</small></h2>
-    <h3>สวมใส่อยู่ (Paperdoll)</h3>${slots}
+    <h3>สวมใส่อยู่</h3><div class="worn-row">${worn}<button class="mini" data-act="equipwin">🧍 หน้าต่างสวมใส่</button></div>
     <h3>อุปกรณ์ในกระเป๋า</h3>${gear || '<p class="muted">ว่าง</p>'}
     <h3>ไอเทมใช้แล้วหมด</h3>${cons || '<p class="muted">ว่าง</p>'}`;
 }
@@ -616,6 +645,7 @@ function wirePanel(body: HTMLElement) {
     bus.emit('battle:start', { kind: 'TRIAL', monsterIds: [], trialClass: classId });
   });
   on('[data-act="arena"]', () => openPanel('arena'));
+  on('[data-act="equipwin"]', () => openPanel('char'));
   on('[data-act="sim"]', () => {
     walk.enableSimulation();
     renderPanel();

@@ -27,6 +27,12 @@ import {
   type WaveDef,
 } from '@pw/shared';
 import { heroCanvas, monsterCanvas, type HairStyle, type Paperdoll } from '../game/art';
+import {
+  AVATAR_ORIGIN_X,
+  AVATAR_ORIGIN_Y,
+  isAvatarPackLoaded,
+  USE_AVATAR_PACK,
+} from '../game/avatar';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { applyBattleOutcome, bossIdFor, changeClass, worldBossHp, type BattleOutcome } from '../game/rules';
 import { playerSetup } from '../game/party';
@@ -212,7 +218,17 @@ export class BattleScene extends Phaser.Scene {
       key = `mob_${u.sprite}`;
       if (!this.textures.exists(key)) this.textures.addCanvas(key, monsterCanvas(u.sprite));
     }
-    const sprite = this.add.image(0, 0, key).setScale(scale).setOrigin(0.5, 1).setDepth(10).setFlipX(u.side === 'B');
+    const isHero = !!ally || u.side === 'A';
+    const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
+    const origin = isHero && isPack ? { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y } : { x: 0.5, y: 1 };
+    let finalScale: number;
+    if (isHero) {
+      finalScale = isPack ? scale * 0.55 : scale;
+    } else {
+      // Monsters: regular ~32-48px on screen, bosses up to ~64px
+      finalScale = isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
+    }
+    const sprite = this.add.image(0, 0, key).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add
       .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: 'Mali', fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0)

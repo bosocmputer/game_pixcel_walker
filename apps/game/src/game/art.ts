@@ -5,6 +5,8 @@
  * masks and get automatic bevel shading + selective outlines, the classic 16-bit look.
  */
 import { TILE, type TileId } from '@pw/shared';
+import { isAvatarPackLoaded, renderAvatarFrame, USE_AVATAR_PACK, type Gender, type AvatarAnim } from './avatar';
+export { USE_AVATAR_PACK, type Gender } from './avatar';
 
 export const TILE_PX = 16;
 export const TILE_VARIANTS = 4;
@@ -392,7 +394,7 @@ const LEGS: Record<Facing, string[][]> = {
   ],
 };
 
-export type HairStyle = 'short' | 'spiky' | 'long' | 'bun';
+export type HairStyle = 'short' | 'spiky' | 'long' | 'bun' | string;
 export const HAIR_STYLES: HairStyle[] = ['short', 'spiky', 'long', 'bun'];
 export const SKIN_TONES = ['#f2c79b', '#e0ac7e', '#c68a5a', '#8d5a3a'];
 export const HAIR_COLORS = ['#2a1e1a', '#5a3a22', '#e8c46a', '#b8422e', '#3a5ec8', '#e87aa8', '#c8ccd8'];
@@ -574,13 +576,20 @@ const CLASS_COLORS: Record<string, string> = {
 };
 
 export interface Appearance {
+  gender?: Gender;
   skin: number;
   hairStyle: HairStyle;
   hairColor: number;
   outfit: number;
 }
 
-export const DEFAULT_APPEARANCE: Appearance = { skin: 0, hairStyle: 'short', hairColor: 0, outfit: 0 };
+export const DEFAULT_APPEARANCE: Appearance = {
+  gender: 'male',
+  skin: 0,
+  hairStyle: 'M01_short_messy',
+  hairColor: 0,
+  outfit: 0,
+};
 
 export interface Paperdoll {
   classId: string;
@@ -603,6 +612,22 @@ export const AURA_COLORS: Record<string, string> = {
 
 export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0): HTMLCanvasElement {
   const ap = p.appearance ?? DEFAULT_APPEARANCE;
+
+  if (USE_AVATAR_PACK && isAvatarPackLoaded()) {
+    const gender = ap.gender ?? 'male';
+    const anim: AvatarAnim = facing === 'up' ? 'walk_back' : 'walk_front';
+    const body = renderAvatarFrame(gender, ap.hairStyle, ap.skin, ap.hairColor, anim, frame);
+    if (!p.aura) return body;
+    const [c, ctx] = canvas(body.width + 8, body.height + 6);
+    const grad = ctx.createRadialGradient(c.width / 2, c.height * 0.55, 2, c.width / 2, c.height * 0.55, c.width / 2);
+    grad.addColorStop(0, css(hexRgb(AURA_COLORS[p.aura] ?? '#ffffff'), 0.65));
+    grad.addColorStop(1, css(hexRgb(AURA_COLORS[p.aura] ?? '#ffffff'), 0));
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(body, 4, 4);
+    return c;
+  }
+
   const skin = SKIN_TONES[ap.skin] ?? SKIN_TONES[0]!;
   const outfit = OUTFIT_COLORS[ap.outfit] ?? OUTFIT_COLORS[0]!;
   const naked = !p.chest;

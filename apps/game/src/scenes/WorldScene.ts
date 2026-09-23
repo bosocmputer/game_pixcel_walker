@@ -16,10 +16,21 @@ import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
 import { net } from '../game/net';
+import {
+  AVATAR_ORIGIN_X,
+  AVATAR_ORIGIN_Y,
+  AVATAR_WORLD_SCALE,
+  isAvatarPackLoaded,
+  USE_AVATAR_PACK,
+} from '../game/avatar';
 
 const LANDMARK_RADIUS_M = 700;
 const WALK_FRAMES = [1, 0, 2, 0];
-const HERO_SCALE = 3;
+const getHeroScale = () => (USE_AVATAR_PACK && isAvatarPackLoaded() ? AVATAR_WORLD_SCALE : 3);
+const getHeroOrigin = () =>
+  USE_AVATAR_PACK && isAvatarPackLoaded()
+    ? { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y }
+    : { x: 0.5, y: 0.92 };
 
 export class WorldScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Image;
@@ -64,7 +75,8 @@ export class WorldScene extends Phaser.Scene {
     this.shadow = this.add.ellipse(0, 0, 40, 14, 0x000000, 0.28).setDepth(9);
     this.remotes = new RemotePlayers(this);
     this.refreshHero(store.s);
-    this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(0.5, 0.92).setScale(HERO_SCALE);
+    const origin = getHeroOrigin();
+    this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(origin.x, origin.y).setScale(getHeroScale());
     this.loadingText = this.add
       .text(0, 0, 'กำลังโหลดข้อมูลแผนที่…', { fontFamily: 'Mali', fontSize: '14px', color: '#ffffff', backgroundColor: '#1b1f2acc', padding: { x: 8, y: 4 } })
       .setDepth(100)
@@ -166,7 +178,7 @@ export class WorldScene extends Phaser.Scene {
     if (base === this.heroBase) return;
     this.heroBase = base;
     for (const f of ['down', 'up', 'side'] as Facing[]) {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const key = this.heroKey(f, i);
         if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, f, i));
       }
@@ -199,24 +211,28 @@ export class WorldScene extends Phaser.Scene {
     const here = project(this.current.lat, this.current.lng);
 
     const moving = Math.hypot(dx, dy) > 1.5;
+    const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
     if (moving) {
       if (Math.abs(dx) > Math.abs(dy)) {
         this.facing = 'side';
         this.flip = dx < 0;
       } else {
         this.facing = dy < 0 ? 'up' : 'down';
+        if (isPack && Math.abs(dx) > 0.3) this.flip = dx < 0;
       }
       this.walkTime += delta;
     } else {
       this.walkTime = 0;
     }
-    const frame = moving ? WALK_FRAMES[Math.floor(this.walkTime / 160) % 4]! : 0;
+    const frame = moving ? (isPack ? Math.floor(this.walkTime / 160) % 4 : WALK_FRAMES[Math.floor(this.walkTime / 160) % 4]!) : 0;
     const zs = zoomScale();
+    const origin = getHeroOrigin();
     this.player
       .setTexture(this.heroKey(this.facing, frame))
-      .setFlipX(this.facing === 'side' && this.flip)
+      .setOrigin(origin.x, origin.y)
+      .setFlipX(isPack ? this.flip : (this.facing === 'side' && this.flip))
       .setPosition(here.x, here.y)
-      .setScale(HERO_SCALE * zs);
+      .setScale(getHeroScale() * zs);
     this.shadow.setPosition(here.x, here.y).setScale(zs);
     this.pulse.setPosition(here.x, here.y);
     this.drawRangeRing(this.current.lat, this.current.lng);
@@ -240,7 +256,7 @@ export class WorldScene extends Phaser.Scene {
       this.syncMonsters();
     }
     this.placeOverlays();
-    this.remotes.update(delta, HERO_SCALE);
+    this.remotes.update(delta, getHeroScale());
   }
 
   /** Play-radius ring: the true ground circle projected, so it stays right under any rotation/tilt. */
@@ -301,7 +317,10 @@ export class WorldScene extends Phaser.Scene {
         const key = `mob_${def.sprite}`;
         if (!this.textures.exists(key)) this.textures.addCanvas(key, monsterCanvas(def.sprite));
         const shadow = this.add.ellipse(0, 0, 36, 10, 0x000000, 0.25);
-        const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(2.6);
+        const isBoss = !!def.boss;
+        const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
+        const mobScale = isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
+        const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(mobScale);
         const label = this.add
           .text(0, 4, `Lv.${def.level}`, { fontFamily: 'Silkscreen', fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5, 0);

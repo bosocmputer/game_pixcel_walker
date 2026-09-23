@@ -20,6 +20,21 @@
 
 ---
 
+## 2026-09-23 — นำเข้า Avatar Pack (Base Body + Hairstyles) แทนตัวละครเดิม (Claude)
+**เพิ่ม**
+- Avatar Pack: คัดลอก assets (body, hair, manifest) ทั้งหมด 115 ไฟล์ไปที่ `apps/game/public/assets/avatar/`
+- `apps/game/src/game/avatar.ts`: ตัวโหลด manifest แบบ dynamic, ตัวแปลงสี (recolor) ผิว/ผมตาม tone encoding ใน HANDOFF.md, ประกอบเลเยอร์ body + hair ใน cell 48×64 (anchor 24, 58) และระบบ caching
+- เพิ่ม gender ('male' | 'female') ใน `Appearance` (`art.ts`, `packages/shared/src/net/protocol.ts`, `state/store.ts`) พร้อมระบบ migration เซฟเดิมไม่ให้พัง
+- หน้าสร้างตัวละคร (`ui/creator.ts`): เพิ่มปุ่มเลือกเพศ ชาย/หญิง, วนทรงผมเฉพาะเพศที่เลือกพร้อมชื่อไทยจาก manifest, และ live preview หมุน 4 ทิศทาง
+- Feature flag `USE_AVATAR_PACK` ควบคุมการเปิดใช้ โดยเก็บระบบ procedural 16×24 เดิมเป็น fallback
+**แก้ไข / เปลี่ยน**
+- `WorldScene.ts`: ปรับสเกลสไปรต์ตัวละคร (1.6), สเกลมอนสเตอร์ (~32–48 px, บอส ~56 px), จุด origin (0.5, 58/64), แอนิเมชันเดิน 4 เฟรม, และการกลับด้านซ้ายขวาตามทิศทาง
+- `remotePlayers.ts`: รองรับ origin และสเกลใหม่สำหรับผู้เล่นคนอื่นในโหมด avatar pack
+- `BattleScene.ts`: ปรับจุดยืนและสเกลของตัวละครผู้เล่น (×0.55) และมอนสเตอร์ (~32–48 px, บอส ~64 px) ในสนามประลองให้ตรงกับ baseline ของกันและกัน
+**ไฟล์หลักที่แตะ:** `apps/game/src/game/avatar.ts`, `apps/game/src/game/art.ts`, `apps/game/src/ui/creator.ts`, `apps/game/src/scenes/WorldScene.ts`, `apps/game/src/scenes/remotePlayers.ts`, `apps/game/src/scenes/BattleScene.ts`, `apps/game/src/state/store.ts`, `packages/shared/src/net/protocol.ts`, `apps/game/src/style.css`
+**ทดสอบ:** npm test (58 ผ่าน) · typecheck ผ่าน · build ผ่าน (Vite) · ตรวจสอบไฟล์อ้างอิงใน manifest ทั้งหมด 115 ไฟล์ครบถ้วน
+**ค้าง / ข้อควรรู้:** avatar pack ชุดนี้เป็นภาพ prototype placeholder ยังไม่มีชุดเสื้อผ้าและอุปกรณ์สวมใส่ อยู่บน branch `feature/avatar-pack`
+
 ## 2026-09-22 — ตั้งกฎทีม + เอกสารส่งต่อ + ขึ้น GitHub (Nong + Claude)
 **เพิ่ม**
 - `CHANGELOG.md` (ไฟล์นี้), `docs/ROADMAP.md` (สถานะ + งานถัดไป + เรื่องที่ต้องตัดสินใจ)

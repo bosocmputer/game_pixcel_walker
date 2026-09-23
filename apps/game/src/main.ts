@@ -13,6 +13,7 @@ import { createMap, getMap } from './game/map';
 import { autoHunt } from './game/autohunt';
 import { net } from './game/net';
 import { el } from './ui/dom';
+import { loadAvatarPack, USE_AVATAR_PACK } from './game/avatar';
 
 /** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
 function initialPosition(): Promise<{ lat: number; lng: number }> {
@@ -36,6 +37,13 @@ function initialPosition(): Promise<{ lat: number; lng: number }> {
 
 async function boot() {
   await document.fonts?.ready;
+  if (USE_AVATAR_PACK) {
+    try {
+      await loadAvatarPack();
+    } catch (e) {
+      console.warn('[AvatarPack] failed to load, using procedural fallback:', e);
+    }
+  }
   if (!store.load() || !store.s.starter) {
     if (store.data && !store.data.starter) store.reset();
     showOnboarding(start);

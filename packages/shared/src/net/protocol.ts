@@ -8,7 +8,7 @@ import type { ClassId } from '../types';
 
 /** Visual info other players need to draw you. */
 export interface PlayerLook {
-  appearance: { skin: number; hairStyle: string; hairColor: number; outfit: number };
+  appearance: { gender?: 'male' | 'female'; skin: number; hairStyle: string; hairColor: number; outfit: number };
   classId: ClassId;
   helmet?: string;
   chest?: string;

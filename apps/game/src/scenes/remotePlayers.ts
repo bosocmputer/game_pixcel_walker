@@ -6,6 +6,12 @@
 import Phaser from 'phaser';
 import type { PlayerPresence } from '@pw/shared';
 import { heroCanvas, type Facing, type HairStyle, type Paperdoll } from '../game/art';
+import {
+  AVATAR_ORIGIN_X,
+  AVATAR_ORIGIN_Y,
+  isAvatarPackLoaded,
+  USE_AVATAR_PACK,
+} from '../game/avatar';
 import { depthScale, project, zoomScale } from '../game/map';
 import { net } from '../game/net';
 
@@ -37,7 +43,8 @@ export class RemotePlayers {
       let r = this.remotes.get(p.id);
       if (!r) {
         const shadow = this.scene.add.ellipse(0, 0, 40, 14, 0x000000, 0.25).setDepth(9);
-        const sprite = this.scene.add.image(0, 0, '__DEFAULT').setOrigin(0.5, 0.92).setDepth(9.5);
+        const origin = USE_AVATAR_PACK && isAvatarPackLoaded() ? { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y } : { x: 0.5, y: 0.92 };
+        const sprite = this.scene.add.image(0, 0, '__DEFAULT').setOrigin(origin.x, origin.y).setDepth(9.5);
         const label = this.scene.add
           .text(0, 0, '', { fontFamily: 'Mali', fontSize: '12px', color: '#ffffff', stroke: '#1b1f2a', strokeThickness: 4 })
           .setOrigin(0.5, 1)
@@ -82,7 +89,7 @@ export class RemotePlayers {
     if (base === r.base) return;
     r.base = base;
     for (const f of ['down', 'up', 'side'] as Facing[]) {
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 4; i++) {
         const key = `${base}_${f}_${i}`;
         if (!this.scene.textures.exists(key)) this.scene.textures.addCanvas(key, heroCanvas(doll, f, i));
       }
@@ -93,6 +100,7 @@ export class RemotePlayers {
     const k = 1 - Math.pow(0.02, delta / 1000);
     const h = this.scene.scale.height;
     const zs = zoomScale();
+    const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
     for (const r of this.remotes.values()) {
       const before = project(r.current.lat, r.current.lng);
       r.current.lat += (r.target.lat - r.current.lat) * k;
@@ -106,15 +114,18 @@ export class RemotePlayers {
         if (Math.abs(dx) > Math.abs(dy)) {
           r.facing = 'side';
           r.flip = dx < 0;
-        } else r.facing = dy < 0 ? 'up' : 'down';
+        } else {
+          r.facing = dy < 0 ? 'up' : 'down';
+          if (isPack && Math.abs(dx) > 0.3) r.flip = dx < 0;
+        }
         r.walkTime += delta;
       } else r.walkTime = 0;
-      const frame = moving ? WALK_FRAMES[Math.floor(r.walkTime / 160) % 4]! : 0;
+      const frame = moving ? (isPack ? Math.floor(r.walkTime / 160) % 4 : WALK_FRAMES[Math.floor(r.walkTime / 160) % 4]!) : 0;
       const onScreen = p.x > -60 && p.y > -60 && p.x < this.scene.scale.width + 60 && p.y < h + 60;
       const s = heroScale * zs * depthScale(p.y, h);
       r.sprite
         .setTexture(`${r.base}_${r.facing}_${frame}`)
-        .setFlipX(r.facing === 'side' && r.flip)
+        .setFlipX(isPack ? r.flip : (r.facing === 'side' && r.flip))
         .setPosition(p.x, p.y)
         .setScale(s)
         .setVisible(onScreen)

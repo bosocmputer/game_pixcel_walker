@@ -1,0 +1,541 @@
+{
+  "note": "PROTOTYPE PLACEHOLDER ART derived from Sword of Convallaria (XD Inc.). Replace with original art before any public release.",
+  "cell": {
+    "w": 48,
+    "h": 64,
+    "anchor": {
+      "x": 24,
+      "y": 58,
+      "meaning": "feet position inside every cell"
+    }
+  },
+  "facing": "All frames face RIGHT. walk_front = walking toward the camera (down-right), walk_back = walking away (up-right). Mirror horizontally for left.",
+  "draw_order": [
+    "body",
+    "hair"
+  ],
+  "body": {
+    "frames": [
+      "move_0.png",
+      "move_1.png",
+      "move_2.png",
+      "move_3.png",
+      "move_4.png",
+      "move_5.png",
+      "move_6.png",
+      "move_7.png",
+      "wait_0.png",
+      "wait_1.png",
+      "wait_10.png",
+      "wait_11.png",
+      "wait_12.png",
+      "wait_2.png",
+      "wait_3.png",
+      "wait_6.png",
+      "wait_7.png",
+      "wait_8.png",
+      "wait_9.png"
+    ],
+    "grey_to_role": {
+      "#010101": "outline + pupil (keep black)",
+      "#474747": "skin shadow",
+      "#8a8a8a": "skin base",
+      "#dbdbdb": "eye white (keep)"
+    },
+    "example_skin_tones": [
+      {
+        "shadow": "#ca9694",
+        "base": "#f0d9c6"
+      },
+      {
+        "shadow": "#a8705a",
+        "base": "#d9a47e"
+      },
+      {
+        "shadow": "#6e4632",
+        "base": "#9c6a4a"
+      }
+    ]
+  },
+  "hair_tone_encoding": "Hair PNGs are grey: value 0 = outline, 40/80/120/160/200/240 = tone 1..6 (dark -> light). level = round(value / 40); colour = ramp[min(level, 5)] where ramp[0] is the outline colour.",
+  "hair_color_ramps": {
+    "black": [
+      "#050506",
+      "#15151c",
+      "#23232e",
+      "#343445",
+      "#4a4a60",
+      "#686a82"
+    ],
+    "blonde": [
+      "#2a1a08",
+      "#6b4a14",
+      "#9c7424",
+      "#c9a040",
+      "#e8c860",
+      "#fff0a0"
+    ],
+    "silver": [
+      "#1e1e26",
+      "#50505e",
+      "#7c7c8a",
+      "#a4a6b2",
+      "#c8cad4",
+      "#f0f0f6"
+    ],
+    "red": [
+      "#1e0808",
+      "#4a1010",
+      "#7a1c16",
+      "#a82c20",
+      "#d04a30",
+      "#f07a50"
+    ],
+    "blue": [
+      "#08101e",
+      "#16284a",
+      "#223e70",
+      "#3a5e9c",
+      "#5c86c8",
+      "#8ab4ec"
+    ]
+  },
+  "styles": [
+    {
+      "id": "M01_short_messy",
+      "gender": "male",
+      "label_th": "ผมสั้นยุ่ง",
+      "tones": 5,
+      "anims": {
+        "walk_front": [
+          {
+            "body": "body/move_0.png",
+            "hair": "hair/male/M01_short_messy/move_0.png"
+          },
+          {
+            "body": "body/move_1.png",
+            "hair": "hair/male/M01_short_messy/move_1.png"
+          },
+          {
+            "body": "body/move_2.png",
+            "hair": "hair/male/M01_short_messy/move_2.png"
+          },
+          {
+            "body": "body/move_3.png",
+            "hair": "hair/male/M01_short_messy/move_3.png"
+          }
+        ],
+        "walk_back": [
+          {
+            "body": "body/move_4.png",
+            "hair": "hair/male/M01_short_messy/move_4.png"
+          },
+          {
+            "body": "body/move_5.png",
+            "hair": "hair/male/M01_short_messy/move_5.png"
+          },
+          {
+            "body": "body/move_6.png",
+            "hair": "hair/male/M01_short_messy/move_6.png"
+          },
+          {
+            "body": "body/move_7.png",
+            "hair": "hair/male/M01_short_messy/move_7.png"
+          }
+        ],
+        "idle": [
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/male/M01_short_messy/wait_0.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/male/M01_short_messy/wait_1.png"
+          },
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/male/M01_short_messy/wait_2.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/male/M01_short_messy/wait_3.png"
+          },
+          {
+            "body": "body/wait_12.png",
+            "hair": "hair/male/M01_short_messy/wait_4.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/male/M01_short_messy/wait_5.png"
+          }
+        ]
+      }
+    },
+    {
+      "id": "M02_shaggy_bangs",
+      "gender": "male",
+      "label_th": "ผมฟู หน้าม้าปรกตา",
+      "tones": 5,
+      "anims": {
+        "walk_front": [
+          {
+            "body": "body/move_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_0.png"
+          },
+          {
+            "body": "body/move_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_1.png"
+          },
+          {
+            "body": "body/move_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_2.png"
+          },
+          {
+            "body": "body/move_3.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_3.png"
+          }
+        ],
+        "walk_back": [
+          {
+            "body": "body/move_4.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_4.png"
+          },
+          {
+            "body": "body/move_5.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_5.png"
+          },
+          {
+            "body": "body/move_6.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_6.png"
+          },
+          {
+            "body": "body/move_7.png",
+            "hair": "hair/male/M02_shaggy_bangs/move_7.png"
+          }
+        ],
+        "idle": [
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_0.png"
+          },
+          {
+            "body": "body/wait_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_1.png"
+          },
+          {
+            "body": "body/wait_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_2.png"
+          },
+          {
+            "body": "body/wait_3.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_3.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_4.png"
+          },
+          {
+            "body": "body/wait_7.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_5.png"
+          },
+          {
+            "body": "body/wait_9.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_6.png"
+          },
+          {
+            "body": "body/wait_10.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_7.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_8.png"
+          },
+          {
+            "body": "body/wait_12.png",
+            "hair": "hair/male/M02_shaggy_bangs/wait_9.png"
+          }
+        ]
+      }
+    },
+    {
+      "id": "M03_short_neat",
+      "gender": "male",
+      "label_th": "ผมสั้นเรียบร้อย",
+      "tones": 5,
+      "anims": {
+        "walk_front": [
+          {
+            "body": "body/move_0.png",
+            "hair": "hair/male/M03_short_neat/move_0.png"
+          },
+          {
+            "body": "body/move_1.png",
+            "hair": "hair/male/M03_short_neat/move_1.png"
+          },
+          {
+            "body": "body/move_2.png",
+            "hair": "hair/male/M03_short_neat/move_2.png"
+          },
+          {
+            "body": "body/move_3.png",
+            "hair": "hair/male/M03_short_neat/move_3.png"
+          }
+        ],
+        "walk_back": [
+          {
+            "body": "body/move_4.png",
+            "hair": "hair/male/M03_short_neat/move_4.png"
+          },
+          {
+            "body": "body/move_5.png",
+            "hair": "hair/male/M03_short_neat/move_5.png"
+          },
+          {
+            "body": "body/move_6.png",
+            "hair": "hair/male/M03_short_neat/move_6.png"
+          },
+          {
+            "body": "body/move_7.png",
+            "hair": "hair/male/M03_short_neat/move_7.png"
+          }
+        ],
+        "idle": [
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/male/M03_short_neat/wait_0.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/male/M03_short_neat/wait_1.png"
+          },
+          {
+            "body": "body/wait_7.png",
+            "hair": "hair/male/M03_short_neat/wait_2.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/male/M03_short_neat/wait_3.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/male/M03_short_neat/wait_4.png"
+          },
+          {
+            "body": "body/wait_12.png",
+            "hair": "hair/male/M03_short_neat/wait_5.png"
+          }
+        ]
+      }
+    },
+    {
+      "id": "F01_low_ponytail",
+      "gender": "female",
+      "label_th": "หางม้าต่ำ",
+      "tones": 6,
+      "anims": {
+        "walk_front": [
+          {
+            "body": "body/move_0.png",
+            "hair": "hair/female/F01_low_ponytail/move_0.png"
+          },
+          {
+            "body": "body/move_1.png",
+            "hair": "hair/female/F01_low_ponytail/move_1.png"
+          },
+          {
+            "body": "body/move_2.png",
+            "hair": "hair/female/F01_low_ponytail/move_2.png"
+          },
+          {
+            "body": "body/move_3.png",
+            "hair": "hair/female/F01_low_ponytail/move_3.png"
+          }
+        ],
+        "walk_back": [
+          {
+            "body": "body/move_4.png",
+            "hair": "hair/female/F01_low_ponytail/move_4.png"
+          },
+          {
+            "body": "body/move_5.png",
+            "hair": "hair/female/F01_low_ponytail/move_5.png"
+          },
+          {
+            "body": "body/move_6.png",
+            "hair": "hair/female/F01_low_ponytail/move_6.png"
+          },
+          {
+            "body": "body/move_7.png",
+            "hair": "hair/female/F01_low_ponytail/move_7.png"
+          }
+        ],
+        "idle": [
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/female/F01_low_ponytail/wait_0.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/female/F01_low_ponytail/wait_1.png"
+          },
+          {
+            "body": "body/wait_7.png",
+            "hair": "hair/female/F01_low_ponytail/wait_2.png"
+          },
+          {
+            "body": "body/wait_10.png",
+            "hair": "hair/female/F01_low_ponytail/wait_3.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/female/F01_low_ponytail/wait_4.png"
+          },
+          {
+            "body": "body/wait_12.png",
+            "hair": "hair/female/F01_low_ponytail/wait_5.png"
+          }
+        ]
+      }
+    },
+    {
+      "id": "F02_bun",
+      "gender": "female",
+      "label_th": "ผมเกล้ามวย",
+      "tones": 6,
+      "anims": {
+        "walk_front": [
+          {
+            "body": "body/move_0.png",
+            "hair": "hair/female/F02_bun/move_0.png"
+          },
+          {
+            "body": "body/move_1.png",
+            "hair": "hair/female/F02_bun/move_1.png"
+          },
+          {
+            "body": "body/move_2.png",
+            "hair": "hair/female/F02_bun/move_2.png"
+          },
+          {
+            "body": "body/move_3.png",
+            "hair": "hair/female/F02_bun/move_3.png"
+          }
+        ],
+        "walk_back": [
+          {
+            "body": "body/move_4.png",
+            "hair": "hair/female/F02_bun/move_4.png"
+          },
+          {
+            "body": "body/move_5.png",
+            "hair": "hair/female/F02_bun/move_5.png"
+          },
+          {
+            "body": "body/move_6.png",
+            "hair": "hair/female/F02_bun/move_6.png"
+          },
+          {
+            "body": "body/move_7.png",
+            "hair": "hair/female/F02_bun/move_7.png"
+          }
+        ],
+        "idle": [
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/female/F02_bun/wait_0.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/female/F02_bun/wait_1.png"
+          },
+          {
+            "body": "body/wait_7.png",
+            "hair": "hair/female/F02_bun/wait_2.png"
+          },
+          {
+            "body": "body/wait_8.png",
+            "hair": "hair/female/F02_bun/wait_3.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/female/F02_bun/wait_4.png"
+          },
+          {
+            "body": "body/wait_12.png",
+            "hair": "hair/female/F02_bun/wait_5.png"
+          }
+        ]
+      }
+    },
+    {
+      "id": "F03_wavy_shoulder",
+      "gender": "female",
+      "label_th": "ผมยาวประบ่าปลายหยัก",
+      "tones": 6,
+      "anims": {
+        "walk_front": [
+          {
+            "body": "body/move_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_0.png"
+          },
+          {
+            "body": "body/move_1.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_1.png"
+          },
+          {
+            "body": "body/move_2.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_2.png"
+          },
+          {
+            "body": "body/move_3.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_3.png"
+          }
+        ],
+        "walk_back": [
+          {
+            "body": "body/move_4.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_4.png"
+          },
+          {
+            "body": "body/move_5.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_5.png"
+          },
+          {
+            "body": "body/move_6.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_6.png"
+          },
+          {
+            "body": "body/move_7.png",
+            "hair": "hair/female/F03_wavy_shoulder/move_7.png"
+          }
+        ],
+        "idle": [
+          {
+            "body": "body/wait_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/wait_0.png"
+          },
+          {
+            "body": "body/wait_6.png",
+            "hair": "hair/female/F03_wavy_shoulder/wait_1.png"
+          },
+          {
+            "body": "body/wait_7.png",
+            "hair": "hair/female/F03_wavy_shoulder/wait_2.png"
+          },
+          {
+            "body": "body/wait_8.png",
+            "hair": "hair/female/F03_wavy_shoulder/wait_3.png"
+          },
+          {
+            "body": "body/wait_11.png",
+            "hair": "hair/female/F03_wavy_shoulder/wait_4.png"
+          },
+          {
+            "body": "body/wait_12.png",
+            "hair": "hair/female/F03_wavy_shoulder/wait_5.png"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -122,6 +122,18 @@ class Store {
         this.data.loadout ??= [];
         this.data.killedSpawns ??= {};
         this.data.appearance ??= { ...DEFAULT_APPEARANCE };
+        this.data.appearance.gender ??= 'male';
+        const legacyMap: Record<string, string> = {
+          short: this.data.appearance.gender === 'female' ? 'F01_low_ponytail' : 'M01_short_messy',
+          spiky: this.data.appearance.gender === 'female' ? 'F03_wavy_shoulder' : 'M02_shaggy_bangs',
+          long: 'F03_wavy_shoulder',
+          bun: 'F02_bun',
+        };
+        if (this.data.appearance.hairStyle && legacyMap[this.data.appearance.hairStyle]) {
+          this.data.appearance.hairStyle = legacyMap[this.data.appearance.hairStyle]!;
+        } else if (!this.data.appearance.hairStyle) {
+          this.data.appearance.hairStyle = this.data.appearance.gender === 'female' ? 'F01_low_ponytail' : 'M01_short_messy';
+        }
       }
     } catch {
       this.data = null;

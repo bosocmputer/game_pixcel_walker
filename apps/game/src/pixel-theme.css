@@ -363,3 +363,23 @@ body.in-home .hud .net-pill, body.in-home .hud [data-open="home"] { display: non
 .hs-card { display: grid; justify-items: center; gap: 2px; padding: 6px 4px; background: #efe4c8; border: 2px solid var(--ink); text-align: center; }
 .hs-card b { font-size: 12px; line-height: 1.2; }
 .hs-ico { width: 48px; height: 48px; image-rendering: pixelated; }
+
+/* Shops (ui/shopWindow.ts) */
+.shop-win .ro-eq-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sh-keeper { font-size: 11px; opacity: .85; }
+button.hs-card { position: relative; font: inherit; color: inherit; cursor: pointer; border-color: var(--rar, var(--ink)); box-shadow: inset 0 0 0 1px var(--rar, transparent); }
+button.hs-card.sel { background: #fff6d0; box-shadow: 0 0 0 2px #f2c230, inset 0 0 0 1px var(--rar); }
+.hs-lv { position: absolute; top: 2px; left: 2px; font-style: normal; font-family: 'Silkscreen', monospace; font-size: 10px; background: var(--cyan); color: #fff; padding: 0 3px; }
+.hs-lv.no { background: #c8322a; }
+.hs-price { font-size: 12px; }
+.hs-price.short { color: #b8322a; }
+.bd-lore { margin: 6px 0 0; padding: 6px 8px; font-size: 12px; font-style: italic; color: #5a4a36; background: #f6ecd2; border-left: 3px solid #c8a060; }
+.sh-repair { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; padding: 6px 8px; background: #efe4c8; border: 2px solid var(--ink); }
+.sl-all { width: 100%; margin-top: 8px; }
+.sl-list { display: grid; gap: 4px; margin-top: 4px; }
+.sl-row { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 6px; align-items: center; padding: 3px 6px; background: #efe4c8; border: 2px solid var(--ink); }
+.sl-ico { width: 32px; height: 32px; image-rendering: pixelated; }
+.sl-info { display: grid; min-width: 0; }
+.sl-info b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sl-price { font-size: 12px; white-space: nowrap; }
+.sl-act { display: flex; gap: 4px; }

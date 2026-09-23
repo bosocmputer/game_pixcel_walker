@@ -10,7 +10,11 @@ import {
   deathGoldLoss,
   gainExp,
   haversine,
+  itemInfo,
+  meetsLevel,
+  MATERIALS,
   repairCost,
+  sellPrice,
   rollLoot,
   worldBossShare,
   type ClassId,
@@ -125,7 +129,10 @@ export function clampVitals(s: SaveData) {
   s.mp = Math.min(s.mp, d.maxMp);
 }
 
-export function equip(index: number) {
+/** Wears gear from the bag; false when the character's level is too low for it. */
+export function equip(index: number): boolean {
+  const it = store.s.gearBag[index];
+  if (!it || !meetsLevel(it.itemId, store.s.level)) return false;
   store.update((s) => {
     const item = s.gearBag[index];
     if (!item) return;
@@ -137,6 +144,7 @@ export function equip(index: number) {
     s.equipment[def.slot] = item;
     clampVitals(s);
   });
+  return true;
 }
 
 export function unequip(slot: EquipSlot) {
@@ -171,21 +179,47 @@ export function usePotion(itemId: string): boolean {
   return true;
 }
 
-export function buy(itemId: string, price: number): boolean {
-  if (store.s.gold < price) return false;
+/** Buys `qty` of an item at its list price; false when Gold runs short (nothing is bought). */
+export function buy(itemId: string, qty = 1): boolean {
+  const info = itemInfo(itemId);
+  if (!info || qty < 1) return false;
+  const cost = info.price * qty;
+  if (store.s.gold < cost) return false;
   store.update((s) => {
-    s.gold -= price;
-    if (EQUIPMENT[itemId]) s.gearBag.push({ itemId, durability: EQUIPMENT[itemId]!.maxDurability });
-    else s.bag[itemId] = (s.bag[itemId] ?? 0) + 1;
+    s.gold -= cost;
+    for (let i = 0; i < qty; i++) {
+      if (EQUIPMENT[itemId]) s.gearBag.push({ itemId, durability: EQUIPMENT[itemId]!.maxDurability });
+      else s.bag[itemId] = (s.bag[itemId] ?? 0) + 1;
+    }
   });
   return true;
+}
+
+/** Sells up to `qty` of a stackable item (potion or junk). Returns the Gold received. */
+export function sellItem(itemId: string, qty = 1): number {
+  const n = Math.min(qty, store.s.bag[itemId] ?? 0);
+  if (n <= 0) return 0;
+  const gold = sellPrice(itemId) * n;
+  store.update((s) => {
+    s.bag[itemId] = (s.bag[itemId] ?? 0) - n;
+    if (s.bag[itemId]! <= 0) delete s.bag[itemId];
+    s.gold += gold;
+  });
+  return gold;
+}
+
+/** Sells every piece of monster junk in the bag at once. Returns the Gold received. */
+export function sellAllJunk(): number {
+  let gold = 0;
+  for (const id of Object.keys(store.s.bag)) if (MATERIALS[id]) gold += sellItem(id, Infinity);
+  return gold;
 }
 
 export function sellGear(index: number): number {
   const item = store.s.gearBag[index];
   const def = item && EQUIPMENT[item.itemId];
   if (!def) return 0;
-  const price = Math.floor(def.price * 0.3);
+  const price = sellPrice(item.itemId, item.durability);
   store.update((s) => {
     s.gearBag.splice(index, 1);
     s.gold += price;

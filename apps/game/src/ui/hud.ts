@@ -4,6 +4,8 @@ import {
   CLASS_CHANGE_LEVEL,
   CONSUMABLES,
   EQUIPMENT,
+  itemName,
+  shopForLandmark,
   MONSTERS,
   MUTATIONS,
   MUTATION_MIN_LEVEL,
@@ -57,11 +59,11 @@ import { paperdollOf } from '../game/paperdoll';
 import { uiIcon } from './pixel';
 import { audioSettings, setAudio, sfx } from '../game/audio';
 import { bagWindowHtml, wireBagWindow } from './bagWindow';
-import { bankWindowHtml, repairWindowHtml, shopWindowHtml } from './homeWindows';
+import { bankWindowHtml, repairWindowHtml } from './homeWindows';
+import { openShopState, shopWindowHtml, wireShopWindow } from './shopWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 
-const SMITH_SHOP = ['whetstone', 'master_repair_kit', 'pixel_broadsword', 'iron_helm'];
 
 const root = () => document.getElementById('ui')!;
 let near: Landmark[] = [];
@@ -232,7 +234,7 @@ function renderNear(box: HTMLElement) {
       <div class="lm-actions">
         ${ready && wbWait <= 0 ? `<button class="btn danger" data-boss="${l.id}">${uiIcon('swords', true)}ท้าบอส</button>` : ''}
         ${ready && wbWait > 0 ? `<button class="btn" disabled>พักฟื้น ${fmtWait(wbWait)}</button>` : ''}
-        ${l.kind === 'FUEL' ? `<button class="btn" data-smith="${l.id}">ร้านตีเหล็ก</button>` : ''}
+        ${shopForLandmark(l.kind) ? `<button class="btn primary" data-shop="${shopForLandmark(l.kind)!.id}">${uiIcon('bag', true)}${esc(shopForLandmark(l.kind)!.nameTh)}</button>` : ''}
         ${trial ? `<button class="btn primary" data-trial="${l.id}">${uiIcon('star', true)}บททดสอบอาชีพ</button>` : ''}
       </div></div>`;
   });
@@ -278,7 +280,7 @@ function renderNear(box: HTMLElement) {
       if (l) bus.emit('boss:challenge', { landmark: l });
     }),
   );
-  box.querySelectorAll<HTMLElement>('[data-smith]').forEach((b) => b.addEventListener('click', () => openPanel('smith')));
+  box.querySelectorAll<HTMLElement>('[data-shop]').forEach((b) => b.addEventListener('click', () => openPanel(`shop:${b.dataset.shop}`)));
   box.querySelectorAll<HTMLElement>('[data-trial]').forEach((b) => b.addEventListener('click', () => openPanel('trial')));
 }
 
@@ -341,6 +343,7 @@ export function enterHome() {
 
 export function openPanel(name: string) {
   closePanel(true);
+  if (name.startsWith('shop:')) openShopState(name.slice(5));
   sfx('open');
   lastPartyHtml = '';
   panelName = name;
@@ -366,6 +369,7 @@ function renderPanel() {
   const body = panelEl.querySelector<HTMLElement>('.sheet-body')!;
   const s = store.s;
   const scroll = body.scrollTop;
+  if (panelName.startsWith('shop:')) body.innerHTML = shopWindowHtml(s);
   switch (panelName) {
     case 'char':
       body.innerHTML = charPanel(s);
@@ -382,12 +386,8 @@ function renderPanel() {
     case 'hrepair':
       body.innerHTML = repairWindowHtml(s);
       break;
-    case 'hshop':
-      body.innerHTML = shopWindowHtml(s);
-      break;
-    case 'smith':
-      body.innerHTML = smithPanel(s);
-      break;
+
+
     case 'trial':
       body.innerHTML = trialPanel();
       break;
@@ -417,6 +417,7 @@ function renderPanel() {
   body.scrollTop = scroll;
   wirePanel(body);
   if (panelName === 'bag') wireBagWindow(body, renderPanel);
+  if (panelName.startsWith('shop:')) wireShopWindow(body, renderPanel);
   if (panelName === 'char') {
     const on = (sel: string, fn: (el: HTMLElement) => void) =>
       body.querySelectorAll<HTMLElement>(sel).forEach((x) => x.addEventListener('click', () => fn(x)));
@@ -532,23 +533,6 @@ function charPanel(s: SaveData): string {
     <button class="btn" data-act="respec">รีเซ็ต Stat (${respecCost(s) ? respecCost(s) + ' Gold' : 'ฟรีก่อน Lv.10'})</button>`;
 }
 
-function itemLine(id: string, extra = ''): string {
-  const def = EQUIPMENT[id];
-  if (!def) return `${itemIcon(id, 'li-ico')}<b>${esc(CONSUMABLES[id]?.nameTh ?? id)}</b>`;
-  const stats = Object.entries(def.modifiers.flat ?? {}).map(([k, v]) => `${k.toUpperCase()} +${v}`).join(', ');
-  return `${itemIcon(id, 'li-ico')}<b style="color:${RARITY_COLOR[def.rarity] === '#FFFFFF' ? 'inherit' : RARITY_COLOR[def.rarity]}">${esc(def.nameTh)}</b> <small>${esc(stats)}${extra}</small>`;
-}
-
-
-function shopList(ids: string[]): string {
-  return ids
-    .map((id) => {
-      const price = EQUIPMENT[id]?.price ?? CONSUMABLES[id]?.price ?? 0;
-      return `<div class="row">${itemLine(id)}<span class="spacer"></span><button class="mini" data-buy="${id}" data-price="${price}">${uiIcon('coin', true)}${price}</button></div>`;
-    })
-    .join('');
-}
-
 function homePanel(s: SaveData): string {
   const pos = walk.position;
   const here = pos && nearHome(s, pos.lat, pos.lng);
@@ -563,14 +547,6 @@ function homePanel(s: SaveData): string {
   return `<h2>${uiIcon('home')}บ้านของคุณ</h2>
     <p>คุณอยู่ที่บ้านแล้ว</p>
     <button class="btn primary" data-act="enterhome">${uiIcon('home', true)}เข้าบ้าน</button>`;
-}
-
-function smithPanel(s: SaveData): string {
-  const cost = repairAllCost(s, false);
-  return `<h2>${uiIcon('swords')}ร้านตีเหล็ก (ปั๊มน้ำมัน)</h2>
-    <p class="muted">ซ่อมได้ทุกที่ที่มีปั๊ม — ราคาเต็ม (ที่บ้านถูกกว่าครึ่ง)</p>
-    <button class="btn primary" data-act="repairsmith" ${cost ? '' : 'disabled'}>ซ่อมทั้งหมด (${uiIcon('coin', true)}${cost})</button>
-    <h3>สินค้า</h3>${shopList(SMITH_SHOP)}`;
 }
 
 function trialPanel(): string {
@@ -622,7 +598,11 @@ function wirePanel(body: HTMLElement) {
   on('[data-act="respec"]', () => {
     if (confirm('คืนแต้ม Stat ทั้งหมด?') && !respec()) toast('Gold ไม่พอ', 'bad');
   });
-  on('[data-equip]', (x) => equip(Number(x.dataset.equip)));
+  on('[data-equip]', (x) => {
+    const i = Number(x.dataset.equip);
+    const def = EQUIPMENT[store.s.gearBag[i]?.itemId ?? ''];
+    if (!equip(i) && def) toast(`${def.nameTh} ต้อง Lv.${def.level ?? 1} ขึ้นไป`, 'bad');
+  });
   on('[data-unequip]', (x) => unequip(x.dataset.unequip as EquipSlot));
   on('[data-sell]', (x) => {
     toast(`ขายได้ ${sellGear(Number(x.dataset.sell))} Gold`, 'good');
@@ -633,8 +613,10 @@ function wirePanel(body: HTMLElement) {
     sfx('heal');
   });
   on('[data-buy]', (x) => {
-    if (!buy(x.dataset.buy!, Number(x.dataset.price))) toast('Gold ไม่พอ', 'bad');
-    else sfx('coin');
+    const qty = Number(x.dataset.qty ?? 1);
+    if (!buy(x.dataset.buy!, qty)) return toast('Gold ไม่พอ', 'bad');
+    sfx('coin');
+    toast(`ซื้อ ${itemName(x.dataset.buy!)}${qty > 1 ? ` ×${qty}` : ''} แล้ว`, 'good');
   });
   on('[data-bank]', (x) => {
     const v = x.dataset.bank!;
@@ -651,7 +633,6 @@ function wirePanel(body: HTMLElement) {
     sfx('block');
     toast('ซ่อมเสร็จ อุปกรณ์กลับมาใหม่เอี่ยม!', 'good');
   });
-  on('[data-act="repairsmith"]', () => repairAll(false) || toast('Gold ไม่พอ', 'bad'));
   on('[data-act="sethome"]', () => {
     const p = walk.position;
     if (p && setHome(p.lat, p.lng)) toast('ตั้งบ้านเรียบร้อย!', 'good');

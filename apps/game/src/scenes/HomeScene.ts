@@ -214,7 +214,7 @@ export class HomeScene extends Phaser.Scene {
       case 'workbench':
         return openPanel('hrepair');
       case 'shelf':
-        return openPanel('hshop');
+        return openPanel('shop:home');
     }
   }
 

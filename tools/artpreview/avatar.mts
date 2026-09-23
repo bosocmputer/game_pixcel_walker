@@ -26,6 +26,10 @@ const looks: { style: string; skin: number; hair: number; gear: GearLook }[] = [
   { style: 'M02_shaggy_bangs', skin: 1, hair: 4, gear: { gender: 'male', chest: 'plate_fuel_01', helmet: 'helm_iron_02', weapon: 'weapon_broadsword_01' } },
   { style: 'F03_wavy_shoulder', skin: 0, hair: 3, gear: { gender: 'female', chest: 'chest_cotton_01', outfit: 3, weapon: 'weapon_staff_star_01', helmet: 'helm_iron_02' } },
   { style: 'M01_short_messy', skin: 2, hair: 0, gear: { gender: 'male', chest: 'chest_cotton_01', outfit: 4, weapon: 'weapon_club_01' } },
+  { style: 'M03_short_neat', skin: 1, hair: 1, gear: { gender: 'male', chest: 'chest_mohom_01', helmet: 'head_ngob_01', weapon: 'weapon_spear_bamboo_01' } },
+  { style: 'F02_bun', skin: 0, hair: 2, gear: { gender: 'female', chest: 'chest_rattan_01', helmet: 'helm_bronze_01', weapon: 'weapon_sword_guard_01' } },
+  { style: 'M02_shaggy_bangs', skin: 2, hair: 4, gear: { gender: 'male', chest: 'chest_mohom_01', weapon: 'weapon_dagger_lanna_01' } },
+  { style: 'F03_wavy_shoulder', skin: 1, hair: 3, gear: { gender: 'female', chest: 'chest_rattan_01', weapon: 'weapon_staff_naga_01' } },
 ];
 
 const S = 4;

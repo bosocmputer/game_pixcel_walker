@@ -13,6 +13,7 @@ import {
   MONSTERS,
   SKILLS,
   createDungeon,
+  itemName as sharedItemName,
   createRng,
   landmarkWaves,
   memberLootSeed,
@@ -743,5 +744,5 @@ export function deckStats(events: CombatEvent[], meId: string): DeckStats {
 }
 
 function itemName(id: string): string {
-  return EQUIPMENT[id]?.nameTh ?? CONSUMABLES[id]?.nameTh ?? id;
+  return sharedItemName(id);
 }

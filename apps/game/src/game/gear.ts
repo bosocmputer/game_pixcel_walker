@@ -270,6 +270,24 @@ const CHEST: Record<string, ClothDef> = {
     pauldrons: true,
     feet: 'boots_greave_01',
   },
+  chest_mohom_01: {
+    ramp: () => ramp('#2a3a88', 0.72, 0.3, 0.4),
+    sleeves: 'long',
+    hem: 2,
+    collar: 'round',
+    belt: '#c8423a',
+    feet: 'boots_sandal_01',
+  },
+  chest_rattan_01: {
+    ramp: () => ramp('#c8a060'),
+    sleeves: 'short',
+    hem: 1,
+    collar: 'round',
+    belt: '#6a4424',
+    rivets: '#8a5a2e',
+    pauldrons: true,
+    feet: 'boots_sandal_01',
+  },
 };
 
 const UNDERWEAR = ramp('#dde6f2', 0.74, 0.3, 0.4);
@@ -405,6 +423,8 @@ interface HelmDef {
 const HELMS: Record<string, HelmDef> = {
   helm_iron_02: { kind: 'cap', ramp: ramp('#9aa4ae', 0.7, 0.3, 0.4), rivets: '#e8edf2' },
   head_bandana_01: { kind: 'band', ramp: ramp('#d23b3b') },
+  head_ngob_01: { kind: 'cap', ramp: ramp('#e0c070') },
+  helm_bronze_01: { kind: 'cap', ramp: ramp('#c88a3a', 0.7, 0.3, 0.4), rivets: '#ffe08a' },
 };
 
 /** Painted after the hair so it covers the crown. `hair` = hair layer alpha (same cell). */
@@ -477,7 +497,7 @@ interface WeaponDef {
   guard?: string;
   guardHalf?: number;
   handle: string;
-  head?: 'star' | 'knob';
+  head?: 'star' | 'knob' | 'tip' | 'orb';
   headColor?: string;
 }
 
@@ -487,6 +507,10 @@ const WEAPONS: Record<string, WeaponDef> = {
   weapon_club_01: { kind: 'club', len: 8, width: 3, ramp: ramp('#e58ea0', 0.7, 0.25, 0.35), handle: '#8a5a2e' },
   weapon_staff_wood_01: { kind: 'staff', len: 22, width: 2, ramp: ramp('#a8743e'), handle: '#a8743e', head: 'knob', headColor: '#6e4424' },
   weapon_staff_star_01: { kind: 'staff', len: 25, width: 2, ramp: ramp('#5b6fd6', 0.7, 0.3, 0.4), handle: '#3a3f7a', head: 'star', headColor: '#ffe066' },
+  weapon_spear_bamboo_01: { kind: 'staff', len: 24, width: 2, ramp: ramp('#8fb84a'), handle: '#8fb84a', head: 'tip', headColor: '#d8e0ea' },
+  weapon_dagger_lanna_01: { kind: 'blade', len: 7, width: 2, ramp: ramp('#dfe6ee', 0.72, 0.3, 0.45), guard: '#e0b030', guardHalf: 1, handle: '#3a2a1a' },
+  weapon_staff_naga_01: { kind: 'staff', len: 24, width: 2, ramp: ramp('#2f8a7a', 0.7, 0.3, 0.4), handle: '#2f8a7a', head: 'orb', headColor: '#6ff0d0' },
+  weapon_sword_guard_01: { kind: 'blade', len: 12, width: 3, ramp: ramp('#aab8c8', 0.72, 0.3, 0.45), guard: '#b85a2a', guardHalf: 2, handle: '#c8a868' },
 };
 
 /** `only` splits a staff: its shaft goes behind the body, its head in front of everything. */
@@ -509,7 +533,18 @@ function paintWeapon(p: Painter, a: Anatomy, key?: string, only?: 'shaft' | 'hea
       s.stampOn(p, r[0]);
       return;
     }
-    if (def.head === 'star') {
+    if (def.head === 'tip') {
+      // Spear point: a narrow leaf blade above the shaft.
+      for (let k = 0; k < 5; k++) {
+        s.dot(x, hy - k + 2, k === 4 ? hc : mix(hc, WHITE, 0.2));
+        if (k > 0 && k < 3) s.dot(x + 1, hy - k + 2, mix(hc, BLACK, 0.25));
+      }
+    } else if (def.head === 'orb') {
+      for (const [dx, dy] of [[-1, -1], [0, -1], [1, -1], [-1, 0], [0, 0], [1, 0], [-1, 1], [0, 1], [1, 1]] as const) s.dot(x + dx, hy + dy, hc);
+      s.dot(x - 1, hy - 1, WHITE);
+      s.dot(x - 1, hy + 2, hex('#e8b83a'));
+      s.dot(x + 1, hy + 2, hex('#e8b83a'));
+    } else if (def.head === 'star') {
       for (const [dx, dy] of [[0, -2], [-1, -1], [0, -1], [1, -1], [-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0], [-1, 1], [1, 1], [0, 1]] as const) s.dot(x + dx, hy + dy, hc);
       s.dot(x, hy, WHITE);
     } else {

@@ -1,15 +1,13 @@
 /**
  * Windows opened from furniture inside the house (scenes/HomeScene.ts): treasure chest = bank,
- * workbench = repair at half price, shelf = shop. Buttons reuse the panel's data-* actions
- * (data-bank / data-act="repairhome" / data-buy) wired in hud.ts.
+ * workbench = repair at half price (the shelf opens the shared shop window, ui/shopWindow.ts).
+ * Buttons reuse the panel's data-* actions (data-bank / data-act="repairhome") wired in hud.ts.
  */
-import { CONSUMABLES, EQUIPMENT, EQUIP_SLOTS, repairCost } from '@pw/shared';
+import { EQUIPMENT, EQUIP_SLOTS, repairCost } from '@pw/shared';
 import type { SaveData } from '../state/store';
 import { esc } from './dom';
 import { itemIcon, SLOT_NAME } from './equipWindow';
 import { uiIcon } from './pixel';
-
-export const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'lucky_cord', 'iron_helm', 'runner_charm'];
 
 const coins = (n: number) => `${uiIcon('coin', true)}<b>${n.toLocaleString()}</b>`;
 
@@ -50,23 +48,5 @@ export function repairWindowHtml(s: SaveData): string {
     <div class="hr-list">${rows}</div>
     <button type="button" class="btn primary hr-go" data-act="repairhome" ${total && s.gold >= total ? '' : 'disabled'}>ซ่อมทั้งหมด ${coins(total)}</button>
     <p class="muted pt-help">ซ่อมที่บ้านถูกกว่าร้านตีเหล็ก (ปั๊ม) ครึ่งหนึ่ง${total > s.gold ? ' · Gold ไม่พอ ถอนจากหีบก่อน' : ''}</p>
-  </div>`;
-}
-
-export function shopWindowHtml(s: SaveData): string {
-  const cards = HOME_SHOP.map((id) => {
-    const def = EQUIPMENT[id];
-    const con = CONSUMABLES[id];
-    const price = def?.price ?? con?.price ?? 0;
-    const have = def ? s.gearBag.filter((g) => g.itemId === id).length : s.bag[id] ?? 0;
-    return `<div class="hs-card">${itemIcon(id, 'hs-ico')}
-      <b>${esc(def?.nameTh ?? con?.nameTh ?? id)}</b>
-      <small class="muted">${def ? SLOT_NAME[def.slot] : 'ของใช้'}${have ? ` · มี ${have}` : ''}</small>
-      <button type="button" class="mini" data-buy="${id}" data-price="${price}" ${s.gold >= price ? '' : 'disabled'}>${coins(price)}</button></div>`;
-  }).join('');
-  return `<div class="ro-equip home-win">
-    <div class="ro-eq-title"><span>${uiIcon('bag', true)}ชั้นวางของ · ร้านค้า</span></div>
-    <div class="hs-grid">${cards}</div>
-    <div class="bag-foot"><span>${coins(s.gold)} Gold</span><span class="muted">ในหีบ ${s.bankGold.toLocaleString()}</span></div>
   </div>`;
 }

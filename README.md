@@ -22,6 +22,12 @@
 
 **ต้องมี:** [Node.js](https://nodejs.org) **22 ขึ้นไป** (ทีมใช้ 22.14) · npm 10+ · Git · เบราว์เซอร์ Chrome/Edge
 
+**ถ้าจะทำงานภาพ pixel art** (skill `pixel-art-studio` ที่ติดตั้งไว้ในโปรเจกต์): ต้องมี Python 3 และ Pillow
+
+```bash
+python -m pip install --user pillow
+```
+
 ```bash
 git clone https://github.com/bosocmputer/game_pixcel_walker.git
 cd game_pixcel_walker

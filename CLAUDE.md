@@ -43,6 +43,8 @@ apps/game         Phaser 3 + Vite PWA client
 apps/server       Presence server (Node + ws): nearby players, parties, dungeon/field runs — protocol in packages/shared/src/net
 tools/osm         Legacy offline baker (OSM → tilemap for one city); the game streams tiles live now
 tools/artpreview  Renders map/sprite sheets to PNG for reviewing procedural art without a browser
+pixel-art/        Hand-authored pixel art made with the pixel-art-studio skill: <slug>/build.py is the source
+.claude/skills/   Project skills shared by the team (pixel-art-studio: Python + Pillow pixel-art studio, MIT)
 supabase/         (Phase 1) migrations + edge functions — server-authoritative rewards
 ```
 
@@ -69,3 +71,13 @@ npx tsx tools/artpreview/avatar.mts   # avatar pack + equipment layers → tools
 - Privacy: a stranger's real coordinates never leave the server (MASTER_SPEC §12).
 - No real brand names in player-facing text; landmarks use generic categories.
 - Add or update a vitest case for any rule change. Run `npm test` and `npm run typecheck` before finishing.
+
+## Pixel art
+- New static art (item icons, monsters, original avatar frames, tiles) → use the **pixel-art-studio** skill
+  (`.claude/skills/pixel-art-studio`, needs Python 3 + `pip install pillow`). Keep each artwork's
+  `pixel-art/<slug>/build.py` in git — it is the source; never hand-edit exported PNGs. Copy the final
+  1× export into `apps/game/public/assets/...` for the game to load.
+- Runtime layers (equipment on the avatar, recolours) stay in TypeScript (`apps/game/src/game/gear.ts`);
+  review them with `npx tsx tools/artpreview/avatar.mts`.
+- Art must be original or properly licensed. The current avatar body/hair is prototype art from another
+  game — do not base new art on it and do not ship it publicly.

@@ -1,0 +1,4 @@
+Source: https://github.com/Gamezxz/pixel-art-studio
+Commit: f8c246635c4621a6c2b427833149afdc3dc3c719 (2026-07-11)
+License: MIT (see LICENSE)
+Installed: 2026-09-23 — docs/assets and sample pixel-art/ outputs omitted to keep the repo small.

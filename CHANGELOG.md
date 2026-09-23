@@ -20,6 +20,21 @@
 
 ---
 
+## 2026-09-23 — อัปเดต Roadmap กราฟิก (32-bit HD-2D Transition) และสรุปสถานะ Avatar Pack บน main (Claude)
+**เพิ่ม**
+- `docs/ROADMAP.md`: เพิ่มรายละเอียดแผนการพัฒนางานภาพสู่ 32-bit HD-2D:
+  - วาด Asset อวาตาร์ของแท้ (Original Art 48×64) เพื่อทดแทน Prototype Asset ก่อนเปิด Public
+  - แผนจัดทำ Dedicated Monster Pack ความละเอียดจริง (32–48 px, บอส 64 px) เพื่อแก้ปัญหาสไปรต์ยืดพิกเซล (Mixels)
+  - แผนพัฒนาระบบเลเยอร์เสื้อผ้า/อุปกรณ์ (Equipment/Outfit Layering) บนหุ่น 48×64
+  - เพิ่มหัวข้อรอตัดสินใจ: ทิศทางความละเอียดสไปรต์ (16-bit vs 32-bit HD-2D) และระบบชุด (Modular vs Full Outfit)
+  - บันทึก Checklist และข้อจำกัดลิขสิทธิ์ของ Prototype Asset ใน Known Limitations
+**แก้ไข / เปลี่ยน**
+- รวม `feature/avatar-pack` เข้าสู่ branch `main` และ push ขึ้น GitHub (`origin/main`) สำเร็จ
+- อัปเดตสถานะใน `CHANGELOG.md` และ `docs/ROADMAP.md` ให้สอดคล้องกับโค้ดล่าสุดบน `main`
+**ไฟล์หลักที่แตะ:** `docs/ROADMAP.md`, `CHANGELOG.md`
+**ทดสอบ:** npm test (58 ผ่าน) · typecheck ผ่าน
+**ค้าง / ข้อควรรู้:** Asset ตัวละคร 48×64 ปัจจุบันเป็น Prototype Placeholder จาก Sword of Convallaria สำหรับทดสอบภายในเท่านั้น ห้ามเผยแพร่เชิงพาณิชย์
+
 ## 2026-09-23 — นำเข้า Avatar Pack (Base Body + Hairstyles) แทนตัวละครเดิม (Claude)
 **เพิ่ม**
 - Avatar Pack: คัดลอก assets (body, hair, manifest) ทั้งหมด 115 ไฟล์ไปที่ `apps/game/public/assets/avatar/`
@@ -33,7 +48,7 @@
 - `BattleScene.ts`: ปรับจุดยืนและสเกลของตัวละครผู้เล่น (×0.55) และมอนสเตอร์ (~32–48 px, บอส ~64 px) ในสนามประลองให้ตรงกับ baseline ของกันและกัน
 **ไฟล์หลักที่แตะ:** `apps/game/src/game/avatar.ts`, `apps/game/src/game/art.ts`, `apps/game/src/ui/creator.ts`, `apps/game/src/scenes/WorldScene.ts`, `apps/game/src/scenes/remotePlayers.ts`, `apps/game/src/scenes/BattleScene.ts`, `apps/game/src/state/store.ts`, `packages/shared/src/net/protocol.ts`, `apps/game/src/style.css`
 **ทดสอบ:** npm test (58 ผ่าน) · typecheck ผ่าน · build ผ่าน (Vite) · ตรวจสอบไฟล์อ้างอิงใน manifest ทั้งหมด 115 ไฟล์ครบถ้วน
-**ค้าง / ข้อควรรู้:** avatar pack ชุดนี้เป็นภาพ prototype placeholder ยังไม่มีชุดเสื้อผ้าและอุปกรณ์สวมใส่ อยู่บน branch `feature/avatar-pack`
+**ค้าง / ข้อควรรู้:** avatar pack ชุดนี้เป็นภาพ prototype placeholder ยังไม่มีชุดเสื้อผ้าและอุปกรณ์สวมใส่ รวมเข้า `main` แล้ว
 
 ## 2026-09-22 — ตั้งกฎทีม + เอกสารส่งต่อ + ขึ้น GitHub (Nong + Claude)
 **เพิ่ม**

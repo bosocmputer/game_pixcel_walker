@@ -325,3 +325,11 @@ button.ro-eq-tab.on { opacity: 1; height: 22px; }
 .win-tab.on { background: var(--panel); color: var(--cyan-d); margin-bottom: -2px; padding-bottom: 4px; }
 .bag-worn { justify-content: space-between; }
 .bag-worn .mini { margin-left: 0; width: 56px; height: 56px; padding: 0; display: grid; place-items: center; }
+
+/* Audio settings: chunky pixel slider */
+.audio-row { gap: 8px; }
+.audio-row input[type='range'] { -webkit-appearance: none; appearance: none; width: 110px; height: 10px; background: #3a3050; border: 2px solid var(--ink); border-radius: 0; }
+.audio-row input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 18px; background: var(--orange); border: 2px solid var(--ink); border-radius: 0; box-shadow: inset -2px -2px 0 var(--orange-d); cursor: pointer; }
+.audio-row input[type='range']::-moz-range-thumb { width: 10px; height: 16px; background: var(--orange); border: 2px solid var(--ink); border-radius: 0; cursor: pointer; }
+.audio-row input[type='range']:disabled { opacity: .45; }
+.audio-row .btn { min-width: 56px; }

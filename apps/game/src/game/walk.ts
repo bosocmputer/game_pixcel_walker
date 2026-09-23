@@ -3,6 +3,7 @@
  * Movement itself is the game (walk to monsters); there is no step counting. Speed is tracked
  * so fights can be blocked while travelling in a vehicle (safety + anti-farming).
  */
+import { sfx } from './audio';
 import { haversine } from '@pw/shared';
 import { bus, toast } from './bus';
 import { degScale } from './world';
@@ -62,6 +63,7 @@ class LocationController {
   /** Test-only: jump the simulated walker somewhere (right-click / long-press on the map). */
   teleport(lat: number, lng: number) {
     if (!this.simulated) return;
+    sfx('warp');
     this.lastFix = null;
     this.speedKmh = 0;
     this.onFix({ lat, lng, accuracy: 5, t: Date.now() }, true);

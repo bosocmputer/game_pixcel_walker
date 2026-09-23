@@ -1,0 +1,118 @@
+{
+ "slash": {
+  "frames": 6,
+  "size": 48
+ },
+ "slash_red": {
+  "frames": 6,
+  "size": 48
+ },
+ "impact": {
+  "frames": 5,
+  "size": 48
+ },
+ "crit": {
+  "frames": 6,
+  "size": 48
+ },
+ "fire": {
+  "frames": 7,
+  "size": 48
+ },
+ "water": {
+  "frames": 6,
+  "size": 48
+ },
+ "lightning": {
+  "frames": 6,
+  "size": 48
+ },
+ "ice": {
+  "frames": 6,
+  "size": 48
+ },
+ "earth": {
+  "frames": 6,
+  "size": 48
+ },
+ "holy": {
+  "frames": 7,
+  "size": 48
+ },
+ "shadow": {
+  "frames": 6,
+  "size": 48
+ },
+ "poison": {
+  "frames": 6,
+  "size": 48
+ },
+ "heal": {
+  "frames": 7,
+  "size": 48
+ },
+ "mana": {
+  "frames": 7,
+  "size": 48
+ },
+ "shield": {
+  "frames": 6,
+  "size": 48
+ },
+ "buff": {
+  "frames": 6,
+  "size": 48
+ },
+ "debuff": {
+  "frames": 6,
+  "size": 48
+ },
+ "stun": {
+  "frames": 6,
+  "size": 48
+ },
+ "cast": {
+  "frames": 6,
+  "size": 48
+ },
+ "cast_holy": {
+  "frames": 6,
+  "size": 48
+ },
+ "cast_fire": {
+  "frames": 6,
+  "size": 48
+ },
+ "smoke": {
+  "frames": 6,
+  "size": 48
+ },
+ "p_fireball": {
+  "frames": 2,
+  "size": 16
+ },
+ "p_orb_water": {
+  "frames": 2,
+  "size": 16
+ },
+ "p_orb_holy": {
+  "frames": 2,
+  "size": 16
+ },
+ "p_orb_shadow": {
+  "frames": 2,
+  "size": 16
+ },
+ "p_spark": {
+  "frames": 2,
+  "size": 16
+ },
+ "p_arrow": {
+  "frames": 2,
+  "size": 16
+ },
+ "p_rock": {
+  "frames": 2,
+  "size": 16
+ }
+}

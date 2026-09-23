@@ -16,6 +16,24 @@ import { net } from './game/net';
 import { el } from './ui/dom';
 import { loadAvatarPack, USE_AVATAR_PACK } from './game/avatar';
 import { loadPixelSprites } from './game/sprites';
+import * as audio from './game/audio';
+import { music, sfx, unlockAudio } from './game/audio';
+
+/** Audio needs a user gesture; UI buttons click, the map gets its song. */
+function mountAudio() {
+  const unlock = () => unlockAudio();
+  window.addEventListener('pointerdown', unlock, { capture: true });
+  window.addEventListener('keydown', unlock, { capture: true });
+  document.addEventListener(
+    'click',
+    (e) => {
+      const b = (e.target as HTMLElement).closest?.('button');
+      if (b && !b.disabled && !b.dataset.open) sfx('click');
+    },
+    { capture: true },
+  );
+  music('field');
+}
 
 /** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
 function initialPosition(): Promise<{ lat: number; lng: number }> {
@@ -38,6 +56,7 @@ function initialPosition(): Promise<{ lat: number; lng: number }> {
 }
 
 async function boot() {
+  mountAudio();
   await document.fonts?.ready;
   await loadPixelSprites();
   if (USE_AVATAR_PACK) {
@@ -67,6 +86,12 @@ async function start() {
 
   tickRegen();
   mountHud();
+  let level = store.s.level;
+  store.subscribe(() => {
+    if (store.s.level > level) sfx('levelup');
+    level = store.s.level;
+  });
+  bus.on('party:invited', () => sfx('notice'));
 
   const game = new Phaser.Game({
     type: Phaser.AUTO,
@@ -88,7 +113,7 @@ async function start() {
   autoHunt.init(game);
   net.start();
   walk.startLocation();
-  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap } });
+  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap, audio } });
   window.setInterval(tickRegen, 15000);
 }
 

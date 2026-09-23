@@ -41,6 +41,8 @@ import { playerSetup } from '../game/party';
 import { store } from '../state/store';
 import { el, esc } from '../ui/dom';
 import { autoHunt } from '../game/autohunt';
+import { music, sfx } from '../game/audio';
+import { createFxAnims, hitFx, playFx, preloadFx, shootProjectile, skillLook, statusFx, type FxAnchor, type SkillLook } from './battleFx';
 
 /** World boss attack window, in rounds. */
 const WORLD_BOSS_ROUNDS = 20;
@@ -53,6 +55,8 @@ interface UnitView {
   bars: Phaser.GameObjects.Graphics;
   label: Phaser.GameObjects.Text;
   home: { x: number; y: number };
+  /** Screen pixels per effect pixel (bosses get bigger effects). */
+  fxPx: number;
 }
 
 const STATUS_TH: Record<string, string> = {
@@ -79,6 +83,10 @@ export class BattleScene extends Phaser.Scene {
     super('Battle');
   }
 
+  preload() {
+    preloadFx(this);
+  }
+
   init(req: BattleRequest) {
     this.req = req;
     this.meId = req.run?.meId ?? 'me';
@@ -91,6 +99,7 @@ export class BattleScene extends Phaser.Scene {
     this.lastPanel = '';
     this.allEvents = [];
     this.currentArchived = false;
+    this.looks.clear();
     this.speed = req.auto ? 4 : Number(localStorage.getItem('pw.battleSpeed') ?? 2);
   }
 
@@ -177,6 +186,11 @@ export class BattleScene extends Phaser.Scene {
       document.body.classList.remove('in-battle');
     });
     this.renderPanel();
+
+    createFxAnims(this);
+    music(this.d.combat.units.some((u) => u.isBoss) || this.d.waves.some((w) => w.boss) ? 'boss' : 'battle');
+    sfx('encounter');
+    this.events.once('shutdown', () => music('field'));
   }
 
   // -------------------------------------------------------------------------------------------
@@ -236,7 +250,7 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(11);
     const bars = this.add.graphics().setDepth(11);
-    const v = { sprite, label, bars, home: { x: 0, y: 0 } };
+    const v = { sprite, label, bars, home: { x: 0, y: 0 }, fxPx: Math.max(2, scale - 1) + (u.isBoss ? 1 : 0) };
     this.views.set(u.id, v);
     return v;
   }
@@ -333,17 +347,33 @@ export class BattleScene extends Phaser.Scene {
     while (this.eventIndex < evs.length) {
       const e = evs[this.eventIndex++]!;
       if (e.type !== 'TURN' && e.type !== 'ROUND') visible = true;
-      this.animate(e, delay);
+      delay += this.animate(e, delay);
       if (e.type === 'DAMAGE' || e.type === 'MISS' || e.type === 'HEAL') delay += gap;
     }
     this.time.delayedCall(delay + 50, () => this.drawBars());
     return visible;
   }
 
-  private animate(e: CombatEvent, delay: number) {
+  /** Last skill each unit used — decides how its hits look (slash vs impact). */
+  private looks = new Map<string, SkillLook>();
+
+  private anchor(unitId: string): (FxAnchor & { px: number }) | null {
+    const v = this.views.get(unitId);
+    return v ? { x: v.home.x, y: v.home.y, h: v.sprite.displayHeight, px: v.fxPx } : null;
+  }
+
+  private fx(key: string, unitId: string, delay = 0, opts: { ground?: boolean; scale?: number } = {}) {
+    const a = this.anchor(unitId);
+    if (a) playFx(this, key, a, a.px, { delay, ...opts });
+  }
+
+  /** Animates one event; returns extra delay (ms) before the following events (projectile flight). */
+  private animate(e: CombatEvent, delay: number): number {
+    let lead = 0;
     switch (e.type) {
       case 'WAVE':
         this.showBanner(`เวฟ ${e.wave}/${e.total}${e.modifier ? `\n${e.modifier}` : ''}`);
+        sfx('wave');
         break;
       case 'SKILL': {
         const v = this.views.get(e.unit);
@@ -355,9 +385,26 @@ export class BattleScene extends Phaser.Scene {
         const skill = SKILLS[e.skill];
         if (e.mp) this.popup(e.unit, `−${e.mp} MP`, '#64b5f6', false, 0, 18);
         const bossUlt = u.monsterId ? MONSTERS[u.monsterId]?.boss?.skills.find((s) => s.id === e.skill) : undefined;
+        const look = skillLook(e.skill);
+        this.looks.set(e.unit, look);
+        if (look.cast) {
+          this.fx(look.cast, e.unit, delay, { ground: true, scale: u.isBoss ? 1.2 : 1 });
+          this.time.delayedCall(delay, () => sfx('cast'));
+        }
+        if (look.bolt) {
+          const from = this.anchor(e.unit);
+          const flight = 260 / this.speed;
+          for (const t of e.targets) {
+            const to = this.anchor(t);
+            if (from && to && t !== e.unit) this.time.delayedCall(delay, () => shootProjectile(this, look.bolt!, from, to, from.px, flight));
+          }
+          this.time.delayedCall(delay, () => sfx('shoot'));
+          lead = flight;
+        }
         if (bossUlt) {
           this.cameras.main.shake(250, 0.01);
           this.showBanner(`${u.name}\n${bossUlt.nameTh}!`, '#ff6b6b');
+          sfx('ultimate');
         } else if (skill && skill.id !== 'basic_attack') {
           const tag = e.reactive === 'ASSIST' ? '⚡ ' : e.reactive === 'COUNTER' ? '↩ ' : e.reactive ? '✦ ' : '';
           // Skill names float above the sprite so they don't collide with damage/heal numbers.
@@ -368,68 +415,110 @@ export class BattleScene extends Phaser.Scene {
       case 'DAMAGE': {
         this.popup(e.target, `${e.amount}${e.crit ? '!' : ''}${e.block ? '🛡' : ''}`, e.crit ? '#ffeb3b' : '#ffffff', e.crit, delay);
         const v = this.views.get(e.target);
-        if (v) {
+        const a = this.anchor(e.target);
+        if (v && a) {
           this.time.delayedCall(delay, () => {
             v.sprite.setTintFill(0xffffff);
             this.time.delayedCall(70, () => v.sprite.clearTint());
+            // Knock-back away from the attacker.
+            const src = this.views.get(e.source);
+            const dir = src && src.home.x < v.home.x ? 1 : -1;
+            this.tweens.add({ targets: v.sprite, x: v.home.x + dir * (e.crit ? 12 : 6), yoyo: true, duration: 70 });
           });
+          const look = this.looks.get(e.source);
+          hitFx(this, a, a.px, { element: e.element, crit: e.crit, block: e.block, melee: look?.melee ?? true, delay });
         }
         break;
       }
       case 'MISS':
         this.popup(e.target, 'MISS', '#b0bec5', false, delay);
+        this.time.delayedCall(delay, () => sfx('miss'));
         break;
       case 'HEAL':
         this.popup(e.target, `+${e.amount}`, '#69f0ae', false, delay);
+        this.fx('heal', e.target, delay, { ground: true });
+        this.time.delayedCall(delay, () => sfx('heal'));
         break;
       case 'TICK':
         this.popup(e.target, `${e.amount}`, e.status === 'POISON' ? '#b388ff' : '#ff8a65');
+        if (e.status === 'POISON' || e.status === 'BURN') this.fx(e.status === 'POISON' ? 'poison' : 'fire', e.target, 0, { ground: true, scale: 0.6 });
+        if (e.status === 'BLEED') this.fx('slash_red', e.target, 0, { scale: 0.6 });
         break;
-      case 'STATUS':
+      case 'STATUS': {
         this.popup(e.target, STATUS_TH[e.status] ?? e.status, '#ffd54f', false, delay);
+        const a = this.anchor(e.target);
+        if (a) statusFx(this, a, a.px, e.status, delay + 60);
         break;
+      }
       case 'SKIP':
         this.popup(e.unit, STATUS_TH[e.reason] ?? 'ข้ามเทิร์น', '#90caf9');
+        this.fx(e.reason === 'FREEZE' ? 'ice' : 'stun', e.unit, 0, { scale: 0.8 });
         break;
       case 'SHIELD':
         this.popup(e.target, '🛡 SHIELD', '#80deea');
+        this.fx('shield', e.target, delay);
+        this.time.delayedCall(delay, () => sfx('shield'));
         break;
-      case 'BUFF':
-        this.popup(e.target, `${String(e.stat).toUpperCase()} ▲`, '#a5d6a7');
+      case 'BUFF': {
+        const up = e.pct >= 0;
+        this.popup(e.target, `${String(e.stat).toUpperCase()} ${up ? '▲' : '▼'}`, up ? '#a5d6a7' : '#ef9a9a');
+        this.fx(up ? 'buff' : 'debuff', e.target, delay, { ground: up });
+        this.time.delayedCall(delay, () => sfx(up ? 'buff' : 'debuff'));
         break;
+      }
       case 'COVER':
         this.popup(e.unit, '🛡 COVER', '#4dabf7', true);
+        this.fx('shield', e.unit, delay);
+        sfx('block');
         break;
-      case 'ITEM':
-        this.popup(e.unit, `${CONSUMABLES[e.item]?.nameTh ?? 'ยา'} +${e.amount}${e.item === 'blue_elixir' ? ' MP' : ''}`, e.item === 'blue_elixir' ? '#64b5f6' : '#80deea');
+      case 'ITEM': {
+        const mp = e.item === 'blue_elixir';
+        this.popup(e.unit, `${CONSUMABLES[e.item]?.nameTh ?? 'ยา'} +${e.amount}${mp ? ' MP' : ''}`, mp ? '#64b5f6' : '#80deea');
+        this.fx(mp ? 'mana' : 'heal', e.unit, 0, { ground: true });
+        sfx('heal');
         break;
+      }
       case 'RECOVER':
         this.popup(e.unit, `+${e.amount}`, '#69f0ae');
+        this.fx('heal', e.unit, 0, { ground: true, scale: 0.7 });
         break;
       case 'BLOCK_ULT':
         this.popup(e.unit, 'BLOCK!', '#4dabf7', true);
+        this.fx('shield', e.unit, delay, { scale: 1.2 });
+        sfx('block');
         break;
       case 'MIRACLE':
         this.popup(e.unit, 'MIRACLE!', '#ffd43b', true);
+        this.fx('holy', e.unit, delay, { ground: true });
+        sfx('holy');
         break;
       case 'PHASE':
         this.cameras.main.flash(300, 255, 80, 80);
         this.showBanner(e.message, '#ff8a80');
+        this.fx('cast_fire', e.unit, 0, { ground: true, scale: 1.4 });
+        sfx('ultimate');
         break;
       case 'ENRAGE':
         this.showBanner('⚠️ บอสคลั่ง! (Enrage)', '#ff5252');
+        this.fx('buff', e.unit, 0, { ground: true, scale: 1.4 });
+        sfx('ultimate');
         break;
       case 'SUMMON':
         this.layout();
+        this.fx('smoke', e.unit, 0);
+        sfx('cast');
         break;
       case 'DEATH': {
         const v = this.views.get(e.unit);
         if (v) this.time.delayedCall(delay, () => this.tweens.add({ targets: [v.sprite, v.label], alpha: 0, duration: 350 }));
+        this.fx('smoke', e.unit, delay + 120);
+        this.time.delayedCall(delay + 120, () => sfx('death'));
         break;
       }
       default:
         break;
     }
+    return lead;
   }
 
   // -------------------------------------------------------------------------------------------
@@ -509,6 +598,8 @@ export class BattleScene extends Phaser.Scene {
   private finish(fled: boolean) {
     if (this.finished) return;
     this.finished = true;
+    music(null);
+    sfx(fled ? 'close' : this.d.result === 'WIN' ? 'victory' : 'defeat');
     if (this.req.kind === 'TEST') return this.showTestReport(fled);
     const c = this.d.combat;
     const me = memberState(this.d, this.meId);

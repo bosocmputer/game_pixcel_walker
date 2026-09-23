@@ -55,6 +55,7 @@ import { partyPanel, showInvite, showReadyCheck, wireParty } from './party';
 import { equipWindowHtml, gearStatBonus, itemIcon, statText, wireEquipWindow, SLOT_NAME } from './equipWindow';
 import { paperdollOf } from '../game/paperdoll';
 import { uiIcon } from './pixel';
+import { audioSettings, setAudio, sfx } from '../game/audio';
 import { bagWindowHtml, wireBagWindow } from './bagWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
@@ -329,7 +330,8 @@ let unsubPanel: (() => void) | null = null;
 let lastPartyHtml = '';
 
 export function openPanel(name: string) {
-  closePanel();
+  closePanel(true);
+  sfx('open');
   lastPartyHtml = '';
   panelName = name;
   panelEl = el(`<div class="sheet-backdrop"><div class="sheet"><button class="close" aria-label="ปิด">${uiIcon('close')}</button><div class="sheet-body"></div></div></div>`);
@@ -341,7 +343,8 @@ export function openPanel(name: string) {
   renderPanel();
 }
 
-export function closePanel() {
+export function closePanel(quiet = false) {
+  if (panelEl && !quiet) sfx('close');
   unsubPanel?.();
   unsubPanel = null;
   panelEl?.remove();
@@ -573,11 +576,20 @@ function trialPanel(): string {
 function settingsPanel(): string {
   return `<h2>${uiIcon('settings')}ตั้งค่า</h2>
     <button class="btn primary" data-act="arena">${uiIcon('swords', true)}สนามทดสอบการต่อสู้</button>
+    ${audioRows()}
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
     <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>
     <p class="muted">ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL)</p>
     <button class="btn danger" data-act="reset">ลบเซฟและเริ่มใหม่</button>`;
+}
+
+function audioRows(): string {
+  const a = audioSettings();
+  const row = (key: 'music' | 'sfx', label: string, vol: number) => `<div class="row audio-row"><b>${label}</b><span class="spacer"></span>
+    <input type="range" min="0" max="100" step="5" value="${Math.round(vol * 100)}" data-vol="${key}" ${a[key] ? '' : 'disabled'} aria-label="ระดับ${label}" />
+    <button class="btn ${a[key] ? 'primary' : ''}" data-audio="${key}">${a[key] ? 'เปิด' : 'ปิด'}</button></div>`;
+  return row('music', 'เพลง', a.musicVol) + row('sfx', 'เสียงเอฟเฟกต์', a.sfxVol);
 }
 
 function wirePanel(body: HTMLElement) {
@@ -597,10 +609,17 @@ function wirePanel(body: HTMLElement) {
   });
   on('[data-equip]', (x) => equip(Number(x.dataset.equip)));
   on('[data-unequip]', (x) => unequip(x.dataset.unequip as EquipSlot));
-  on('[data-sell]', (x) => toast(`ขายได้ ${sellGear(Number(x.dataset.sell))} Gold`, 'good'));
-  on('[data-use]', (x) => usePotion(x.dataset.use!));
+  on('[data-sell]', (x) => {
+    toast(`ขายได้ ${sellGear(Number(x.dataset.sell))} Gold`, 'good');
+    sfx('coin');
+  });
+  on('[data-use]', (x) => {
+    usePotion(x.dataset.use!);
+    sfx('heal');
+  });
   on('[data-buy]', (x) => {
     if (!buy(x.dataset.buy!, Number(x.dataset.price))) toast('Gold ไม่พอ', 'bad');
+    else sfx('coin');
   });
   on('[data-bank]', (x) => bank(x.dataset.bank === 'all' ? store.s.gold : -store.s.bankGold));
   on('[data-act="rest"]', () => {
@@ -621,6 +640,17 @@ function wirePanel(body: HTMLElement) {
     bus.emit('battle:start', { kind: 'TRIAL', monsterIds: [], trialClass: classId });
   });
   on('[data-act="arena"]', () => openPanel('arena'));
+  on('[data-audio]', (x) => {
+    const key = x.dataset.audio as 'music' | 'sfx';
+    setAudio({ [key]: !audioSettings()[key] });
+    renderPanel();
+  });
+  body.querySelectorAll<HTMLInputElement>('[data-vol]').forEach((r) =>
+    r.addEventListener('change', () => {
+      setAudio(r.dataset.vol === 'music' ? { musicVol: Number(r.value) / 100 } : { sfxVol: Number(r.value) / 100 });
+      if (r.dataset.vol === 'sfx') sfx('coin');
+    }),
+  );
   on('[data-act="equipwin"]', () => openPanel('char'));
   on('[data-act="sim"]', () => {
     walk.enableSimulation();

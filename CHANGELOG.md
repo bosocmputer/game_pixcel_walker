@@ -20,6 +20,17 @@
 
 ---
 
+## 2026-09-23 — สรุปส่งต่อทีม: รวมงานทั้งวันเข้า main (Nong + Claude)
+**เพิ่ม**
+- `docs/ROADMAP.md` หัวข้อ "📦 ส่งต่อทีม": สรุป 7 เรื่องที่ทำวันนี้, วิธีเริ่มงานเครื่องใหม่, ข้อควรรู้ก่อนแก้โค้ด, งานที่แนะนำทำต่อ
+**แก้ไข / เปลี่ยน**
+- รวม branch `feature/creator-gear` → `feature/monsters-16bit` → `feature/bag-party-ui` → `feature/fx-audio` → `feature/shop`
+  เข้า `main` แบบ fast-forward (ไม่มีงานใหม่บน main ระหว่างนั้น จึงไม่มี conflict) — เจ้าของโปรเจกต์สั่ง push ตรงเข้า main แทนการเปิด PR
+- ปรับ "ปัญหาที่รู้แล้ว" ใน ROADMAP ให้ตรงสถานะปัจจุบัน
+**ไฟล์หลักที่แตะ:** `docs/ROADMAP.md`, `CHANGELOG.md`
+**ทดสอบ:** บน main หลังรวม: npm test (90 ผ่าน) · typecheck ผ่าน · build ผ่าน
+**ค้าง / ข้อควรรู้:** ดูหัวข้อ "ส่งต่อทีม" และ "กำลังทำ" ใน ROADMAP · branch feature ทั้ง 5 ยังอยู่ในเครื่องนี้ (ไม่ได้ push)
+
 ## 2026-09-23 — ระบบร้านค้า + อุปกรณ์ใหม่ 10 ชิ้น + ของดรอปจากมอนสเตอร์ (Nong + Claude)
 **เพิ่ม**
 - **ร้านค้า** (`ui/shopWindow.ts`, ข้อมูล `packages/shared/src/data/shops.ts`, กติกา `rules/shop.ts`):

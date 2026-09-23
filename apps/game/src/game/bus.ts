@@ -11,6 +11,9 @@ export interface BusEvents {
   /** A battle scene actually started (battle:start is only a request). */
   'battle:launched': void;
   'battle:end': void;
+  /** Walk into the house (HomeScene) / came back out to the map. */
+  'home:enter': void;
+  'home:exit': void;
   'landmark:near': { landmarks: Landmark[] };
   'toast': { text: string; kind?: 'info' | 'good' | 'bad' };
   'zoom': { delta: number };

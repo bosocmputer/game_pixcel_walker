@@ -98,6 +98,7 @@ npm run dev
 | `npm test` | เทสต์กฎเกม + จำลองสมดุล (Monte-Carlo) ใน `packages/shared` |
 | `npm run typecheck` | ตรวจ TypeScript ทั้ง shared / game / server |
 | `npm run build` | build เกมเป็น static site ที่ `apps/game/dist` |
+| `python pixel-art/home/build.py` | วาดห้องในบ้าน + เฟอร์นิเจอร์ (และขอบเรืองแสงตอนแตะ) → `apps/game/public/assets/home/` ดูผลที่ `pixel-art/home/preview.png` |
 | `python pixel-art/fx/build.py` | วาดเอฟเฟกต์สกิล/กระสุนในฉากต่อสู้ → `apps/game/public/assets/fx/` ดูผลที่ `pixel-art/fx/preview.png` |
 | `python pixel-art/monsters/build.py` | วาดมอนสเตอร์/บอสทั้งหมด → `apps/game/public/assets/monsters/` ดูผลที่ `pixel-art/monsters/preview.png` |
 | `python pixel-art/landmarks/build.py` | วาดหมุดแลนด์มาร์ก (วัด ห้าง ร้าน ปั๊ม สวน บ้าน) → `apps/game/public/assets/landmarks/` |

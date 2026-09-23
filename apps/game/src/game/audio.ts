@@ -5,7 +5,7 @@
  * Browsers only allow audio after a user gesture: the first tap/key unlocks it (unlockAudio).
  */
 
-import { impulse, SONGS, type Song } from './music';
+import { impulse, SONGS, victoryFanfare, type Song } from './music';
 
 type Wave = OscillatorType;
 export type Sfx =
@@ -13,7 +13,8 @@ export type Sfx =
   | 'slash' | 'hit' | 'crit' | 'miss' | 'block' | 'fire' | 'water' | 'thunder' | 'ice' | 'earth'
   | 'holy' | 'shadow' | 'poison' | 'heal' | 'shield' | 'buff' | 'debuff' | 'stun' | 'cast' | 'death'
   | 'shoot' | 'ultimate' | 'victory' | 'defeat' | 'wave';
-export type Theme = 'field' | 'battle' | 'boss' | null;
+export type Theme = 'field' | 'home' | 'battle' | 'boss' | null;
+type SongId = keyof typeof SONGS;
 
 const SETTINGS_KEY = 'pw.audio';
 const settings = (() => {
@@ -189,7 +190,7 @@ export function sfx(name: Sfx) {
     case 'death': tone({ f: 440, f2: 55, dur: 0.6, wave: 'square', vol: 0.18 }); noise({ dur: 0.4, freq: 600, vol: 0.12, type: 'lowpass', at: 0.1 }); break;
     case 'shoot': noise({ dur: 0.1, freq: 3000, freq2: 5000, q: 3, vol: 0.18 }); break;
     case 'ultimate': tone({ f: 80, f2: 40, dur: 0.8, wave: 'sawtooth', vol: 0.25 }); noise({ dur: 0.7, freq: 200, freq2: 1200, vol: 0.3, type: 'lowpass' }); break;
-    case 'victory': arp([72, 72, 72, 72, 68, 70, 72, 70, 72], 0.1, { wave: 'pulse', vol: 0.16, dur: 0.14 }); break;
+    case 'victory': victoryFanfare(jingleBus(), ctx.currentTime + 0.02); break;
     case 'defeat': arp([67, 66, 65, 64, 60], 0.18, { wave: 'triangle', vol: 0.16, dur: 0.3 }); break;
     case 'wave': arp([69, 76, 81], 0.07, { wave: 'pulse', vol: 0.14 }); break;
   }
@@ -203,6 +204,31 @@ let pendingTheme: Theme | undefined;
 let timer: number | null = null;
 let songOut: GainNode | null = null;
 let reverb: ConvolverNode | null = null;
+let jingleOut: GainNode | null = null;
+
+/** SFX-bus output with its own reverb, for orchestral jingles (victory fanfare). */
+function jingleBus(): GainNode {
+  if (!jingleOut) {
+    jingleOut = ctx!.createGain();
+    jingleOut.connect(sfxGain);
+    const send = ctx!.createGain();
+    send.gain.value = 0.3;
+    jingleOut.connect(send).connect(reverbOf(ctx!, sfxGain));
+  }
+  return jingleOut;
+}
+
+/** Dev helper: render the victory fanfare offline to check its level. */
+export async function renderVictory(sampleRate = 22050): Promise<AudioBuffer> {
+  const c = new OfflineAudioContext(2, sampleRate * 5, sampleRate);
+  const g = c.createGain();
+  g.connect(c.destination);
+  const send = c.createGain();
+  send.gain.value = 0.3;
+  g.connect(send).connect(reverbOf(c, c.destination));
+  victoryFanfare(g, 0.05);
+  return c.startRendering();
+}
 
 function reverbOf(c: BaseAudioContext, dest: AudioNode): ConvolverNode {
   const r = c.createConvolver();
@@ -241,9 +267,9 @@ export function music(theme: Theme) {
     window.setTimeout(() => old.disconnect(), 6000);
     songOut = null;
   }
-  if (!theme) return;
+  const song = theme ? SONGS[theme as SongId] : undefined;
+  if (!song) return;
   reverb ??= reverbOf(ctx, musicGain);
-  const song = SONGS[theme];
   const out = songBus(ctx, song, musicGain, reverb);
   songOut = out;
   const beat = 60 / song.bpm;
@@ -255,7 +281,7 @@ export function music(theme: Theme) {
     if (next < ctx.currentTime - 0.05) next = ctx.currentTime + 0.05;
     while (next < ctx.currentTime + 0.5) {
       song.play(bar % song.bars, next, beat, out);
-      next += beat * 4;
+      next += beat * (song.meter ?? 4);
       bar++;
     }
   };
@@ -264,11 +290,11 @@ export function music(theme: Theme) {
 }
 
 /** Dev helper: render a song offline (no speakers needed) to check levels and clipping. */
-export async function renderMusic(theme: Exclude<Theme, null>, seconds: number, sampleRate = 22050): Promise<AudioBuffer> {
+export async function renderMusic(theme: SongId, seconds: number, sampleRate = 22050): Promise<AudioBuffer> {
   const c = new OfflineAudioContext(2, Math.ceil(sampleRate * seconds), sampleRate);
   const song = SONGS[theme];
   const out = songBus(c, song, c.destination, reverbOf(c, c.destination));
   const beat = 60 / song.bpm;
-  for (let bar = 0, t = 0.05; t < seconds; bar++, t += beat * 4) song.play(bar % song.bars, t, beat, out);
+  for (let bar = 0, t = 0.05; t < seconds; bar++, t += beat * (song.meter ?? 4)) song.play(bar % song.bars, t, beat, out);
   return c.startRendering();
 }

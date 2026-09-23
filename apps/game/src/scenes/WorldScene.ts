@@ -18,6 +18,7 @@ import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
 import { LANDMARK_KINDS, hasPixelSprite } from '../game/sprites';
 import { net } from '../game/net';
+import { autoHunt } from '../game/autohunt';
 import {
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
@@ -97,6 +98,7 @@ export class WorldScene extends Phaser.Scene {
       }),
       bus.on('boss:challenge', ({ landmark }) => this.startBattle({ kind: 'BOSS', monsterIds: [], landmark })),
       bus.on('battle:start', (req) => this.startBattle(req)),
+      bus.on('home:enter', () => this.enterHome()),
       bus.on('players', ({ players }) => this.remotes.sync(players)),
       bus.on('zoom', ({ delta }) => (delta === 0 ? resetNorth() : zoomBy(delta * 0.5))),
     );
@@ -127,8 +129,19 @@ export class WorldScene extends Phaser.Scene {
     if (walk.position) this.onPosition(walk.position.lat, walk.position.lng, 10);
   }
 
+  private enterHome() {
+    if (this.scene.isActive('Battle') || this.scene.isActive('Home')) return;
+    autoHunt.stop();
+    walk.paused = true;
+    walk.setSimDirection(0, 0);
+    this.scene.pause();
+    this.scene.launch('Home');
+  }
+
   private startBattle(req: BattleRequest) {
     if (this.scene.isActive('Battle')) return;
+    // A party fight pulls you out of the house.
+    if (this.scene.isActive('Home')) this.scene.stop('Home');
     if (walk.tooFast) {
       toast('เคลื่อนที่เร็วเกินไป (อยู่ในรถ?) — หยุดก่อนแล้วค่อยสู้ ความปลอดภัยมาก่อน!', 'bad');
       return;

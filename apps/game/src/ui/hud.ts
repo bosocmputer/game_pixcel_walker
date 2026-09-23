@@ -57,10 +57,10 @@ import { paperdollOf } from '../game/paperdoll';
 import { uiIcon } from './pixel';
 import { audioSettings, setAudio, sfx } from '../game/audio';
 import { bagWindowHtml, wireBagWindow } from './bagWindow';
+import { bankWindowHtml, repairWindowHtml, shopWindowHtml } from './homeWindows';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 
-const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'lucky_cord', 'iron_helm', 'runner_charm'];
 const SMITH_SHOP = ['whetstone', 'master_repair_kit', 'pixel_broadsword', 'iron_helm'];
 
 const root = () => document.getElementById('ui')!;
@@ -119,6 +119,7 @@ export function mountHud() {
     if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
     if (!t) return;
+    if (t.dataset.open === 'home') return enterHome();
     if (t.dataset.open) openPanel(t.dataset.open);
   });
 
@@ -329,6 +330,15 @@ let unsubPanel: (() => void) | null = null;
 
 let lastPartyHtml = '';
 
+/** Inside the house when standing at home; otherwise the panel to set a home / walk back. */
+export function enterHome() {
+  const pos = walk.position;
+  if (store.s.home && pos && nearHome(store.s, pos.lat, pos.lng)) {
+    closePanel(true);
+    bus.emit('home:enter');
+  } else openPanel('home');
+}
+
 export function openPanel(name: string) {
   closePanel(true);
   sfx('open');
@@ -365,6 +375,15 @@ function renderPanel() {
       break;
     case 'home':
       body.innerHTML = homePanel(s);
+      break;
+    case 'hbank':
+      body.innerHTML = bankWindowHtml(s);
+      break;
+    case 'hrepair':
+      body.innerHTML = repairWindowHtml(s);
+      break;
+    case 'hshop':
+      body.innerHTML = shopWindowHtml(s);
       break;
     case 'smith':
       body.innerHTML = smithPanel(s);
@@ -541,13 +560,9 @@ function homePanel(s: SaveData): string {
       ${s.home ? '<p>คุณอยู่ไกลจากบ้าน — เดินกลับไปที่ไอคอนบ้านบนแผนที่</p>' : ''}
       ${canSet ? `<button class="btn primary" data-act="sethome">ตั้งบ้านที่ตำแหน่งนี้</button>` : `<p class="muted">ย้ายบ้านได้อีกครั้งใน ${Math.ceil((s.home!.setAt + 30 * 86400_000 - Date.now()) / 86400_000)} วัน</p>`}`;
   }
-  const cost = repairAllCost(s, true);
   return `<h2>${uiIcon('home')}บ้านของคุณ</h2>
-    <div class="row"><b>ธนาคาร</b><span class="spacer"></span>ถือ ${s.gold.toLocaleString()} · ฝาก ${s.bankGold.toLocaleString()}</div>
-    <div class="row"><button class="btn" data-bank="all">ฝากทั้งหมด</button><button class="btn" data-bank="-all">ถอนทั้งหมด</button></div>
-    <div class="row"><button class="btn primary" data-act="rest">${uiIcon('heart', true)}พักฟื้น HP/MP เต็ม</button>
-      <button class="btn" data-act="repairhome" ${cost ? '' : 'disabled'}>ซ่อมทั้งหมด (${uiIcon('coin', true)}${cost})</button></div>
-    <h3>ร้านค้าบ้าน</h3>${shopList(HOME_SHOP)}`;
+    <p>คุณอยู่ที่บ้านแล้ว</p>
+    <button class="btn primary" data-act="enterhome">${uiIcon('home', true)}เข้าบ้าน</button>`;
 }
 
 function smithPanel(s: SaveData): string {
@@ -621,12 +636,21 @@ function wirePanel(body: HTMLElement) {
     if (!buy(x.dataset.buy!, Number(x.dataset.price))) toast('Gold ไม่พอ', 'bad');
     else sfx('coin');
   });
-  on('[data-bank]', (x) => bank(x.dataset.bank === 'all' ? store.s.gold : -store.s.bankGold));
+  on('[data-bank]', (x) => {
+    const v = x.dataset.bank!;
+    bank(v === 'all' ? store.s.gold : v === '-all' ? -store.s.bankGold : Number(v));
+    sfx('coin');
+  });
+  on('[data-act="enterhome"]', () => enterHome());
   on('[data-act="rest"]', () => {
     restAtHome();
     toast('พักผ่อนเต็มที่แล้ว', 'good');
   });
-  on('[data-act="repairhome"]', () => repairAll(true) || toast('Gold ไม่พอ', 'bad'));
+  on('[data-act="repairhome"]', () => {
+    if (!repairAll(true)) return toast('Gold ไม่พอ', 'bad');
+    sfx('block');
+    toast('ซ่อมเสร็จ อุปกรณ์กลับมาใหม่เอี่ยม!', 'good');
+  });
   on('[data-act="repairsmith"]', () => repairAll(false) || toast('Gold ไม่พอ', 'bad'));
   on('[data-act="sethome"]', () => {
     const p = walk.position;

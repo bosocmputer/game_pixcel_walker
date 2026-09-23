@@ -3,6 +3,7 @@ import './style.css';
 import './pixel-theme.css';
 import { WorldScene } from './scenes/WorldScene';
 import { BattleScene } from './scenes/BattleScene';
+import { HomeScene } from './scenes/HomeScene';
 import { ensureAround, initWorld, landmarksAround, toTile } from './game/world';
 import { bus } from './game/bus';
 import * as rules from './game/rules';
@@ -105,7 +106,7 @@ async function start() {
       height: Math.max(480, window.innerHeight),
       min: { width: 320, height: 480 },
     },
-    scene: [WorldScene, BattleScene],
+    scene: [WorldScene, BattleScene, HomeScene],
     // ?timer keeps the loop running in hidden tabs (automated testing only).
     fps: { forceSetTimeOut: new URLSearchParams(location.search).has('timer') },
   });

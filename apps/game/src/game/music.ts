@@ -1,6 +1,8 @@
 /**
  * Background music: a small arranger over synthesised instruments (no audio files).
- * - field:  calm VGM / new-age for long farming walks — string pad, harp, celesta, flute, big reverb
+ * - field:  town waltz for walking the map (3/4, style ref: classic MMO town themes) — oboe/flute
+ *           lead over pizzicato "oom-pah-pah", harp, celesta, tambourine
+ * - home:   calm VGM / new-age inside the house — string pad, harp, celesta, flute, big reverb
  * - battle: driving orchestral — spiccato strings, brass, taiko, snare, crash
  * - boss:   darker harmonic-minor version with choir and galloping taiko
  * Every voice takes its AudioContext from the node it plays into, so songs can also be rendered
@@ -11,8 +13,10 @@ type Ctx = BaseAudioContext;
 
 export interface Song {
   bpm: number;
-  /** Loop length in 4/4 bars. */
+  /** Loop length in bars. */
   bars: number;
+  /** Beats per bar (default 4; 3 = waltz). */
+  meter?: number;
   /** Reverb send (0..1). */
   reverb: number;
   /** Output level so the songs sit at a similar loudness. */
@@ -250,6 +254,51 @@ function softBass(out: AudioNode, n: number, t: number, dur: number, vol: number
   osc(c, 'triangle', midi(n + 12), t, end, via(c, 0.35, lp));
 }
 
+/** Pizzicato string: a quick pluck with a woody body. */
+function pizz(out: AudioNode, n: number, t: number, vol: number, side = 0) {
+  const c = out.context;
+  const g = c.createGain();
+  adsr(g.gain, t, 0.004, vol, 0, 0.32);
+  const lp = filter(c, 'lowpass', 2600, 1);
+  lp.frequency.setValueAtTime(2600, t);
+  lp.frequency.exponentialRampToValueAtTime(500, t + 0.25);
+  lp.connect(g).connect(pan(c, side, out));
+  osc(c, 'sawtooth', midi(n), t, t + 0.4, via(c, 0.5, lp));
+  osc(c, 'triangle', midi(n), t, t + 0.4, lp);
+}
+
+/** Oboe-ish reed: nasal saw/square blend with a formant bump and gentle vibrato. */
+function oboe(out: AudioNode, n: number, t: number, dur: number, vol: number) {
+  const c = out.context;
+  const f0 = midi(n);
+  const a = 0.05;
+  const hold = Math.max(0, dur - a - 0.04);
+  const end = t + a + hold + 0.3;
+  const g = c.createGain();
+  adsr(g.gain, t, a, vol, hold, 0.22);
+  const lp = filter(c, 'lowpass', 2400, 0.7);
+  const nasal = filter(c, 'peaking', 1300, 2);
+  nasal.gain.value = 6;
+  lp.connect(nasal).connect(g).connect(out);
+  const o1 = osc(c, 'sawtooth', f0, t, end, via(c, 0.5, lp));
+  const o2 = osc(c, 'square', f0, t, end, via(c, 0.35, lp));
+  const lfo = c.createOscillator();
+  lfo.frequency.value = 5.5;
+  const lg = c.createGain();
+  lg.gain.setValueAtTime(0, t);
+  lg.gain.linearRampToValueAtTime(f0 * 0.005, t + Math.min(0.5, dur));
+  lfo.connect(lg);
+  lg.connect(o1.frequency);
+  lg.connect(o2.frequency);
+  lfo.start(t);
+  lfo.stop(end);
+}
+
+/** Tambourine shake: a few quick jingles. */
+function tambourine(out: AudioNode, t: number, vol: number) {
+  [0, 0.025, 0.05].forEach((d, i) => noiseHit(out, t + d, { dur: 0.09, type: 'bandpass', f: 7800, q: 2.5, vol: vol * (1 - i * 0.3) }));
+}
+
 /** Short bowed string note (spiccato) for battle ostinatos. */
 function spic(out: AudioNode, n: number, t: number, len: number, vol: number) {
   const c = out.context;
@@ -334,7 +383,69 @@ function drums(out: AudioNode, t: number, beat: number, lanes: string[], v = 1, 
 }
 
 // ---------------------------------------------------------------------------------------------
-// FIELD — "Morning over the old city": D major, calm, 32 bars (dawn → walk → bright → rest)
+// FIELD — "Waltz of the old moat": G major town waltz, 3/4, 40 bars (A1 A2 B A3 + harp interlude).
+// Style reference only (bright MMO town waltz); melody and harmony are original.
+
+const W_A = ['G', 'D', 'Em', 'C', 'G', 'Am', 'D7', 'G'];
+const W_B = ['Em', 'Bm', 'C', 'G', 'Am', 'Em', 'A7', 'D'];
+const W_CHORD: Record<string, { root: string; tones: string }> = {
+  G: { root: 'G2', tones: 'G3 B3 D4' },
+  D: { root: 'D3', tones: 'F#3 A3 D4' },
+  D7: { root: 'D3', tones: 'F#3 C4 D4' },
+  Em: { root: 'E2', tones: 'G3 B3 E4' },
+  C: { root: 'C3', tones: 'G3 C4 E4' },
+  Am: { root: 'A2', tones: 'A3 C4 E4' },
+  Bm: { root: 'B2', tones: 'F#3 B3 D4' },
+  A7: { root: 'A2', tones: 'G3 C#4 E4' },
+};
+const W_MEL_A1 = ['B4 D5 G5', 'F#5:1.5 E5:.5 D5', 'G5:1.5 F#5:.5 E5', 'C5:2 E5', 'D5 B4 D5', 'C5:1.5 B4:.5 A4', 'F#4 A4 C5', 'B4:2 -'].map(line);
+const W_MEL_A2 = ['G5:1.5 A5:.5 B5', 'A5 F#5 D5', 'E5:1.5 F#5:.5 G5', 'E5:2 C5', 'B4:1.5 C5:.5 D5', 'E5 C5 A4', 'D5:1.5 E5:.5 F#5', 'G5:2 -'].map(line);
+const W_MEL_B = ['B4:2 E5', 'F#5:2 D5', 'E5:1.5 D5:.5 C5', 'D5:2 B4', 'C5 E5 A5', 'G5:1.5 F#5:.5 E5', 'C#5 E5 G5', 'F#5:2 -'].map(line);
+
+const WALTZ: Song = {
+  bpm: 138,
+  bars: 40,
+  meter: 3,
+  reverb: 0.35,
+  level: 1.5,
+  play(bar, t, beat, out) {
+    const sec = Math.floor(bar / 8);
+    const i = bar % 8;
+    const name = (sec === 2 ? W_B : W_A)[i]!;
+    const ch = W_CHORD[name]!;
+    const tones = chord(ch.tones);
+    const h = hash(bar);
+    // Oom-pah-pah: bass on 1, plucked chord on 2 and 3.
+    pizz(out, nm(ch.root), t, 0.16);
+    softBass(out, nm(ch.root), t, beat * 0.9, 0.06);
+    for (const b of [1, 2]) tones.forEach((n, k) => pizz(out, n + 12, t + b * beat, 0.035, (k - 1) * 0.35));
+    pad(out, tones, t, beat * 3, { vol: sec === 4 ? 0.02 : 0.012, cutoff: 1300, attack: 0.3, release: 0.8 });
+    if (sec === 0) playLine(W_MEL_A1[i]!, t, beat, (n, at, d) => oboe(out, n, at, d, 0.06));
+    if (sec === 1) {
+      playLine(W_MEL_A2[i]!, t, beat, (n, at, d) => flute(out, n, at, d, 0.085));
+      if (i % 2 === 0) bell(out, tones[h % 3]! + 24, t, 0.03, 1.8, 0.3);
+    }
+    if (sec === 2) playLine(W_MEL_B[i]!, t, beat, (n, at, d) => oboe(out, n, at, d, 0.055));
+    if (sec === 3) {
+      playLine(W_MEL_A1[i]!, t, beat, (n, at, d) => oboe(out, n, at, d, 0.06));
+      playLine(W_MEL_A1[i]!, t, beat, (n, at, d) => flute(out, n + 12, at, d, 0.035));
+      bell(out, tones[h % 3]! + 24, t + beat, 0.025, 1.6, -0.3);
+    }
+    if (sec === 4) {
+      // Interlude: rolling harp, a celesta call, no lead — a breather before the loop.
+      const up = [...tones.map((n) => n + 12), ...tones.map((n) => n + 24)];
+      [0, 1, 2, 3, 4, 3].forEach((k, s) => harp(out, up[k]!, t + s * beat * 0.5, s === 0 ? 0.07 : 0.05, (k / 5 - 0.5) * 0.5));
+      if (i % 2 === 1) bell(out, up[3 + (h % 3)]! + 12, t + beat * 1.5, 0.03, 2, 0.2);
+    }
+    // Light percussion: tambourine on the downbeat, a triangle ping to mark phrases.
+    if (sec !== 4) tambourine(out, t, i % 2 === 0 ? 0.05 : 0.03);
+    if (sec === 3) tambourine(out, t + beat * 2, 0.025);
+    if (i === 0) bell(out, nm('D7'), t, 0.02, 1.2, 0.5);
+  },
+};
+
+// ---------------------------------------------------------------------------------------------
+// HOME — "Morning over the old city": D major, calm, 32 bars (dawn → walk → bright → rest)
 
 const F_CHORDS = [
   'A3 C#4 E4 F#4', // Dmaj9
@@ -521,4 +632,38 @@ const BOSS: Song = {
   },
 };
 
-export const SONGS = { field: FIELD, battle: BATTLE, boss: BOSS };
+export const SONGS = { field: WALTZ, home: FIELD, battle: BATTLE, boss: BOSS };
+
+// ---------------------------------------------------------------------------------------------
+// Jingles (played on the SFX bus)
+
+/** Victory fanfare (~3.5 s): harp run → brass call → full D-major chord with taiko, crash and celesta. */
+export function victoryFanfare(out: AudioNode, t: number) {
+  const e = 0.19;
+  ['D4', 'E4', 'F#4', 'A4', 'B4', 'D5', 'E5', 'F#5', 'A5', 'D6'].map(nm).forEach((n, i) => harp(out, n, t + i * 0.035, 0.07, (i / 9 - 0.5) * 0.6));
+  let x = t + 0.4;
+  taiko(out, x, 0.4, 85);
+  ['A4', 'D5', 'F#5'].map(nm).forEach((n, i) => brass(out, n, x + i * e, e * 0.85, 0.08));
+  chord('D4 F#4 A4').forEach((n, k) => brass(out, n, x, e * 2.6, 0.03, (k - 1) * 0.4));
+  x += 3 * e;
+  crash(out, x, 0.08);
+  taiko(out, x, 0.35, 85);
+  brass(out, nm('A5'), x, e * 2.8, 0.085);
+  pad(out, chord('D3 A3 D4 F#4'), x, e * 3, { vol: 0.02, cutoff: 2400, attack: 0.05, release: 0.3 });
+  x += 3 * e;
+  const walk: [string, string][] = [['G5', 'B3 D4 G4'], ['F#5', 'A3 D4 F#4'], ['E5', 'C#4 E4 A4']];
+  walk.forEach(([m, c], i) => {
+    brass(out, nm(m), x + i * e, e * 0.9, 0.08);
+    chord(c).forEach((n, k) => brass(out, n, x + i * e, e * 0.8, 0.025, (k - 1) * 0.4));
+  });
+  taiko(out, x + 2 * e, 0.25, 110);
+  x += 3 * e;
+  // Final chord: held horns + strings, drum roll, crash and a celesta sparkle.
+  brass(out, nm('F#5'), x, 1.4, 0.085);
+  chord('D4 F#4 A4 D5').forEach((n, k) => brass(out, n, x, 1.3, 0.03, (k - 1.5) * 0.3));
+  pad(out, chord('D3 A3 D4 F#4 A4'), x, 1.4, { vol: 0.022, cutoff: 2600, attack: 0.08, release: 1.2 });
+  softBass(out, nm('D2'), x, 1.4, 0.12);
+  crash(out, x, 0.11);
+  [0, 0.06, 0.12, 0.18].forEach((d, i) => taiko(out, x + d, 0.2 + i * 0.07, 90));
+  ['D6', 'F#6', 'A6', 'D7'].map(nm).forEach((n, i) => bell(out, n, x + 0.15 + i * 0.09, 0.035, 2, (i / 3 - 0.5) * 0.8));
+}

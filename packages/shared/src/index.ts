@@ -18,4 +18,5 @@ export * from './data/map';
 export * from './rules/spawns';
 export * from './rules/party';
 export * from './rules/starter';
+export * from './rules/deck';
 export * from './net/protocol';

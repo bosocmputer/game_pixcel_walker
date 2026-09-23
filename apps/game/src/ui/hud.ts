@@ -15,6 +15,8 @@ import {
   canChangeClass,
   expToNext,
   mutationProgress,
+  assignDeckSlot,
+  clearDeckSlot,
   totalStats,
   type ClassId,
   type EquipSlot,
@@ -53,6 +55,7 @@ import { partyPanel, showInvite, showReadyCheck, wireParty } from './party';
 import { equipWindowHtml, gearStatBonus, itemIcon, statText, wireEquipWindow, SLOT_NAME } from './equipWindow';
 import { paperdollOf } from '../game/paperdoll';
 import { uiIcon } from './pixel';
+import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 
 const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'lucky_cord', 'iron_helm', 'runner_charm'];
@@ -388,6 +391,25 @@ function renderPanel() {
   body.scrollTop = scroll;
   wirePanel(body);
   if (panelName === 'char') {
+    const on = (sel: string, fn: (el: HTMLElement) => void) =>
+      body.querySelectorAll<HTMLElement>(sel).forEach((x) => x.addEventListener('click', () => fn(x)));
+    on('[data-chartab]', (x) => {
+      charTab = x.dataset.chartab as 'equip' | 'skill';
+      renderPanel();
+    });
+    on('[data-skslot]', (x) => {
+      const i = Number(x.dataset.skslot);
+      skillSlot = skillSlot === i ? null : i;
+      renderPanel();
+    });
+    on('[data-skpick]', (x) => {
+      if (skillSlot === null) return;
+      const slot = skillSlot;
+      store.update((st) => (st.loadout = assignDeckSlot(effectiveLoadout(st), slot, x.dataset.skpick!, LOADOUT_SIZE)));
+    });
+    on('[data-skremove]', (x) => {
+      store.update((st) => (st.loadout = clearDeckSlot(effectiveLoadout(st), Number(x.dataset.skremove))));
+    });
     wireEquipWindow(
       body,
       (slot) => {
@@ -401,6 +423,26 @@ function renderPanel() {
 
 /** Slot selected in the character panel's equipment window. */
 let charSlot: EquipSlot | null = null;
+/** Character panel tab (RO style: equipment / skill) and the selected skill-deck slot. */
+let charTab: 'equip' | 'skill' = 'equip';
+let skillSlot: number | null = 0;
+
+function charSkillWindow(s: SaveData): string {
+  const deck = effectiveLoadout(s);
+  return skillWindowHtml({
+    title: 'สกิล',
+    tabs: charTabs('skill'),
+    deck,
+    pool: learnableSkills(s),
+    selected: skillSlot,
+    presets: (DECK_PRESETS[s.classId] ?? []).map((p) => ({
+      id: p.id,
+      nameTh: p.nameTh,
+      description: p.description,
+      on: p.deck.length === deck.length && p.deck.every((id) => deck.includes(id)),
+    })),
+  });
+}
 
 function charEquipWindow(s: SaveData): string {
   const slots = Object.fromEntries(
@@ -430,6 +472,7 @@ function charEquipWindow(s: SaveData): string {
   const d = derivedOf(s);
   return equipWindowHtml({
     title: 'ไอเทมที่สวมใส่',
+    tabs: charTabs('equip'),
     slots,
     selected: charSlot,
     picker,
@@ -451,49 +494,15 @@ function charPanel(s: SaveData): string {
         <div class="mut-prog">${bar(prog.share, MUTATION_THRESHOLD, 'mut')}<small>${prog.stat.toUpperCase()} ${(prog.share * 100).toFixed(0)}%</small></div></div>`;
   return `<h2>${esc(s.name)} <small>Lv.${s.level} ${esc(CLASSES[s.classId].nameTh)}</small></h2>
     <p class="muted">${esc(CLASSES[s.classId].passive.name)}: ${esc(mut ? 'ถูกแทนที่ด้วย Mutation' : CLASSES[s.classId].passive.description)}</p>
-    ${charEquipWindow(s)}
-    <p class="muted">แตะช่องอุปกรณ์เพื่อถอด/สวมของในกระเป๋า · ${s.unspentPoints ? `มี Status Point <b class="accent">${s.unspentPoints}</b> — กด + ที่ค่าสถานะ` : 'เก็บเลเวลเพื่อรับ Status Point'}</p>
+    ${charTab === 'skill' ? charSkillWindow(s) : charEquipWindow(s)}
+    ${charTab === 'equip' ? `<p class="muted">แตะช่องอุปกรณ์เพื่อถอด/สวมของในกระเป๋า · ${s.unspentPoints ? `มี Status Point <b class="accent">${s.unspentPoints}</b> — กด + ที่ค่าสถานะ` : 'เก็บเลเวลเพื่อรับ Status Point'}</p>` : ''}
     ${mutText}
     <h3>สถิติ</h3>
     <div class="grid2">
       <span>ชนะ</span><b>${s.stats.battlesWon}</b><span>บอส</span><b>${s.stats.bossesKilled}</b>
     </div>
     ${s.level < CLASS_CHANGE_LEVEL && s.classId === 'NOVICE' ? `<p class="muted">ถึง Lv.${CLASS_CHANGE_LEVEL} แล้วไปสวนสาธารณะใหญ่เพื่อทำบททดสอบอาชีพ</p>` : ''}
-    ${deckEditor(s)}
     <button class="btn" data-act="respec">รีเซ็ต Stat (${respecCost(s) ? respecCost(s) + ' Gold' : 'ฟรีก่อน Lv.10'})</button>`;
-}
-
-const TRIGGER_TH: Record<string, string> = {
-  COVER: 'รับแทนเพื่อน', ASSIST: 'ตามตีซ้ำ', COUNTER: 'สวนกลับ', ON_DODGE: 'เมื่อหลบได้', ON_LOW_HP: 'เมื่อ HP ต่ำ', ON_ALLY_DEATH: 'เมื่อเพื่อนตาย',
-};
-
-const ELEMENT_ICON: Record<string, string> = { NEUTRAL: '', FIRE: '🔥', WATER: '💧', LIGHTNING: '⚡', EARTH: '🪨', HOLY: '✨', SHADOW: '🌑' };
-
-/** Skill Deck (Pockie Ninja style): up to LOADOUT_SIZE skills rolled by % each turn. */
-function deckEditor(s: SaveData): string {
-  const deck = effectiveLoadout(s);
-  const presets = DECK_PRESETS[s.classId] ?? [];
-  const row = (id: string) => {
-    const sk = SKILLS[id]!;
-    const on = deck.includes(id);
-    const kind = sk.kind === 'REACTIVE' ? `ตอบโต้: ${TRIGGER_TH[sk.trigger ?? ''] ?? ''}` : `CD ${sk.cooldown} · ${sk.mp} MP`;
-    return `<div class="row deck-pick ${on ? 'on' : ''}"><div><b>${ELEMENT_ICON[sk.element] ?? ''} ${esc(sk.nameTh)}</b> <span class="tag">${sk.rate}%</span>
-      <br><small class="muted">${esc(kind)} — ${esc(sk.description)}</small></div><span class="spacer"></span>
-      <button class="mini" data-deck="${id}">${on ? 'เอาออก' : 'ใส่'}</button></div>`;
-  };
-  const pool = learnableSkills(s);
-  const active = pool.filter((id) => SKILLS[id]!.kind === 'ACTIVE').map(row).join('');
-  const reactive = pool.filter((id) => SKILLS[id]!.kind === 'REACTIVE').map(row).join('');
-  const presetBtns = presets
-    .map((p) => `<button class="preset ${p.deck.every((id) => deck.includes(id)) && deck.length === p.deck.length ? 'on' : ''}" data-preset="${p.id}">
-      <b>${esc(p.nameTh)}</b><small>${esc(p.description)}</small></button>`)
-    .join('');
-  return `<h3>ชุดสกิล (Skill Deck) ${deck.length}/${LOADOUT_SIZE}</h3>
-    <p class="muted">ต่อสู้อัตโนมัติ: ทุกเทิร์นระบบทอย % ของแต่ละสกิลตามลำดับความสำคัญ ถ้าไม่ติดเลยจะโจมตีธรรมดา · สกิลตอบโต้ทำงานเมื่อเกิดเหตุการณ์ (ประเภทเดียวกันทำงานได้ทีละอัน)</p>
-    <div class="deck-now">${deck.map((id) => `<span class="tag">${ELEMENT_ICON[SKILLS[id]!.element] ?? ''}${esc(SKILLS[id]!.nameTh)}</span>`).join(' ')}</div>
-    ${presets.length ? `<h4>ชุดแนะนำ (กดแล้วปรับต่อได้)</h4><div class="presets">${presetBtns}</div>` : ''}
-    <h4>สกิลใช้งาน (ทอยทุกเทิร์น)</h4>${active}
-    <h4>สกิลตอบโต้ (ทำงานเมื่อเกิดเหตุการณ์)</h4>${reactive}`;
 }
 
 function itemLine(id: string, extra = ''): string {
@@ -598,15 +607,6 @@ function wirePanel(body: HTMLElement) {
     if (!p) return;
     store.update((st) => (st.loadout = [...p.deck]));
     toast(`ใช้ชุด ${p.nameTh} แล้ว — ปรับเพิ่ม/ลดได้เลย`, 'good');
-  });
-  on('[data-deck]', (x) => {
-    const id = x.dataset.deck!;
-    store.update((st) => {
-      const cur = effectiveLoadout(st);
-      if (cur.includes(id)) st.loadout = cur.filter((k) => k !== id);
-      else if (cur.length < LOADOUT_SIZE) st.loadout = [...cur, id];
-      else toast(`ชุดสกิลเต็มแล้ว (สูงสุด ${LOADOUT_SIZE})`, 'bad');
-    });
   });
   on('[data-act="respec"]', () => {
     if (confirm('คืนแต้ม Stat ทั้งหมด?') && !respec()) toast('Gold ไม่พอ', 'bad');

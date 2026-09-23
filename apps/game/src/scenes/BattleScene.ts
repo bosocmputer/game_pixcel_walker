@@ -453,7 +453,8 @@ export class BattleScene extends Phaser.Scene {
       const sk = SKILLS[id]!;
       const cd = Math.max(0, (me.cooldowns[id] ?? 0) - 1);
       return `<div class="deck-slot ${sk.kind === 'REACTIVE' ? 'reactive' : ''} ${cd ? 'cd' : ''}">
-        <b>${esc(sk.nameTh)}</b><small>${sk.rate}%${cd ? ` · CD ${cd}` : ''}</small></div>`;
+        <img class="ds-ico" src="/assets/skills/${sk.id}.png" alt="" /><span><b>${esc(sk.nameTh)}</b><small>${sk.rate}%${cd ? ` · CD ${cd}` : ''}</small></span>
+        ${cd ? `<i class="ds-cd">${cd}</i>` : ''}</div>`;
     });
     const html = `
       <div class="battle-vitals">

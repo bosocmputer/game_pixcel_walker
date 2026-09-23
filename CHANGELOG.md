@@ -20,6 +20,20 @@
 
 ---
 
+## 2026-09-23 — หน้าต่างสกิลแบบ RO + ไอคอนสกิล pixel (Nong + Claude)
+**เพิ่ม**
+- ไอคอนสกิล pixel 24×24 ครบ 35 ชิ้น (สกิล Novice 14 + 5 อาชีพ × 4 + โจมตีธรรมดา) วาดด้วยตัววาดของ skill pixel-art-studio
+  (`pixel-art/skill-icons/build.py` → `apps/game/public/assets/skills/`) · สีกรอบ = ธาตุ · ตราสายฟ้าทอง = สกิลตอบโต้
+- `apps/game/src/ui/skillWindow.ts` หน้าต่างสกิลแบบ RO: แท็บ `equipment | skill` บนแถบหัวหน้าต่างตัวละคร,
+  ช่องชุดสกิล 6 ช่อง (3×2) แตะช่อง → เลือกสกิลจากรายการ (ไอคอน · % · CD · MP · ธาตุ · คำอธิบาย) / เอาออก / ชุดแนะนำ
+- `packages/shared/src/rules/deck.ts` (`assignDeckSlot`, `clearDeckSlot`) — ใส่สกิลที่มีอยู่แล้วจะสลับช่อง ไม่ซ้ำ + เทสต์ 5 ข้อ
+- ช่องสกิลในฉากต่อสู้แสดงไอคอน + ตัวเลขคูลดาวน์ทับบนไอคอน
+**แก้ไข / เปลี่ยน**
+- ลบตัวแก้ชุดสกิลแบบรายการเดิมในหน้าตัวละคร (แทนด้วยแท็บ skill)
+**ไฟล์หลักที่แตะ:** `apps/game/src/ui/skillWindow.ts` (ใหม่), `pixel-art/skill-icons/build.py` (ใหม่), `packages/shared/src/rules/deck.ts` (ใหม่), `apps/game/src/ui/hud.ts`, `apps/game/src/ui/equipWindow.ts`, `apps/game/src/scenes/BattleScene.ts`, `apps/game/src/pixel-theme.css`
+**ทดสอบ:** npm test (72 ผ่าน) · typecheck ผ่าน · build ผ่าน · ทดสอบในเบราว์เซอร์จอมือถือ: สลับแท็บ, ใส่ปาหินลงช่อง 1, เอาออกช่อง 3, ฉากต่อสู้เห็นไอคอน + CD
+**ค้าง / ข้อควรรู้:** สกิลใหม่ต้องเพิ่มไอคอนใน `pixel-art/skill-icons/build.py` แล้วรัน `python pixel-art/skill-icons/build.py` · สกิลมอนสเตอร์ยังไม่มีไอคอน (ไม่ได้แสดงใน UI)
+
 ## 2026-09-23 — UI ทั้งเกมเป็น pixel 16-bit + ช่องสวมใส่เหลือ 4 ช่อง (Nong + Claude)
 **เพิ่ม**
 - ชุด UI 16-bit วาดด้วย skill pixel-art-studio (`pixel-art/ui-kit/build.py` → `apps/game/public/assets/ui/`):

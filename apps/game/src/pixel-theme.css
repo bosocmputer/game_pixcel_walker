@@ -200,3 +200,37 @@
 .battle-vitals { flex-wrap: wrap; gap: 4px 10px; font-size: 12px; }
 .battle-vitals > span { white-space: nowrap; }
 .battle-vitals .spacer { flex: 1 0 0; }
+
+/* --- Skill window (tab "skill") & battle deck icons -------------------------------------------- */
+.ro-tabs { display: flex; gap: 2px; align-self: flex-end; }
+button.ro-eq-tab { cursor: pointer; opacity: .75; padding: 0 8px; }
+button.ro-eq-tab.on { opacity: 1; height: 22px; }
+.sk-head { font-size: 13px; margin: 2px 2px 6px; color: var(--muted); }
+.sk-head b { color: var(--cyan-d); font-family: 'Silkscreen', monospace; }
+.sk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 0 2px; }
+.sk-slot {
+  display: flex; flex-direction: column; align-items: center; gap: 0; min-height: 88px; padding: 2px; text-align: center;
+  border: 8px solid transparent !important; border-image: url(/assets/ui/well.png) 4 fill / 8px stretch !important;
+  background: none !important; font: inherit; color: inherit; cursor: pointer;
+}
+.sk-slot.sel { border-image-source: url(/assets/ui/selected.png) !important; background: #fff3e0 !important; background-clip: padding-box !important; }
+.sk-slot .eq-txt { align-items: center; }
+.sk-slot .eq-name { font-size: 11px; line-height: 1.15; }
+.sk-slot .eq-empty { width: 48px; height: 48px; display: grid; place-items: center; color: #b3a27e; font-family: 'Silkscreen', monospace; font-size: 22px; }
+.sk-ico { width: 48px; height: 48px; image-rendering: pixelated; flex: none; }
+.sk-picker { grid-template-columns: 1fr !important; }
+.sk-picker .eq-picker-h { display: flex; align-items: center; justify-content: space-between; }
+.sk-group { font-size: 12px; color: var(--muted); margin-top: 4px; border-bottom: 2px dotted #cdbf9f; }
+.sk-pick { align-items: flex-start; }
+.sk-pick .desc { color: var(--ink) !important; opacity: .75; }
+.sk-pick.on .desc { color: #fff !important; opacity: .9; }
+.in-deck { font-style: normal; font-size: 10px; background: var(--cyan); color: #fff; padding: 0 4px; margin-left: 4px; font-family: 'Silkscreen', monospace; }
+.sk-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px 2px; }
+.sk-help { font-size: 11px; margin: 4px 2px; }
+.deck-slot { display: grid !important; grid-template-columns: 24px 1fr; align-items: center; gap: 4px; position: relative; }
+.deck-slot > span { display: grid; min-width: 0; }
+.deck-slot b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ds-ico { width: 24px; height: 24px; image-rendering: pixelated; }
+.ds-cd { position: absolute; left: 2px; top: 50%; margin-top: -12px; width: 24px; height: 24px; display: grid; place-items: center; background: rgba(28, 26, 40, .6); color: #fff; font: 700 16px 'Silkscreen', monospace; font-style: normal; text-shadow: 2px 2px 0 #1c1a28; }
+.deck-slot.cd { opacity: 1 !important; }
+.sheet .ro-eq-title { padding-right: 56px; }

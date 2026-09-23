@@ -37,6 +37,8 @@ export interface SlotItem {
 
 export interface EquipWindowModel {
   title: string;
+  /** Title-bar tabs HTML (default: a single "equipment" label). */
+  tabs?: string;
   slots: Partial<Record<EquipSlot, SlotItem | null>>;
   /** Slots that can't be used here (shown dimmed, not selectable). */
   locked?: EquipSlot[];
@@ -88,7 +90,7 @@ export function equipWindowHtml(m: EquipWindowModel): string {
     ...(m.extra ?? []),
   ];
   return `<div class="ro-equip">
-    <div class="ro-eq-title"><span>${esc(m.title)}</span><span class="ro-eq-tab">equipment</span></div>
+    <div class="ro-eq-title"><span>${esc(m.title)}</span>${m.tabs ?? '<span class="ro-eq-tab on">equipment</span>'}</div>
     <div class="ro-eq-body">
       <div class="eq-col">${LEFT_SLOTS.map((s) => slotButton(s, 'l', m)).join('')}</div>
       <div class="eq-hero"><canvas width="96" height="128"></canvas></div>

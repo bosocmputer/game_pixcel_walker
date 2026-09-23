@@ -326,19 +326,6 @@ function brass(out: AudioNode, n: number, t: number, dur: number, vol: number, s
   osc(c, 'sawtooth', midi(n), t, end, lp, 5);
 }
 
-/** Pumping bass for battles. */
-function driveBass(out: AudioNode, n: number, t: number, len: number, vol: number) {
-  const c = out.context;
-  const g = c.createGain();
-  adsr(g.gain, t, 0.005, vol, len * 0.45, len * 0.5);
-  const lp = filter(c, 'lowpass', 1100, 1.2);
-  lp.frequency.setValueAtTime(lp.frequency.value, t);
-  lp.frequency.exponentialRampToValueAtTime(320, t + len);
-  lp.connect(g).connect(out);
-  const end = t + len + 0.1;
-  osc(c, 'sawtooth', midi(n), t, end, lp);
-}
-
 function taiko(out: AudioNode, t: number, vol: number, f = 90) {
   const c = out.context;
   const g = c.createGain();
@@ -365,18 +352,22 @@ const hat = (out: AudioNode, t: number, vol: number, open = false) =>
   noiseHit(out, t, { dur: open ? 0.26 : 0.045, type: 'highpass', f: 7500, q: 0.7, vol });
 const crash = (out: AudioNode, t: number, vol: number) => noiseHit(out, t, { dur: 1.9, type: 'highpass', f: 4200, q: 0.5, vol });
 
-/** Drum lanes: 16 steps per bar. K/k taiko big/small, s snare, h hat, o open hat, '.' rest. */
-function drums(out: AudioNode, t: number, beat: number, lanes: string[], v = 1, taikoF = 90) {
-  const s16 = beat / 4;
+/**
+ * Drum lanes, one character per step of `step` seconds (any lane length):
+ * K/k drum big/small, s snare, r snare roll (crescendo), t/j tambourine accent/light, h hat, o open hat.
+ */
+function drums(out: AudioNode, t: number, step: number, lanes: string[], v = 1, drumF = 90) {
   for (const lane of lanes) {
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < lane.length; i++) {
       const ch = lane[i];
-      const at = t + i * s16;
-      if (ch === 'K') taiko(out, at, 0.5 * v, taikoF);
-      else if (ch === 'k') taiko(out, at, 0.3 * v, taikoF * 1.2);
-      else if (ch === 's') snare(out, at, 0.2 * v);
-      else if (ch === 'r') snare(out, at, (0.07 + 0.12 * (i / 16)) * v); // roll, crescendo
-      else if (ch === 'h') hat(out, at, (i % 4 === 0 ? 0.05 : 0.03) * v);
+      const at = t + i * step;
+      if (ch === 'K') taiko(out, at, 0.5 * v, drumF);
+      else if (ch === 'k') taiko(out, at, 0.3 * v, drumF * 1.2);
+      else if (ch === 's') snare(out, at, 0.18 * v);
+      else if (ch === 'r') snare(out, at, (0.05 + 0.13 * (i / lane.length)) * v);
+      else if (ch === 't') tambourine(out, at, 0.06 * v);
+      else if (ch === 'j') tambourine(out, at, 0.03 * v);
+      else if (ch === 'h') hat(out, at, 0.035 * v);
       else if (ch === 'o') hat(out, at, 0.045 * v, true);
     }
   }
@@ -512,123 +503,134 @@ const FIELD: Song = {
 };
 
 // ---------------------------------------------------------------------------------------------
-// BATTLE — "Clash in the alley": A minor, 152 bpm, 32 bars (intro stabs → theme A → theme B → B')
+// Battle + boss share the town band (oboe, flute, pizzicato, harp, celesta, tambourine) so all music
+// feels like one soundtrack. Both sit in E minor — the relative minor of the map waltz (G major) —
+// and in 6/8, i.e. the waltz's lilt sped up into a charge. Beat unit here = one eighth note.
 
-interface Chord {
+interface Chord6 {
   root: number;
-  minor: boolean;
+  /** root, third, fifth, top (octave or 7th) — the ostinato walks these. */
+  tones: number[];
 }
-const C = (s: string): Chord => ({ root: nm(s.replace('m', '')), minor: s.endsWith('m') });
-const triad = (c: Chord, oct: number) => [c.root + oct, c.root + oct + (c.minor ? 3 : 4), c.root + oct + 7];
+const K6 = (root: string, tones: string): Chord6 => ({ root: nm(root), tones: chord(tones) });
+const E_CHORD: Record<string, Chord6> = {
+  Em: K6('E2', 'E3 G3 B3 E4'),
+  C: K6('C3', 'C3 E3 G3 C4'),
+  D: K6('D3', 'D3 F#3 A3 D4'),
+  G: K6('G2', 'G2 B2 D3 G3'),
+  Am: K6('A2', 'A2 C3 E3 A3'),
+  B: K6('B2', 'B2 D#3 F#3 B3'),
+  B7: K6('B2', 'B2 D#3 F#3 A3'),
+};
+/** Galloping strings: eighths (6) or sixteenth pairs (12) per 6/8 bar, as indices into Chord6.tones. */
+const GALLOP8 = [0, 3, 2, 3, 1, 2];
+const GALLOP16 = [0, 0, 3, 3, 2, 2, 3, 3, 1, 1, 2, 2];
 
-const B_A = ['A2m', 'F2', 'C3', 'G2', 'A2m', 'F2', 'E2', 'E2'].map(C);
-const B_B = ['D3m', 'A2m', 'F2', 'C3', 'D3m', 'A2m', 'E2', 'E2'].map(C);
-const B_MEL_A = [
-  'A4 -:.5 E5:.5 E5 D5:.5 C5:.5',
-  'C5:1.5 A4:.5 F5:2',
-  'E5 G5 E5 C5',
-  'D5:3 B4:.5 D5:.5',
-  'E5:1.5 A5:.5 A5 G5:.5 E5:.5',
-  'F5:1.5 E5:.5 C5 A4',
-  'B4 G#4 B4 D5',
-  'E5:3 -',
-].map(line);
-const B_MEL_B = [
-  'D5 F5 A5:1.5 G5:.5',
-  'E5:2 C5 E5',
-  'F5 A5 C6:1.5 A5:.5',
-  'G5:3 E5',
-  'F5:1.5 E5:.5 D5 F5',
-  'E5:1.5 D5:.5 C5 A4',
-  'G#4 B4 E5 G#5',
-  'B5:2 A5:.5 G#5:.5 E5',
-].map(line);
-
-function ostinato(out: AudioNode, c: Chord, t: number, beat: number, vol: number, shape: number[], oct = 12) {
-  const third = c.minor ? 3 : 4;
-  // Two desks, left and right, share one panner each (cheap on phones).
+function gallop(out: AudioNode, ch: Chord6, t: number, e: number, vol: number, fast: boolean, oct = 12) {
   const sides = [pan(out.context, -0.3, out), pan(out.context, 0.3, out)];
-  shape.forEach((o, s) => spic(sides[s % 2]!, c.root + oct + (o === 3 ? third : o === 15 ? 12 + third : o), t + s * (beat / 4), beat / 4, s % 4 === 0 ? vol : vol * 0.7));
+  const shape = fast ? GALLOP16 : GALLOP8;
+  const step = fast ? e / 2 : e;
+  const accent = fast ? 6 : 3;
+  shape.forEach((k, s) => spic(sides[s % 2]!, ch.tones[k]! + oct, t + s * step, step, s % accent === 0 ? vol : vol * 0.7));
 }
-const OST_BATTLE = [0, 0, 7, 0, 12, 0, 7, 0, 0, 0, 7, 0, 15, 7, 12, 7];
+
+// BATTLE — "Skirmish on the moat road": 6/8, dotted quarter = 100, 40 bars (A1 · B · A2 · harp break · B2).
+// Theme A opens with the map waltz's rising arpeggio, now in minor.
+const BT_A = ['Em', 'C', 'D', 'B7', 'Em', 'Am', 'B7', 'Em'];
+const BT_B = ['G', 'D', 'Em', 'C', 'Am', 'Em', 'C', 'B7'];
+const BT_MEL_A = ['B4:2 E5 G5:2 F#5', 'E5:2 D5 C5:2 E5', 'D5:2 F#5 A5:2 F#5', 'D#5:3 B4:3', 'B4:2 E5 G5:2 B5', 'A5:2 G5 E5:2 C5', 'D#5:2 F#5 A5:2 F#5', 'E5:3 B4:3'].map(line);
+const BT_MEL_B = ['D5:2 G5 B5:2 A5', 'A5:3 F#5:2 D5', 'G5:2 F#5 E5:2 B4', 'C5:2 E5 G5:3', 'A5:2 G5 E5:2 C5', 'B4:2 E5 G5:2 E5', 'C6:2 B5 A5:2 G5', 'F#5:3 D#5:3'].map(line);
 
 const BATTLE: Song = {
-  bpm: 152,
-  bars: 32,
-  reverb: 0.22,
-  level: 0.9,
-  play(bar, t, beat, out) {
+  bpm: 300,
+  bars: 40,
+  meter: 6,
+  reverb: 0.25,
+  level: 0.8,
+  play(bar, t, e, out) {
     const sec = Math.floor(bar / 8);
     const i = bar % 8;
-    const c = (sec < 2 ? B_A : B_B)[i]!;
-    const len = beat * 4;
-    const last = i === 7;
-    if (i === 0) crash(out, t, 0.09);
-    pad(out, triad(c, 12), t, len, { vol: 0.016, cutoff: 1600, attack: 0.25, release: 0.5 });
-    ostinato(out, c, t, beat, sec === 0 ? 0.045 : 0.055, OST_BATTLE, sec === 3 ? 24 : 12);
-    [0, 0, 12, 0, 0, 12, 0, 12].forEach((o, s) => driveBass(out, c.root - 12 + o, t + s * beat * 0.5, beat * 0.5, 0.09));
-    drums(out, t, beat, last
-      ? ['K.....k.K.k.K.K.', '....s...rrrrrrrr']
-      : ['K.....k.K..k....', '....s.......s...', sec >= 2 ? 'hhhhhhhhhhhhhhoh' : 'h.h.h.h.h.h.h.o.']);
-    if (sec === 0) {
-      // Horn stabs on 1 and the "and" of 2.
-      for (const [at, d] of [[0, 1], [1.5, 0.5]] as const) triad(c, 24).forEach((n, k) => brass(out, n, t + at * beat, d * beat, 0.03, (k - 1) * 0.4));
+    const bSec = sec === 1 || sec === 4;
+    const ch = E_CHORD[(bSec ? BT_B : BT_A)[i]!]!;
+    const fast = sec === 2 || sec === 4;
+    const h = hash(bar);
+    // Band: galloping strings, pizzicato bass on 1 and 4, a soft string bed.
+    gallop(out, ch, t, e, fast ? 0.04 : 0.045, fast);
+    pizz(out, ch.root, t, 0.18);
+    pizz(out, ch.root + (i % 2 ? 12 : 7), t + 3 * e, 0.12);
+    softBass(out, ch.root, t, e * 5.5, 0.07);
+    pad(out, ch.tones.slice(0, 3).map((n) => n + 12), t, e * 6, { vol: 0.012, cutoff: 1600, attack: 0.15, release: 0.4 });
+    // Leads — the same voices as the town, pushed harder.
+    if (sec === 0) playLine(BT_MEL_A[i]!, t, e, (n, at, d) => oboe(out, n, at, d, 0.065));
+    if (sec === 1) {
+      playLine(BT_MEL_B[i]!, t, e, (n, at, d) => flute(out, n, at, d, 0.09));
+      if (i % 2 === 0) bell(out, ch.tones[h % 3]! + 36, t, 0.025, 1.4, 0.3);
     }
-    if (sec === 1) playLine(B_MEL_A[i]!, t, beat, (n, at, d) => brass(out, n, at, d, 0.07));
-    if (sec >= 2) playLine(B_MEL_B[i]!, t, beat, (n, at, d) => brass(out, n, at, d, 0.07));
-    if (sec === 3) playLine(B_MEL_B[i]!, t, beat, (n, at, d) => pad(out, [n + 12], at, d, { vol: 0.025, cutoff: 3200, attack: 0.05, release: 0.25 }));
+    if (sec === 2) {
+      playLine(BT_MEL_A[i]!, t, e, (n, at, d) => oboe(out, n, at, d, 0.065));
+      playLine(BT_MEL_A[i]!, t, e, (n, at, d) => flute(out, n + 12, at, d, 0.035));
+    }
+    if (sec === 3) {
+      // Break: rolling harp over the band, celesta answers, drums build into B2.
+      const up = [...ch.tones.map((n) => n + 12), ...ch.tones.map((n) => n + 24)];
+      for (let s = 0; s < 12; s++) harp(out, up[s % 8]!, t + s * (e / 2), s % 6 === 0 ? 0.065 : 0.045, ((s % 8) / 7 - 0.5) * 0.6);
+      if (i % 2 === 1) bell(out, up[5 + (h % 3)]!, t + 3 * e, 0.03, 1.6, -0.3);
+    }
+    if (sec === 4) {
+      playLine(BT_MEL_B[i]!, t, e, (n, at, d) => flute(out, n, at, d, 0.09));
+      playLine(BT_MEL_B[i]!, t, e, (n, at, d) => oboe(out, n - 12, at, d, 0.045));
+    }
+    // Harp sweep into each B section.
+    if (bSec && i === 0) ch.tones.concat(ch.tones.map((n) => n + 12), ch.tones.map((n) => n + 24)).forEach((n, k) => harp(out, n + 12, Math.max(0, t - 0.3) + k * 0.025, 0.04));
+    // Frame drum + tambourine (12 sixteenth steps per bar).
+    if (i === 0 && sec > 0) crash(out, t, 0.07);
+    const lanes =
+      i === 7 && (sec === 3 || sec === 4) ? ['K.K.K.KKKKKK', '......rrrrrr', 't.....t.....']
+      : sec === 0 ? ['K.....k...k.', 't.j.j.t.j.j.']
+      : sec === 3 ? ['K.....k.....', 'j.j.j.j.j.j.']
+      : fast ? ['K..k..K..k.k', '......s.....', 'tjjjjjtjjjjj']
+      : ['K.....K...k.', '......s.....', 't.j.j.t.j.j.'];
+    drums(out, t, e / 2, lanes, 1, 120);
   },
 };
 
-// ---------------------------------------------------------------------------------------------
-// BOSS — "Guardian's wrath": D harmonic minor, 164 bpm, choir + galloping taiko
-
-const X_1 = ['D2m', 'D2m', 'Bb2', 'Bb2', 'G2m', 'A2', 'D2m', 'A2'].map(C);
-const X_2 = ['G2m', 'D2m', 'Bb2', 'A2', 'G2m', 'D2m', 'Eb2', 'A2'].map(C);
-const X_MEL_LOW = [
-  'D4:2 F4 A4',
-  'G4:1.5 F4:.5 E4 D4',
-  'F4:2 D4 Bb3',
-  'C4 D4 F4:2',
-  'G4:1.5 Bb4:.5 D5:2',
-  'C#5:1.5 E5:.5 A4:2',
-  'F4 E4 D4 A3',
-  'C#4:2 E4 A4',
-].map(line);
-const X_MEL_HIGH = [
-  'D5:1.5 Bb4:.5 G5:2',
-  'F5 E5:.5 D5:.5 A5:2',
-  'Bb5:1.5 A5:.5 F5 D5',
-  'E5 C#5 E5 A5',
-  'G5:1.5 A5:.5 Bb5 G5',
-  'A5:2 F5 D5',
-  'Eb5:1.5 G5:.5 Bb5 G5',
-  'A5:2 C#6 E6',
-].map(line);
-const OST_BOSS = [0, 12, 0, 12, 7, 12, 0, 12, 0, 12, 0, 12, 7, 12, 3, 12];
+// BOSS — "Trial of the guardian": E harmonic minor, 6/8, dotted quarter = 88, 32 bars.
+// Same band, darker: choir, low galloping strings, heavy drum; oboe then flute carry the melody.
+const BS_A = ['Em', 'Em', 'C', 'B', 'Am', 'Em', 'Am', 'B'];
+const BS_B = ['C', 'D', 'B', 'Em', 'C', 'D', 'B7', 'B'];
+const BS_MEL_A = ['E5:3 G5:2 F#5', 'E5:2 D#5 E5:3', 'G5:3 E5:2 C5', 'D#5:3 F#5:3', 'A5:3 C6:2 B5', 'G5:2 F#5 E5:3', 'C5:2 E5 A5:2 G5', 'F#5:3 D#5:2 B4'].map(line);
+const BS_MEL_B = ['E5:2 G5 C6:3', 'A5:2 F#5 D5:3', 'D#5:2 F#5 B5:3', 'B5:3 G5:2 E5', 'E5:2 G5 C6:2 B5', 'A5:2 F#5 D6:3', 'D#6:3 C6:2 A5', 'B5:6'].map(line);
 
 const BOSS: Song = {
-  bpm: 164,
+  bpm: 264,
   bars: 32,
+  meter: 6,
   reverb: 0.3,
-  level: 0.72,
-  play(bar, t, beat, out) {
+  level: 0.66,
+  play(bar, t, e, out) {
     const sec = Math.floor(bar / 8);
     const i = bar % 8;
-    const c = (sec === 2 ? X_2 : X_1)[i]!;
-    const len = beat * 4;
-    const last = i === 7;
-    if (i === 0) crash(out, t, 0.1);
-    pad(out, triad(c, 24), t, len, { vol: sec === 0 ? 0.03 : 0.022, cutoff: 2200, attack: 0.3, release: 0.6, choir: true });
-    ostinato(out, c, t, beat, 0.05, OST_BOSS, 12);
-    [0, 12, 0, 12, 0, 12, 0, 12].forEach((o, s) => driveBass(out, c.root + o, t + s * beat * 0.5, beat * 0.5, 0.08));
-    drums(out, t, beat, last
-      ? ['K..K..K.K.K.KKKK', '........rrrrrrrr']
-      : ['K..K..K.K..K..k.', '....s.......s...', 'hhhhhhhhhhhhhhhh'], 1, 75);
-    if (sec === 0) triad(c, 12).forEach((n) => [0, 0.75, 1.5].forEach((at) => brass(out, n, t + at * beat, 0.5 * beat, 0.028)));
-    if (sec === 1 || sec === 3) playLine(X_MEL_LOW[i]!, t, beat, (n, at, d) => brass(out, n + (sec === 3 ? 12 : 0), at, d, 0.065));
-    if (sec === 2) playLine(X_MEL_HIGH[i]!, t, beat, (n, at, d) => brass(out, n, at, d, 0.055));
-    if (sec === 3) playLine(X_MEL_LOW[i]!, t, beat, (n, at, d) => pad(out, [n + 24], at, d, { vol: 0.02, cutoff: 3000, attack: 0.05, release: 0.3, choir: true }));
+    const ch = E_CHORD[(sec === 2 ? BS_B : BS_A)[i]!]!;
+    gallop(out, ch, t, e, 0.05, true, 0);
+    pizz(out, ch.root, t, 0.2);
+    pizz(out, ch.root, t + 3 * e, 0.14);
+    softBass(out, ch.root, t, e * 5.5, 0.09);
+    pad(out, ch.tones.slice(0, 3).map((n) => n + 24), t, e * 6, { vol: sec === 2 ? 0.032 : 0.026, cutoff: 2200, attack: 0.25, release: 0.5, choir: true });
+    if (sec === 1 || sec === 3) {
+      playLine(BS_MEL_A[i]!, t, e, (n, at, d) => oboe(out, n, at, d, 0.07));
+      playLine(BS_MEL_A[i]!, t, e, (n, at, d) => pad(out, [n - 12], at, d, { vol: 0.018, cutoff: 1800, attack: 0.05, release: 0.25 }));
+    }
+    if (sec === 3) playLine(BS_MEL_A[i]!, t, e, (n, at, d) => flute(out, n + 12, at, d, 0.04));
+    if (sec === 2) {
+      playLine(BS_MEL_B[i]!, t, e, (n, at, d) => flute(out, n, at, d, 0.085));
+      if (i % 2 === 0) bell(out, ch.tones[hash(bar) % 3]! + 36, t, 0.025, 1.6, 0.3);
+    }
+    if (i === 0) crash(out, t, 0.08);
+    const lanes =
+      i === 7 ? ['K..K..KKKKKK', '......rrrrrr', 't.....t.....']
+      : sec === 0 ? ['K.....K..k..', 't.....t.....']
+      : ['K..K..K..k.k', '......s.....', 'tjjjjjtjjjjj'];
+    drums(out, t, e / 2, lanes, 1.1, 75);
   },
 };
 

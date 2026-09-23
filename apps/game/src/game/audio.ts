@@ -1,9 +1,11 @@
 /**
- * Chiptune audio, synthesised live with the Web Audio API — no sound files, no licences.
+ * Game audio, synthesised live with the Web Audio API — no sound files, no licences.
  * - sfx(name): short 8/16-bit style effects (square/triangle/noise with pitch sweeps)
- * - music(theme): small looping tracker songs (lead + bass + drums) for the map and battles
+ * - music(theme): orchestral / ambient songs from music.ts (calm map song, driving battle + boss)
  * Browsers only allow audio after a user gesture: the first tap/key unlocks it (unlockAudio).
  */
+
+import { impulse, SONGS, type Song } from './music';
 
 type Wave = OscillatorType;
 export type Sfx =
@@ -40,7 +42,12 @@ function init(): AudioContext | null {
   if (ctx) return ctx;
   const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AC) return null;
-  ctx = new AC();
+  // 32 kHz is plenty for synth audio and roughly a third cheaper than 48 kHz on phones.
+  try {
+    ctx = new AC({ sampleRate: 32000, latencyHint: 'balanced' });
+  } catch {
+    ctx = new AC();
+  }
   const master = ctx.createGain();
   master.gain.value = 0.9;
   master.connect(ctx.destination);
@@ -189,96 +196,33 @@ export function sfx(name: Sfx) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Music: tiny tracker. Each song = bpm + 8th-note steps per bar + chord roots + melody pattern.
-
-interface Song {
-  bpm: number;
-  /** One entry per 8th note; 0 = rest. MIDI notes. */
-  lead: number[];
-  /** One entry per 8th note (bass), same length as lead. */
-  bass: number[];
-  /** 'k' kick, 's' snare, 'h' hat, '.' rest — one per 8th note. */
-  drums: string;
-  leadWave: Wave | 'pulse';
-}
-
-// Thai-flavoured major pentatonic (C D E G A) walk for the map; driving A-minor for battles.
-const FIELD: Song = {
-  bpm: 96,
-  leadWave: 'pulse',
-  lead: [
-    76, 0, 79, 81, 79, 0, 76, 74, 72, 0, 74, 76, 74, 0, 0, 0,
-    76, 0, 79, 81, 84, 0, 81, 79, 81, 0, 79, 76, 79, 0, 0, 0,
-    81, 0, 84, 86, 84, 0, 81, 79, 76, 0, 79, 81, 79, 0, 76, 74,
-    72, 0, 74, 76, 79, 0, 76, 74, 72, 0, 0, 0, 72, 0, 0, 0,
-  ],
-  bass: [
-    48, 0, 55, 0, 48, 0, 55, 0, 45, 0, 52, 0, 45, 0, 52, 0,
-    41, 0, 48, 0, 41, 0, 48, 0, 43, 0, 50, 0, 43, 0, 50, 0,
-    45, 0, 52, 0, 45, 0, 52, 0, 41, 0, 48, 0, 41, 0, 48, 0,
-    43, 0, 50, 0, 43, 0, 50, 0, 48, 0, 55, 0, 48, 0, 0, 0,
-  ],
-  drums: 'k.h.s.h.'.repeat(7) + 'k.h.skss',
-};
-
-const BATTLE: Song = {
-  bpm: 148,
-  leadWave: 'square',
-  lead: [
-    81, 0, 81, 84, 0, 81, 79, 0, 77, 0, 77, 81, 0, 77, 76, 0,
-    79, 0, 79, 83, 0, 79, 77, 0, 76, 0, 76, 79, 81, 0, 0, 0,
-    81, 0, 81, 84, 0, 88, 86, 0, 84, 0, 83, 81, 0, 79, 77, 0,
-    79, 0, 77, 76, 0, 74, 76, 0, 81, 0, 0, 80, 81, 0, 0, 0,
-  ],
-  bass: [
-    45, 45, 57, 45, 45, 57, 45, 57, 41, 41, 53, 41, 41, 53, 41, 53,
-    43, 43, 55, 43, 43, 55, 43, 55, 45, 45, 57, 45, 44, 44, 56, 44,
-    45, 45, 57, 45, 45, 57, 45, 57, 41, 41, 53, 41, 41, 53, 41, 53,
-    43, 43, 55, 43, 43, 55, 43, 55, 45, 45, 57, 45, 45, 0, 45, 0,
-  ],
-  drums: 'k.hsk.hsk.hsk.hsk.hsk.hsk.hskkhs'.repeat(2),
-};
-
-const BOSS: Song = {
-  bpm: 164,
-  leadWave: 'square',
-  lead: [
-    74, 0, 77, 0, 81, 0, 80, 81, 86, 0, 84, 81, 80, 0, 77, 0,
-    74, 0, 77, 0, 81, 0, 80, 81, 89, 0, 88, 86, 85, 0, 0, 0,
-    86, 85, 86, 0, 81, 0, 77, 0, 82, 81, 82, 0, 77, 0, 74, 0,
-    79, 77, 76, 0, 73, 0, 76, 0, 74, 0, 0, 0, 73, 74, 0, 0,
-  ],
-  bass: [
-    38, 50, 38, 50, 38, 50, 38, 50, 34, 46, 34, 46, 34, 46, 34, 46,
-    36, 48, 36, 48, 36, 48, 36, 48, 37, 49, 37, 49, 37, 49, 37, 49,
-    38, 50, 38, 50, 38, 50, 38, 50, 34, 46, 34, 46, 34, 46, 34, 46,
-    36, 48, 36, 48, 33, 45, 33, 45, 38, 50, 38, 50, 37, 49, 37, 49,
-  ],
-  drums: 'kshskshskshskshs'.repeat(4),
-};
-
-const SONGS: Record<Exclude<Theme, null>, Song> = { field: FIELD, battle: BATTLE, boss: BOSS };
+// Music scheduler: songs live in music.ts; each gets its own gain (for crossfades) + a reverb send.
 
 let current: Theme = null;
 let pendingTheme: Theme | undefined;
 let timer: number | null = null;
-let step = 0;
-let nextTime = 0;
+let songOut: GainNode | null = null;
+let reverb: ConvolverNode | null = null;
 
-function scheduleStep(song: Song, i: number, t: number) {
-  const len = 60 / song.bpm / 2;
-  const at = t - ctx!.currentTime;
-  const ln = song.lead[i % song.lead.length]!;
-  if (ln) tone({ f: midi(ln), dur: len * 0.95, wave: song.leadWave, vol: 0.11, at, out: musicGain });
-  const bn = song.bass[i % song.bass.length]!;
-  if (bn) tone({ f: midi(bn), dur: len * 0.9, wave: 'triangle', vol: 0.22, at, out: musicGain });
-  const dr = song.drums[i % song.drums.length];
-  if (dr === 'k') tone({ f: 150, f2: 45, dur: 0.12, wave: 'sine', vol: 0.35, at, out: musicGain });
-  else if (dr === 's') noise({ dur: 0.1, freq: 1800, vol: 0.14, at, out: musicGain });
-  else if (dr === 'h') noise({ dur: 0.03, freq: 8000, q: 0.8, vol: 0.05, at, out: musicGain });
+function reverbOf(c: BaseAudioContext, dest: AudioNode): ConvolverNode {
+  const r = c.createConvolver();
+  r.buffer = impulse(c, 3.2, 2.8);
+  r.connect(dest);
+  return r;
 }
 
-/** Switch the background song (null = silence). Starts once audio has been unlocked. */
+/** Song output: level gain → dry to `dest`, plus a send into the reverb. */
+function songBus(c: BaseAudioContext, song: Song, dest: AudioNode, rev: AudioNode): GainNode {
+  const g = c.createGain();
+  g.gain.value = song.level;
+  g.connect(dest);
+  const send = c.createGain();
+  send.gain.value = song.reverb;
+  g.connect(send).connect(rev);
+  return g;
+}
+
+/** Switch the background song (null = silence) with a short crossfade. Starts once audio is unlocked. */
 export function music(theme: Theme) {
   if (!ctx || ctx.state !== 'running') {
     pendingTheme = theme;
@@ -288,16 +232,43 @@ export function music(theme: Theme) {
   current = theme;
   if (timer !== null) window.clearInterval(timer);
   timer = null;
+  const now = ctx.currentTime;
+  if (songOut) {
+    const old = songOut;
+    old.gain.cancelScheduledValues(now);
+    old.gain.setValueAtTime(old.gain.value, now);
+    old.gain.linearRampToValueAtTime(0, now + 0.9);
+    window.setTimeout(() => old.disconnect(), 6000);
+    songOut = null;
+  }
   if (!theme) return;
+  reverb ??= reverbOf(ctx, musicGain);
   const song = SONGS[theme];
-  step = 0;
-  nextTime = ctx.currentTime + 0.08;
-  timer = window.setInterval(() => {
+  const out = songBus(ctx, song, musicGain, reverb);
+  songOut = out;
+  const beat = 60 / song.bpm;
+  let bar = 0;
+  let next = now + 0.1;
+  const tick = () => {
     if (!ctx) return;
-    while (nextTime < ctx.currentTime + 0.15) {
-      scheduleStep(song, step, nextTime);
-      nextTime += 60 / song.bpm / 2;
-      step++;
+    // Throttled background tabs: skip ahead instead of bursting a backlog of bars.
+    if (next < ctx.currentTime - 0.05) next = ctx.currentTime + 0.05;
+    while (next < ctx.currentTime + 0.5) {
+      song.play(bar % song.bars, next, beat, out);
+      next += beat * 4;
+      bar++;
     }
-  }, 30);
+  };
+  tick();
+  timer = window.setInterval(tick, 100);
+}
+
+/** Dev helper: render a song offline (no speakers needed) to check levels and clipping. */
+export async function renderMusic(theme: Exclude<Theme, null>, seconds: number, sampleRate = 22050): Promise<AudioBuffer> {
+  const c = new OfflineAudioContext(2, Math.ceil(sampleRate * seconds), sampleRate);
+  const song = SONGS[theme];
+  const out = songBus(c, song, c.destination, reverbOf(c, c.destination));
+  const beat = 60 / song.bpm;
+  for (let bar = 0, t = 0.05; t < seconds; bar++, t += beat * 4) song.play(bar % song.bars, t, beat, out);
+  return c.startRendering();
 }

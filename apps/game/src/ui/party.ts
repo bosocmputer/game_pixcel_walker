@@ -1,88 +1,156 @@
-/** Party panel: members, invite nearby players, and open instanced dungeons (solo or as a party). */
-import { CLASSES, DUNGEON_BY_ID, DUNGEONS, MONSTERS, PARTY_MAX, PARTY_RANGE_M, haversine, type DungeonDef, type RunTarget } from '@pw/shared';
+/**
+ * Party window (MMORPG style): tab "ปาร์ตี้" = party frame with member cards + nearby players to
+ * invite; tab "ดันเจี้ยน" = dungeon cards with the boss portrait. Solo players can run dungeons too.
+ */
+import {
+  CLASSES,
+  DUNGEON_BY_ID,
+  DUNGEONS,
+  MONSTERS,
+  PARTY_MAX,
+  PARTY_RANGE_M,
+  haversine,
+  type DungeonDef,
+  type PlayerPresence,
+  type RunTarget,
+} from '@pw/shared';
 import { bus, toast } from '../game/bus';
 import { net } from '../game/net';
 import { walk } from '../game/walk';
 import { autoHunt } from '../game/autohunt';
+import { paperdollOf } from '../game/paperdoll';
 import { store } from '../state/store';
 import { el, esc } from './dom';
 import { uiIcon } from './pixel';
+import { dollFromLook, portraitImg } from './portrait';
 
-function distanceTo(lat: number, lng: number): number {
-  const p = walk.position;
-  return p ? haversine(p, { lat, lng }) : Infinity;
+let tab: 'party' | 'dungeon' = 'party';
+
+function distanceTo(p: { lat: number; lng: number }): number {
+  const me = walk.position;
+  return me ? haversine(me, p) : Infinity;
 }
 
-const fmtDist = (m: number) => (m < 1000 ? `${Math.round(m)} ม.` : `${(m / 1000).toFixed(1)} กม.`);
+const fmtDist = (m: number) => (!Number.isFinite(m) ? '—' : m < 1000 ? `${Math.round(m)} ม.` : `${(m / 1000).toFixed(1)} กม.`);
 
-export function partyPanel(): string {
+function memberCard(opts: {
+  portrait: string;
+  name: string;
+  level: number;
+  classId: string;
+  leader: boolean;
+  me: boolean;
+  chips: string[];
+  action?: string;
+}): string {
+  return `<div class="pt-card ${opts.me ? 'me' : ''}">
+    ${opts.portrait}
+    <div class="pt-info">
+      <b>${opts.leader ? uiIcon('star', true) : ''}${esc(opts.name)}${opts.me ? ' <small>(คุณ)</small>' : ''}</b>
+      <small>Lv.${opts.level} · ${esc(CLASSES[opts.classId as keyof typeof CLASSES]?.nameTh ?? opts.classId)}</small>
+      <span class="pt-chips">${opts.chips.join('')}</span>
+    </div>
+    ${opts.action ?? ''}
+  </div>`;
+}
+
+const chip = (text: string, kind = '') => `<i class="pt-chip ${kind ? `c-${kind}` : ''}">${text}</i>`;
+
+function partyTab(): string {
   const s = store.s;
   const party = net.party;
+  const byId = new Map<string, PlayerPresence>(net.players.map((p) => [p.id, p]));
   const full = !!party && party.members.length >= PARTY_MAX;
   const canInvite = net.connected && net.isLeader && !full;
 
+  // Party frame: always PARTY_MAX slots so the size of the group is obvious.
   const members = party
-    ? party.members
-        .map((m) => {
-          const isMe = m.id === net.id;
-          const kick = net.isLeader && !isMe ? `<button class="mini" data-kick="${esc(m.id)}">เชิญออก</button>` : '';
-          return `<div class="row"><div>${m.id === party.leader ? '👑 ' : ''}<b>${esc(m.name)}</b>${isMe ? ' (คุณ)' : ''}
-            <span class="tag">Lv.${m.level}</span> <small class="muted">${esc(CLASSES[m.classId]?.nameTh ?? m.classId)}${m.online ? '' : ' · ออฟไลน์'}</small></div>
-            <span class="spacer"></span>${kick}</div>`;
-        })
-        .join('')
-    : '<p class="muted">ยังไม่มีปาร์ตี้ — ชวนผู้เล่นที่อยู่ใกล้ ๆ ด้านล่าง (สูงสุด 3 คน)</p>';
+    ? party.members.map((m) => {
+        const isMe = m.id === net.id;
+        const pres = byId.get(m.id);
+        const d = isMe ? 0 : pres ? distanceTo(pres) : Infinity;
+        const chips = [
+          m.online ? chip('ออนไลน์', 'on') : chip('ออฟไลน์', 'off'),
+          pres?.busy ? chip('กำลังสู้', 'busy') : '',
+          !isMe ? chip(d <= PARTY_RANGE_M ? `ใกล้ ${fmtDist(d)}` : `ไกล ${fmtDist(d)}`, d <= PARTY_RANGE_M ? 'near' : 'far') : '',
+        ];
+        const doll = isMe ? paperdollOf(s) : pres ? dollFromLook(pres.look) : null;
+        const kick = net.isLeader && !isMe ? `<button type="button" class="mini danger-mini" data-kick="${esc(m.id)}">เชิญออก</button>` : '';
+        return memberCard({ portrait: portraitImg(doll, 'pt-ico'), name: m.name, level: m.level, classId: m.classId, leader: m.id === party.leader, me: isMe, chips, action: kick });
+      })
+    : [memberCard({ portrait: portraitImg(paperdollOf(s), 'pt-ico'), name: s.name, level: s.level, classId: s.classId, leader: false, me: true, chips: [chip(net.connected ? 'ออนไลน์' : 'ออฟไลน์', net.connected ? 'on' : 'off')] })];
+  while (members.length < PARTY_MAX) members.push(`<div class="pt-card empty"><span class="pt-ico pt-none">+</span><div class="pt-info"><b>ว่าง</b><small>ชวนผู้เล่นที่อยู่ใกล้ ๆ ด้านล่าง</small></div></div>`);
 
   const inParty = new Set(party?.members.map((m) => m.id) ?? []);
   const others = net.players
     .filter((p) => !inParty.has(p.id))
-    .map((p) => ({ p, d: distanceTo(p.lat, p.lng) }))
+    .map((p) => ({ p, d: distanceTo(p) }))
     .sort((a, b) => a.d - b.d);
   const nearby = others.length
     ? others
         .map(({ p, d }) => {
           const near = d <= PARTY_RANGE_M;
-          const btn = near && canInvite ? `<button class="mini" data-invite="${esc(p.id)}">ชวน</button>` : `<small class="muted">${near ? '' : 'ไกลเกิน'}</small>`;
-          return `<div class="row"><div><b>${esc(p.name)}</b> <span class="tag">Lv.${p.level}</span>
-            <small class="muted">${fmtDist(d)}${p.busy ? ' · ⚔️ กำลังสู้' : ''}</small></div><span class="spacer"></span>${btn}</div>`;
+          const why = !near ? 'ไกลเกิน' : !net.isLeader ? 'หัวหน้าชวน' : full ? 'ปาร์ตี้เต็ม' : '';
+          const btn = canInvite && near ? `<button type="button" class="mini" data-invite="${esc(p.id)}">ชวน</button>` : `<small class="muted">${why}</small>`;
+          return `<div class="pt-row">${portraitImg(dollFromLook(p.look), 'pt-ico sm')}
+            <div class="pt-info"><b>${esc(p.name)}</b><small>Lv.${p.level} · ${esc(CLASSES[p.look.classId]?.nameTh ?? '')} · ${fmtDist(d)}${p.busy ? ' · กำลังสู้' : ''}</small></div>${btn}</div>`;
         })
         .join('')
-    : `<p class="muted">${net.connected ? 'ยังไม่มีผู้เล่นอื่นในระยะ 2 กม.' : 'ออฟไลน์ — เปิดเซิร์ฟเวอร์ด้วย npm run dev:all'}</p>`;
+    : `<p class="muted pt-empty">${net.connected ? 'ยังไม่มีผู้เล่นอื่นในระยะ 2 กม.' : 'ออฟไลน์ — เปิดเซิร์ฟเวอร์ด้วย npm run dev:all'}</p>`;
 
-  const dungeon = (dg: DungeonDef) => {
-    const boss = dg.waves.at(-1)!;
-    const bossName = boss.boss ? MONSTERS[boss.monsterIds[0]!]?.nameTh : 'ฝูงหัวหน้า';
-    const locked = s.level < dg.minLevel;
-    const btn = locked
-      ? `<button class="mini" disabled>Lv.${dg.minLevel}+</button>`
-      : !party
-        ? `<button class="mini" data-dungeon-go="${dg.id}">เข้าคนเดียว</button>`
-        : net.isLeader
-          ? `<button class="mini primary" data-dungeon-go="${dg.id}">พาปาร์ตี้เข้า</button>`
-          : '<small class="muted">รอหัวหน้าเปิด</small>';
-    return `<div class="row dungeon-row"><div><b>${dg.icon} ${esc(dg.nameTh)}</b> <span class="tag">Lv.${dg.recLevel[0]}–${dg.recLevel[1]}</span>
-      <br><small class="muted">${esc(dg.descTh)}</small>
-      <br><small>${dg.waves.length} เวฟ · ท้ายสุด: ${esc(bossName ?? '')}</small></div>
-      <span class="spacer"></span>${btn}</div>`;
-  };
-
-  return `<h2>${uiIcon('party')}ปาร์ตี้ & ดันเจี้ยน</h2>
-    <h3>ปาร์ตี้ ${party ? `(${party.members.length}/${PARTY_MAX})` : ''}</h3>
-    ${members}
-    ${party ? '<button class="btn" data-party-leave>ออกจากปาร์ตี้</button>' : ''}
-    <h3>ผู้เล่นใกล้ ๆ</h3>
-    <p class="muted">ชวนได้เมื่ออยู่ห่างกันไม่เกิน ${PARTY_RANGE_M} ม. · เดินห่างจากทุกคนในปาร์ตี้เกิน ${PARTY_RANGE_M} ม. นาน 10 วิ = หลุดปาร์ตี้
-      · ตีมอนบนแผนที่ สมาชิกที่อยู่ใกล้จะเข้าสู้ด้วยกันอัตโนมัติ</p>
-    ${nearby}
-    <h3>ดันเจี้ยน</h3>
-    <p class="muted">ทั้งปาร์ตี้เข้าด้วยกัน ทุกคนต้องกด "ยอมรับ" · บอสแกร่งขึ้นตามจำนวนคน แต่ไปหลายคนได้เปรียบกว่า
-      · แต่ละคนใช้ยาของตัวเอง และได้ EXP/ของดรอปของตัวเอง</p>
-    ${DUNGEONS.map(dungeon).join('')}`;
+  return `<div class="pt-frame">${members.join('')}</div>
+    ${party ? '<button type="button" class="btn danger pt-leave" data-party-leave>ออกจากปาร์ตี้</button>' : ''}
+    <div class="ro-eq-sub">▲ ผู้เล่นใกล้ ๆ (ชวนได้ในระยะ ${PARTY_RANGE_M} ม.)</div>
+    <div class="pt-list">${nearby}</div>
+    <p class="muted pt-help">ตีมอนบนแผนที่ สมาชิกที่อยู่ใกล้เข้าสู้ด้วยกันอัตโนมัติ · ห่างทุกคนเกิน ${PARTY_RANGE_M} ม. นาน 10 วิ = หลุดปาร์ตี้</p>`;
 }
 
-export function wireParty(body: HTMLElement, close: () => void) {
+function dungeonTab(): string {
+  const s = store.s;
+  const party = net.party;
+  const card = (dg: DungeonDef) => {
+    const last = dg.waves.at(-1)!;
+    const bossId = last.boss ? last.monsterIds[0]! : last.monsterIds[0]!;
+    const boss = MONSTERS[bossId];
+    const locked = s.level < dg.minLevel;
+    const btn = locked
+      ? `<button type="button" class="btn" disabled>ต้อง Lv.${dg.minLevel}+</button>`
+      : !party
+        ? `<button type="button" class="btn primary" data-dungeon-go="${dg.id}">เข้าคนเดียว</button>`
+        : net.isLeader
+          ? `<button type="button" class="btn primary" data-dungeon-go="${dg.id}">พาปาร์ตี้เข้า</button>`
+          : '<small class="muted">รอหัวหน้าเปิด</small>';
+    return `<div class="dg-card ${locked ? 'locked' : ''}">
+      <div class="dg-boss"><img src="/assets/monsters/${boss?.sprite ?? 'mob_slime'}.png" alt="" /></div>
+      <div class="dg-info">
+        <b>${dg.icon} ${esc(dg.nameTh)}</b>
+        <small class="dg-meta">Lv.${dg.recLevel[0]}–${dg.recLevel[1]} · ${dg.waves.length} เวฟ · ท้ายสุด: ${esc(boss?.nameTh ?? '')}</small>
+        <small class="muted">${esc(dg.descTh)}</small>
+        <span class="dg-go">${btn}</span>
+      </div>
+    </div>`;
+  };
+  return `<p class="muted pt-help">${party ? 'ทั้งปาร์ตี้เข้าด้วยกัน ทุกคนต้องกด "ยอมรับ"' : 'ไม่มีปาร์ตี้ก็เข้าคนเดียวได้'} · บอสแกร่งขึ้นตามจำนวนคน แต่ไปหลายคนได้เปรียบกว่า · แต่ละคนใช้ยาและได้ของดรอปของตัวเอง</p>
+    <div class="dg-list">${DUNGEONS.map(card).join('')}</div>`;
+}
+
+export function partyPanel(): string {
+  const party = net.party;
+  const t = (id: 'party' | 'dungeon', label: string) => `<button type="button" class="win-tab ${tab === id ? 'on' : ''}" data-ptab="${id}">${label}</button>`;
+  return `<div class="ro-equip party-win">
+    <div class="ro-eq-title"><span>${uiIcon('party', true)}ปาร์ตี้ ${party ? `${party.members.length}/${PARTY_MAX}` : ''}</span></div>
+    <div class="win-tabs">${t('party', 'สมาชิก')}${t('dungeon', 'ดันเจี้ยน')}</div>
+    ${tab === 'party' ? partyTab() : dungeonTab()}
+  </div>`;
+}
+
+export function wireParty(body: HTMLElement, close: () => void, rerender?: () => void) {
   const on = (sel: string, fn: (el: HTMLElement) => void) =>
     body.querySelectorAll<HTMLElement>(sel).forEach((x) => x.addEventListener('click', () => fn(x)));
+  on('[data-ptab]', (x) => {
+    tab = x.dataset.ptab as 'party' | 'dungeon';
+    rerender?.();
+  });
   on('[data-invite]', (x) => net.invite(x.dataset.invite!));
   on('[data-kick]', (x) => net.kick(x.dataset.kick!));
   on('[data-party-leave]', () => net.leaveParty());

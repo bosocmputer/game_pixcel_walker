@@ -55,6 +55,7 @@ import { partyPanel, showInvite, showReadyCheck, wireParty } from './party';
 import { equipWindowHtml, gearStatBonus, itemIcon, statText, wireEquipWindow, SLOT_NAME } from './equipWindow';
 import { paperdollOf } from '../game/paperdoll';
 import { uiIcon } from './pixel';
+import { bagWindowHtml, wireBagWindow } from './bagWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 
@@ -357,7 +358,7 @@ function renderPanel() {
       body.innerHTML = charPanel(s);
       break;
     case 'bag':
-      body.innerHTML = bagPanel(s);
+      body.innerHTML = bagWindowHtml(s);
       break;
     case 'home':
       body.innerHTML = homePanel(s);
@@ -379,7 +380,10 @@ function renderPanel() {
       if (html !== lastPartyHtml || !body.firstChild) {
         lastPartyHtml = html;
         body.innerHTML = html;
-        wireParty(body, closePanel);
+        wireParty(body, closePanel, () => {
+          lastPartyHtml = '';
+          renderPanel();
+        });
         body.scrollTop = scroll;
       }
       return;
@@ -390,6 +394,7 @@ function renderPanel() {
   }
   body.scrollTop = scroll;
   wirePanel(body);
+  if (panelName === 'bag') wireBagWindow(body, renderPanel);
   if (panelName === 'char') {
     const on = (sel: string, fn: (el: HTMLElement) => void) =>
       body.querySelectorAll<HTMLElement>(sel).forEach((x) => x.addEventListener('click', () => fn(x)));
@@ -512,27 +517,6 @@ function itemLine(id: string, extra = ''): string {
   return `${itemIcon(id, 'li-ico')}<b style="color:${RARITY_COLOR[def.rarity] === '#FFFFFF' ? 'inherit' : RARITY_COLOR[def.rarity]}">${esc(def.nameTh)}</b> <small>${esc(stats)}${extra}</small>`;
 }
 
-function bagPanel(s: SaveData): string {
-  const worn = (Object.keys(SLOT_NAME) as EquipSlot[])
-    .map((slot) => {
-      const eq = s.equipment[slot];
-      return `<span class="worn-chip ${eq && eq.durability <= 0 ? 'broken' : ''}" title="${SLOT_NAME[slot]}">${eq ? itemIcon(eq.itemId, 'li-ico') : '<span class="eq-empty sm">+</span>'}</span>`;
-    })
-    .join('');
-  const gear = s.gearBag
-    .map((g, i) => `<div class="row">${itemLine(g.itemId, ` · ${g.durability}/${EQUIPMENT[g.itemId]?.maxDurability}`)}
-      <span class="spacer"></span><button class="mini" data-equip="${i}">สวม</button><button class="mini" data-sell="${i}">ขาย</button></div>`)
-    .join('');
-  const cons = Object.entries(s.bag)
-    .filter(([, n]) => n > 0)
-    .map(([id, n]) => `<div class="row">${itemLine(id)} ×${n}<span class="spacer"></span>
-      <button class="mini" data-use="${id}">ใช้</button></div>`)
-    .join('');
-  return `<h2>${uiIcon('bag')}กระเป๋า <small>${uiIcon('coin', true)}${s.gold.toLocaleString()} · ฝากไว้ ${s.bankGold.toLocaleString()}</small></h2>
-    <h3>สวมใส่อยู่</h3><div class="worn-row">${worn}<button class="mini" data-act="equipwin">${uiIcon('char', true)}หน้าต่างสวมใส่</button></div>
-    <h3>อุปกรณ์ในกระเป๋า</h3>${gear || '<p class="muted">ว่าง</p>'}
-    <h3>ไอเทมใช้แล้วหมด</h3>${cons || '<p class="muted">ว่าง</p>'}`;
-}
 
 function shopList(ids: string[]): string {
   return ids

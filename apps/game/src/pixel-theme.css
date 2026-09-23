@@ -234,3 +234,94 @@ button.ro-eq-tab.on { opacity: 1; height: 22px; }
 .ds-cd { position: absolute; left: 2px; top: 50%; margin-top: -12px; width: 24px; height: 24px; display: grid; place-items: center; background: rgba(28, 26, 40, .6); color: #fff; font: 700 16px 'Silkscreen', monospace; font-style: normal; text-shadow: 2px 2px 0 #1c1a28; }
 .deck-slot.cd { opacity: 1 !important; }
 .sheet .ro-eq-title { padding-right: 56px; }
+
+/* --- Bag window (MMORPG inventory) ------------------------------------------------------------- */
+.bag-win, .party-win { margin-top: 0; }
+.bag-worn { display: flex; align-items: center; gap: 4px; padding: 4px 4px 8px; border-bottom: 2px dotted #cdbf9f; }
+.bag-lbl { font-size: 12px; color: var(--muted); margin-right: 2px; }
+.bag-worn .mini { margin-left: auto; }
+.bag-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)); gap: 4px; padding: 8px 4px; }
+.bg-cell {
+  position: relative; aspect-ratio: 1; min-width: 56px; display: grid; place-items: center; padding: 0; cursor: pointer;
+  border: 6px solid transparent !important; border-image: url(/assets/ui/well.png) 4 fill / 6px stretch !important;
+  background: none !important; box-shadow: inset 0 -3px 0 0 var(--rar, transparent);
+}
+.bg-cell.worn { width: 56px; min-width: 56px; }
+.bg-cell.empty { cursor: default; box-shadow: none; opacity: .7; }
+.bg-cell.sel { border-image-source: url(/assets/ui/selected.png) !important; background: #fff3e0 !important; background-clip: padding-box !important; }
+.bg-cell.broken .bg-ico { filter: grayscale(1) brightness(.85); }
+.bg-ico { width: 48px; height: 48px; image-rendering: pixelated; }
+.bg-qty {
+  position: absolute; right: -4px; bottom: -4px; min-width: 16px; padding: 0 2px; font: 12px 'Silkscreen', monospace;
+  color: #fff; background: var(--ink); text-shadow: none; line-height: 14px; text-align: center;
+}
+.bg-dur { position: absolute; left: 0; right: 0; bottom: -4px; height: 4px; background: #3a3050; }
+.bg-dur b { display: block; height: 100%; background: #58c23a; }
+.bg-slot-lbl { font-size: 10px; color: #9c8f73; text-align: center; line-height: 1.1; }
+.bag-hint { text-align: center; margin: 4px 0 8px; }
+.bag-detail {
+  margin: 0 4px 8px; padding: 2px 6px 6px;
+  border: 8px solid transparent !important; border-image: url(/assets/ui/panel.png) 4 fill / 8px stretch !important;
+}
+.bd-head { display: flex; align-items: center; gap: 8px; }
+.bd-ico { width: 48px; height: 48px; image-rendering: pixelated; }
+.bd-head > div { display: grid; }
+.bd-name { font-size: 16px; }
+.bd-head small { color: var(--muted); font-size: 12px; }
+.bd-lines { display: grid; gap: 2px; margin: 6px 0; font-size: 13px; }
+.bd-stat { color: var(--cyan-d); font-family: 'Silkscreen', 'Chakra Petch', sans-serif; font-size: 12px; }
+.bd-dur { display: grid; grid-template-columns: auto 1fr auto; gap: 6px; align-items: center; font-size: 12px; margin-bottom: 6px; }
+.bd-dur .bar { display: block; }
+.bd-dur .bar > i { display: block; height: 100%; }
+.bd-actions { display: flex; flex-wrap: wrap; gap: 4px; }
+.bd-actions .btn { flex: 1; min-width: 110px; margin: 0; }
+.bag-foot { display: flex; justify-content: space-between; align-items: center; padding: 6px 6px 2px; border-top: 2px solid #cdbf9f; font-size: 13px; }
+.bag-foot b { font-family: 'Silkscreen', monospace; font-size: 15px; }
+
+/* --- Party window -------------------------------------------------------------------------------- */
+.pt-frame { display: grid; gap: 4px; padding: 6px 4px; }
+.pt-card, .pt-row { display: flex; align-items: center; gap: 8px; }
+.pt-card {
+  padding: 2px 4px; min-height: 76px;
+  border: 8px solid transparent !important; border-image: url(/assets/ui/well.png) 4 fill / 8px stretch !important;
+}
+.pt-card.me { border-image-source: url(/assets/ui/selected.png) !important; background: #fff8ec !important; background-clip: padding-box !important; }
+.pt-card.empty { opacity: .7; }
+.pt-ico { width: 64px; height: 64px; flex: none; image-rendering: pixelated; background: #efe6d2; box-shadow: inset 2px 2px 0 #cdbf9f; }
+.pt-ico.sm { width: 32px; height: 32px; }
+.pt-none { display: grid; place-items: center; color: #b3a27e; font: 20px 'Silkscreen', monospace; }
+.pt-info { display: grid; gap: 1px; flex: 1; min-width: 0; }
+.pt-info b { display: flex; align-items: center; gap: 2px; font-size: 14px; }
+.pt-info small { font-size: 12px; color: var(--muted); }
+.pt-chips { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.pt-chip { font-style: normal; font-size: 11px; padding: 0 4px; color: #fff; background: #6d7596; box-shadow: 1px 1px 0 var(--ink); }
+.pt-chip.c-on { background: #2e8a24; } .pt-chip.c-off { background: #8a8e96; } .pt-chip.c-busy { background: #c0392b; }
+.pt-chip.c-near { background: #2c6bc4; } .pt-chip.c-far { background: #b8620f; }
+.danger-mini { border-image-source: url(/assets/ui/btn-danger.png) !important; }
+.pt-leave { width: calc(100% - 8px); margin: 0 4px 6px; }
+.pt-list { display: grid; gap: 4px; padding: 6px 4px; }
+.pt-row { padding: 4px 2px; border-bottom: 2px dotted #cdbf9f; }
+.pt-empty, .pt-help { margin: 4px; font-size: 12px; }
+.dg-list { display: grid; gap: 6px; padding: 4px; }
+.dg-card {
+  display: flex; gap: 8px; align-items: stretch; padding: 2px;
+  border: 8px solid transparent !important; border-image: url(/assets/ui/panel.png) 4 fill / 8px stretch !important;
+}
+.dg-card.locked { filter: grayscale(.7); opacity: .75; }
+.dg-boss { width: 80px; flex: none; display: grid; place-items: end center; background: repeating-linear-gradient(0deg, #2f3a58 0 2px, #35416a 2px 4px); box-shadow: inset 2px 2px 0 #1c1a28; }
+.dg-boss img { max-width: 72px; max-height: 72px; image-rendering: pixelated; }
+.dg-info { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.dg-info b { font-size: 15px; }
+.dg-meta { color: var(--cyan-d) !important; font-size: 12px; }
+.dg-info small { font-size: 12px; }
+.dg-go { display: flex; justify-content: flex-end; margin-top: 4px; }
+.dg-go .btn { margin: 0; }
+.win-tabs { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; padding: 0 4px; border-bottom: 2px solid #1c1a28; }
+.win-tab {
+  font: inherit; font-size: 14px; font-weight: 600; padding: 4px 2px 2px; cursor: pointer; color: var(--muted);
+  background: #e6dcc6; border: 2px solid #1c1a28; border-bottom: 0; box-shadow: inset 2px 2px 0 #fff;
+}
+.win-tab b { font-family: 'Silkscreen', monospace; font-size: 12px; }
+.win-tab.on { background: var(--panel); color: var(--cyan-d); margin-bottom: -2px; padding-bottom: 4px; }
+.bag-worn { justify-content: space-between; }
+.bag-worn .mini { margin-left: 0; width: 56px; height: 56px; padding: 0; display: grid; place-items: center; }

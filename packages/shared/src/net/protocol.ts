@@ -13,8 +13,7 @@ export interface PlayerLook {
   helmet?: string;
   chest?: string;
   weapon?: string;
-  offhand?: string;
-  boots?: string;
+  accessory?: string;
   aura?: string | null;
 }
 

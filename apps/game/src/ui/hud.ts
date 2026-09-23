@@ -52,18 +52,10 @@ import { net } from '../game/net';
 import { partyPanel, showInvite, showReadyCheck, wireParty } from './party';
 import { equipWindowHtml, gearStatBonus, itemIcon, statText, wireEquipWindow, SLOT_NAME } from './equipWindow';
 import { paperdollOf } from '../game/paperdoll';
+import { uiIcon } from './pixel';
 import { autoHunt } from '../game/autohunt';
 
-const SLOT_TH: Record<EquipSlot, string> = {
-  helmet: 'หมวก',
-  chest: 'เกราะ',
-  weapon: 'อาวุธ',
-  offhand: 'มือรอง',
-  boots: 'รองเท้า',
-  accessory: 'เครื่องประดับ',
-};
-
-const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'straw_sandals', 'iron_helm', 'runner_sneakers'];
+const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'lucky_cord', 'iron_helm', 'runner_charm'];
 const SMITH_SHOP = ['whetstone', 'master_repair_kit', 'pixel_broadsword', 'iron_helm'];
 
 const root = () => document.getElementById('ui')!;
@@ -92,17 +84,17 @@ export function showOnboarding(onDone: () => void) {
 export function mountHud() {
   const hud = el(`<div class="hud">
     <div class="topbar" data-open="char"></div>
-    <div class="net-pill offline">⚪ ออฟไลน์</div>
+    <div class="net-pill offline"><i class="dot"></i><span>ออฟไลน์</span></div>
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
-    <div class="sim-tools hidden"><button class="sim-speed" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button><button class="sim-home" data-simhome title="วาร์ปกลับจุดเริ่ม (คูเมืองเชียงใหม่)">📍</button></div>
-    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">＋</button><button data-zoom="-1" aria-label="ซูมออก">－</button><button data-zoom="0" aria-label="หันทิศเหนือ">🧭</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">🤖<small>AUTO</small></button></div>
+    <div class="sim-tools hidden"><button class="sim-speed" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button><button class="sim-home" data-simhome title="วาร์ปกลับจุดเริ่ม (คูเมืองเชียงใหม่)">${uiIcon('pin')}</button></div>
+    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">${uiIcon('plus')}</button><button data-zoom="-1" aria-label="ซูมออก">${uiIcon('minus')}</button><button data-zoom="0" aria-label="หันทิศเหนือ">${uiIcon('compass')}</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">${uiIcon('auto')}<small>AUTO</small></button></div>
     <div class="bottombar">
-      <button class="menu-btn" data-open="char">👤<span>ตัวละคร</span></button>
-      <button class="menu-btn" data-open="bag">🎒<span>กระเป๋า</span></button>
-      <button class="menu-btn" data-open="party">👥<span>ปาร์ตี้</span><i class="badge hidden"></i></button>
-      <button class="menu-btn" data-open="home">🏠<span>บ้าน</span></button>
-      <button class="menu-btn" data-open="settings">⚙️<span>ตั้งค่า</span></button>
+      <button class="menu-btn" data-open="char">${uiIcon('char')}<span>ตัวละคร</span></button>
+      <button class="menu-btn" data-open="bag">${uiIcon('bag')}<span>กระเป๋า</span></button>
+      <button class="menu-btn" data-open="party">${uiIcon('party')}<span>ปาร์ตี้</span><i class="badge hidden"></i></button>
+      <button class="menu-btn" data-open="home">${uiIcon('home')}<span>บ้าน</span></button>
+      <button class="menu-btn" data-open="settings">${uiIcon('settings')}<span>ตั้งค่า</span></button>
     </div>
     <div class="toasts"></div>
   </div>`);
@@ -115,7 +107,7 @@ export function mountHud() {
     }
     if ((e.target as HTMLElement).closest('[data-simhome]')) {
       walk.teleport(DEFAULT_POS.lat, DEFAULT_POS.lng);
-      return toast('📍 วาร์ปกลับคูเมือง · คลิกขวา/กดค้างบนแผนที่เพื่อวาร์ปไปจุดนั้น');
+      return toast('วาร์ปกลับคูเมือง · คลิกขวา/กดค้างบนแผนที่เพื่อวาร์ปไปจุดนั้น');
     }
     if ((e.target as HTMLElement).closest('[data-autohunt]')) return autoHunt.toggle();
     const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
@@ -137,7 +129,7 @@ export function mountHud() {
   const renderSimSpeed = () => {
     hud.querySelector('.sim-tools')!.classList.toggle('hidden', !walk.simulated);
     const b = hud.querySelector<HTMLElement>('.sim-speed')!;
-    b.textContent = `🏃 ${walk.simSpeed}×`;
+    b.innerHTML = `${uiIcon('run')}<b>${walk.simSpeed}×</b>`;
   };
   bus.on('position', (p) => {
     hud.querySelector('.joystick')!.classList.toggle('hidden', !p.simulated);
@@ -168,7 +160,7 @@ export function mountHud() {
   bus.on('net', ({ connected, online }) => {
     const pill = hud.querySelector<HTMLElement>('.net-pill')!;
     pill.classList.toggle('offline', !connected);
-    pill.textContent = connected ? `🟢 ออนไลน์ ${online} คน` : '⚪ ออฟไลน์';
+    pill.querySelector('span')!.textContent = connected ? `ออนไลน์ ${online} คน` : 'ออฟไลน์';
   });
   bus.on('autohunt', ({ enabled }) => {
     hud.querySelector('.auto-btn')!.classList.toggle('on', enabled);
@@ -200,7 +192,7 @@ function renderTopbar(elm: HTMLElement, s: SaveData) {
       <label>MP</label>${bar(s.mp, d.maxMp, 'mp')}<small>${s.mp}/${d.maxMp}</small>
       <label>EXP</label>${bar(s.exp, next, 'exp')}<small>${Number.isFinite(next) ? Math.floor((s.exp / next) * 100) + '%' : 'MAX'}</small>
     </div>
-    <div class="gold">🪙 ${s.gold.toLocaleString()}</div>`;
+    <div class="gold">${uiIcon('coin', true)}${s.gold.toLocaleString()}</div>`;
 }
 
 function fmtWait(ms: number): string {
@@ -229,21 +221,21 @@ function renderNear(box: HTMLElement) {
     const trial = l.kind === 'PARK' && canChangeClass(s.classId, s.level);
     const wbWait = wb && ready ? worldBossReadyAt(l, s) - now : 0;
     return `<div class="lm-card">
-      <div class="lm-title">${l.kind === 'CONVENIENCE' ? '🏪' : l.kind === 'FUEL' ? '⛽' : '🌳'} ${esc(l.label)}</div>
+      <div class="lm-title">${uiIcon('skull', true)}${esc(l.label)}</div>
       <div class="lm-sub">${esc(boss.nameTh)} Lv.${boss.level}${wb ? ' (บอสโลก)' : ''} — ${ready ? `<b class="good">ปรากฏแล้ว!</b>${hpInfo}` : `เกิดใหม่ใน ${fmtWait(at - now)}`}</div>
       <div class="lm-actions">
-        ${ready && wbWait <= 0 ? `<button class="btn danger" data-boss="${l.id}">⚔️ ท้าบอส</button>` : ''}
+        ${ready && wbWait <= 0 ? `<button class="btn danger" data-boss="${l.id}">${uiIcon('swords', true)}ท้าบอส</button>` : ''}
         ${ready && wbWait > 0 ? `<button class="btn" disabled>พักฟื้น ${fmtWait(wbWait)}</button>` : ''}
-        ${l.kind === 'FUEL' ? `<button class="btn" data-smith="${l.id}">🔨 ร้านตีเหล็ก</button>` : ''}
-        ${trial ? `<button class="btn primary" data-trial="${l.id}">🏛️ บททดสอบอาชีพ</button>` : ''}
+        ${l.kind === 'FUEL' ? `<button class="btn" data-smith="${l.id}">ร้านตีเหล็ก</button>` : ''}
+        ${trial ? `<button class="btn primary" data-trial="${l.id}">${uiIcon('star', true)}บททดสอบอาชีพ</button>` : ''}
       </div></div>`;
   });
-  if (home) cards.unshift(`<div class="lm-card home"><div class="lm-title">🏠 บ้านของคุณ</div>
+  if (home) cards.unshift(`<div class="lm-card home"><div class="lm-title">${uiIcon('home', true)}บ้านของคุณ</div>
     <div class="lm-actions"><button class="btn primary" data-open="home">เข้าบ้าน</button></div></div>`);
   if (pendingEncounter) {
     const names = pendingEncounter.monsterIds.map((id) => `${MONSTERS[id]!.nameTh} Lv.${MONSTERS[id]!.level}`).join(' + ');
     const lowHp = s.hp < derivedOf(s).maxHp * 0.3;
-    cards.unshift(`<div class="lm-card encounter"><div class="lm-title">⚔️ มอนสเตอร์ปรากฏ!</div>
+    cards.unshift(`<div class="lm-card encounter"><div class="lm-title">${uiIcon('swords', true)}มอนสเตอร์ปรากฏ!</div>
       <div class="lm-sub">${esc(names)}${lowHp ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
       <div class="lm-actions"><button class="btn danger" data-fight>สู้</button><button class="btn" data-skip>ข้าม</button></div></div>`);
   }
@@ -251,9 +243,9 @@ function renderNear(box: HTMLElement) {
   if (target) {
     const m = MONSTERS[target.monsterId]!;
     const low = s.hp < derivedOf(s).maxHp * 0.3;
-    cards.unshift(`<div class="lm-card fight"><div class="lm-title">⚔️ มอนสเตอร์ในรัศมี ${inRange.length} ตัว${autoHunt.enabled ? ' · 🤖 กำลังล่าอัตโนมัติ' : ''}</div>
+    cards.unshift(`<div class="lm-card fight"><div class="lm-title">${uiIcon('swords', true)}มอนสเตอร์ในรัศมี ${inRange.length} ตัว${autoHunt.enabled ? ` · ${uiIcon('auto', true)}ล่าอัตโนมัติ` : ''}</div>
       <div class="lm-sub">ใกล้สุด: ${esc(m.nameTh)} Lv.${m.level} — แตะตัวไหนบนแผนที่ก็สู้ได้${low ? ' — <b class="bad">HP ต่ำ!</b>' : ''}</div>
-      <div class="lm-actions"><button class="btn danger" data-fight-spawn="${esc(target.id)}">⚔️ สู้</button></div></div>`);
+      <div class="lm-actions"><button class="btn danger" data-fight-spawn="${esc(target.id)}">${uiIcon('swords', true)}สู้</button></div></div>`);
   }
   // Only touch the DOM when content changes, so a tap is never lost to a re-render.
   const html = cards.join('');
@@ -336,7 +328,7 @@ export function openPanel(name: string) {
   closePanel();
   lastPartyHtml = '';
   panelName = name;
-  panelEl = el(`<div class="sheet-backdrop"><div class="sheet"><button class="close" aria-label="ปิด">✕</button><div class="sheet-body"></div></div></div>`);
+  panelEl = el(`<div class="sheet-backdrop"><div class="sheet"><button class="close" aria-label="ปิด">${uiIcon('close')}</button><div class="sheet-body"></div></div></div>`);
   root().appendChild(panelEl);
   panelEl.addEventListener('click', (e) => {
     if (e.target === panelEl || (e.target as HTMLElement).closest('.close')) closePanel();
@@ -515,7 +507,7 @@ function bagPanel(s: SaveData): string {
   const worn = (Object.keys(SLOT_NAME) as EquipSlot[])
     .map((slot) => {
       const eq = s.equipment[slot];
-      return `<span class="worn-chip ${eq && eq.durability <= 0 ? 'broken' : ''}" title="${SLOT_NAME[slot]}">${eq ? itemIcon(eq.itemId, 'li-ico') : `<img class="li-ico ghost" src="/assets/items/slot_${slot}.png" alt="">`}</span>`;
+      return `<span class="worn-chip ${eq && eq.durability <= 0 ? 'broken' : ''}" title="${SLOT_NAME[slot]}">${eq ? itemIcon(eq.itemId, 'li-ico') : '<span class="eq-empty sm">+</span>'}</span>`;
     })
     .join('');
   const gear = s.gearBag
@@ -527,8 +519,8 @@ function bagPanel(s: SaveData): string {
     .map(([id, n]) => `<div class="row">${itemLine(id)} ×${n}<span class="spacer"></span>
       <button class="mini" data-use="${id}">ใช้</button></div>`)
     .join('');
-  return `<h2>🎒 กระเป๋า <small>🪙 ${s.gold.toLocaleString()} · ฝากไว้ ${s.bankGold.toLocaleString()}</small></h2>
-    <h3>สวมใส่อยู่</h3><div class="worn-row">${worn}<button class="mini" data-act="equipwin">🧍 หน้าต่างสวมใส่</button></div>
+  return `<h2>${uiIcon('bag')}กระเป๋า <small>${uiIcon('coin', true)}${s.gold.toLocaleString()} · ฝากไว้ ${s.bankGold.toLocaleString()}</small></h2>
+    <h3>สวมใส่อยู่</h3><div class="worn-row">${worn}<button class="mini" data-act="equipwin">${uiIcon('char', true)}หน้าต่างสวมใส่</button></div>
     <h3>อุปกรณ์ในกระเป๋า</h3>${gear || '<p class="muted">ว่าง</p>'}
     <h3>ไอเทมใช้แล้วหมด</h3>${cons || '<p class="muted">ว่าง</p>'}`;
 }
@@ -537,7 +529,7 @@ function shopList(ids: string[]): string {
   return ids
     .map((id) => {
       const price = EQUIPMENT[id]?.price ?? CONSUMABLES[id]?.price ?? 0;
-      return `<div class="row">${itemLine(id)}<span class="spacer"></span><button class="mini" data-buy="${id}" data-price="${price}">🪙 ${price}</button></div>`;
+      return `<div class="row">${itemLine(id)}<span class="spacer"></span><button class="mini" data-buy="${id}" data-price="${price}">${uiIcon('coin', true)}${price}</button></div>`;
     })
     .join('');
 }
@@ -547,26 +539,26 @@ function homePanel(s: SaveData): string {
   const here = pos && nearHome(s, pos.lat, pos.lng);
   if (!s.home || !here) {
     const canSet = !s.home || Date.now() - s.home.setAt >= 30 * 86400_000;
-    return `<h2>🏠 Home Base</h2>
+    return `<h2>${uiIcon('home')}Home Base</h2>
       <p>บ้านใช้ฝากเงิน (ปลอดภัยเมื่อตาย), พักฟื้นเต็ม, ซ่อมราคาครึ่งเดียว และซื้อของ</p>
       <p class="muted">รอบบ้าน 200 ม. เป็นเขตปลอดภัย — คนอื่นจะไม่เห็นตัวละครคุณบนเรดาร์</p>
-      ${s.home ? '<p>คุณอยู่ไกลจากบ้าน — เดินกลับไปที่ไอคอน 🏠 บนแผนที่</p>' : ''}
+      ${s.home ? '<p>คุณอยู่ไกลจากบ้าน — เดินกลับไปที่ไอคอนบ้านบนแผนที่</p>' : ''}
       ${canSet ? `<button class="btn primary" data-act="sethome">ตั้งบ้านที่ตำแหน่งนี้</button>` : `<p class="muted">ย้ายบ้านได้อีกครั้งใน ${Math.ceil((s.home!.setAt + 30 * 86400_000 - Date.now()) / 86400_000)} วัน</p>`}`;
   }
   const cost = repairAllCost(s, true);
-  return `<h2>🏠 บ้านของคุณ</h2>
+  return `<h2>${uiIcon('home')}บ้านของคุณ</h2>
     <div class="row"><b>ธนาคาร</b><span class="spacer"></span>ถือ ${s.gold.toLocaleString()} · ฝาก ${s.bankGold.toLocaleString()}</div>
     <div class="row"><button class="btn" data-bank="all">ฝากทั้งหมด</button><button class="btn" data-bank="-all">ถอนทั้งหมด</button></div>
-    <div class="row"><button class="btn primary" data-act="rest">😴 พักฟื้น HP/MP เต็ม</button>
-      <button class="btn" data-act="repairhome" ${cost ? '' : 'disabled'}>🔧 ซ่อมทั้งหมด (🪙 ${cost})</button></div>
+    <div class="row"><button class="btn primary" data-act="rest">${uiIcon('heart', true)}พักฟื้น HP/MP เต็ม</button>
+      <button class="btn" data-act="repairhome" ${cost ? '' : 'disabled'}>ซ่อมทั้งหมด (${uiIcon('coin', true)}${cost})</button></div>
     <h3>ร้านค้าบ้าน</h3>${shopList(HOME_SHOP)}`;
 }
 
 function smithPanel(s: SaveData): string {
   const cost = repairAllCost(s, false);
-  return `<h2>🔨 ร้านตีเหล็ก (ปั๊มน้ำมัน)</h2>
+  return `<h2>${uiIcon('swords')}ร้านตีเหล็ก (ปั๊มน้ำมัน)</h2>
     <p class="muted">ซ่อมได้ทุกที่ที่มีปั๊ม — ราคาเต็ม (ที่บ้านถูกกว่าครึ่ง)</p>
-    <button class="btn primary" data-act="repairsmith" ${cost ? '' : 'disabled'}>🔧 ซ่อมทั้งหมด (🪙 ${cost})</button>
+    <button class="btn primary" data-act="repairsmith" ${cost ? '' : 'disabled'}>ซ่อมทั้งหมด (${uiIcon('coin', true)}${cost})</button>
     <h3>สินค้า</h3>${shopList(SMITH_SHOP)}`;
 }
 
@@ -580,14 +572,14 @@ function trialPanel(): string {
         <span>${esc(k.passive.name)}: ${esc(k.passive.description)}</span></button>`;
     })
     .join('');
-  return `<h2>🏛️ วิหารแห่งการทดสอบ</h2>
+  return `<h2>${uiIcon('star')}วิหารแห่งการทดสอบ</h2>
     <p>เลือกอาชีพได้ <b>ครั้งเดียวตลอดไป</b> — ชนะบททดสอบแล้วจะเปลี่ยนอาชีพทันที</p>
     <div class="choices">${list}</div>`;
 }
 
 function settingsPanel(): string {
-  return `<h2>⚙️ ตั้งค่า</h2>
-    <button class="btn primary" data-act="arena">🧪 สนามทดสอบการต่อสู้</button>
+  return `<h2>${uiIcon('settings')}ตั้งค่า</h2>
+    <button class="btn primary" data-act="arena">${uiIcon('swords', true)}สนามทดสอบการต่อสู้</button>
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
     <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>

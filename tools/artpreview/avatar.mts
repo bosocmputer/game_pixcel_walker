@@ -21,11 +21,11 @@ const png = (rel: string) => cache.get(rel) ?? cache.set(rel, readPng(join(packD
 const looks: { style: string; skin: number; hair: number; gear: GearLook }[] = [
   { style: 'M01_short_messy', skin: 0, hair: 0, gear: { gender: 'male' } },
   { style: 'F01_low_ponytail', skin: 1, hair: 1, gear: { gender: 'female' } },
-  { style: 'M03_short_neat', skin: 0, hair: 3, gear: { gender: 'male', chest: 'chest_cotton_01', outfit: 1, weapon: 'weapon_wood_01', boots: 'boots_sandal_01', helmet: 'head_bandana_01' } },
-  { style: 'F02_bun', skin: 2, hair: 2, gear: { gender: 'female', chest: 'chest_cotton_01', outfit: 2, weapon: 'weapon_staff_wood_01', boots: 'boots_sandal_01' } },
-  { style: 'M02_shaggy_bangs', skin: 1, hair: 4, gear: { gender: 'male', chest: 'plate_fuel_01', helmet: 'helm_iron_02', weapon: 'weapon_broadsword_01', offhand: 'shield_aegis_99', boots: 'boots_runner_01' } },
-  { style: 'F03_wavy_shoulder', skin: 0, hair: 3, gear: { gender: 'female', chest: 'chest_cotton_01', outfit: 3, weapon: 'weapon_staff_star_01', helmet: 'helm_iron_02', boots: 'boots_runner_01' } },
-  { style: 'M01_short_messy', skin: 2, hair: 0, gear: { gender: 'male', chest: 'chest_cotton_01', outfit: 4, weapon: 'weapon_club_01', boots: 'boots_runner_01' } },
+  { style: 'M03_short_neat', skin: 0, hair: 3, gear: { gender: 'male', chest: 'chest_cotton_01', outfit: 1, weapon: 'weapon_wood_01', helmet: 'head_bandana_01' } },
+  { style: 'F02_bun', skin: 2, hair: 2, gear: { gender: 'female', chest: 'chest_cotton_01', outfit: 2, weapon: 'weapon_staff_wood_01' } },
+  { style: 'M02_shaggy_bangs', skin: 1, hair: 4, gear: { gender: 'male', chest: 'plate_fuel_01', helmet: 'helm_iron_02', weapon: 'weapon_broadsword_01' } },
+  { style: 'F03_wavy_shoulder', skin: 0, hair: 3, gear: { gender: 'female', chest: 'chest_cotton_01', outfit: 3, weapon: 'weapon_staff_star_01', helmet: 'helm_iron_02' } },
+  { style: 'M01_short_messy', skin: 2, hair: 0, gear: { gender: 'male', chest: 'chest_cotton_01', outfit: 4, weapon: 'weapon_club_01' } },
 ];
 
 const S = 4;

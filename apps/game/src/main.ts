@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import './style.css';
+import './pixel-theme.css';
 import { WorldScene } from './scenes/WorldScene';
 import { BattleScene } from './scenes/BattleScene';
 import { ensureAround, initWorld, landmarksAround, toTile } from './game/world';

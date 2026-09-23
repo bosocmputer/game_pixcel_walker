@@ -5,8 +5,8 @@ dark ink outline outside. Source of truth for apps/game/public/assets/items/*.pn
 
     python pixel-art/item-icons/build.py        (from the repo root, or from this folder)
 
-Outputs: <id>.png (1x) into apps/game/public/assets/items/, slot_<slot>.png ghost icons for
-empty equipment slots, and preview.png (8x, labelled) + silhouette.png here for review.
+Outputs: <id>.png (1x) into apps/game/public/assets/items/ (stale icons are deleted), and
+preview.png (8x, labelled) + silhouette.png + strip2x.png here for review.
 """
 import os
 import sys
@@ -223,54 +223,58 @@ def cloth_bandana():
     return finish(s)
 
 
-def runner_sneakers():
+def lucky_cord():
     s = canvas()
-    w = ramp("#eeeeea", 5, hue_shift=12)
-    red = ramp("#e53935", 4, hue_shift=16)
-    sole = ramp("#4a4f58", 4)
-    s.polygon([(4, 9), (10, 8), (13, 12), (20, 13), (21, 16), (21, 17), (3, 17)], w[2])  # upper
-    s.polygon([(4, 10), (9, 9), (10, 11), (5, 12)], w[4], only="opaque")
-    s.polygon([(14, 14), (21, 15), (21, 16), (14, 16)], w[1], only="opaque")
-    s.rect(2, 17, 21, 19, sole[2]); s.line(2, 19, 21, 19, sole[0]); s.line(3, 17, 20, 17, sole[3])
-    # speed stripe: a clean 2px swoosh rising toward the toe
-    for x in range(6, 18):
-        y = 15 - (x - 6) // 4
-        s.px(x, y, red[2], only="opaque"); s.px(x, y + 1, red[1], only="opaque")
-    s.line(4, 9, 4, 16, w[1])                                                        # heel counter
-    for x, y in ((9, 9), (10, 10), (11, 11)):
-        s.px(x, y, sole[1], only="opaque")                                           # laces
+    cord = ramp("#c8423a", 5, hue_shift=18)
+    bead = ramp("#e8b83a", 4, hue_shift=20)
+    # 2px braided loop seen at an angle: two concentric outlines, lit on top, shaded below
+    s.ellipse(3, 6, 20, 17, cord[2], fill=False)
+    s.ellipse(4, 7, 19, 16, cord[2], fill=False)
+    for x in range(3, 21):
+        for y in range(6, 18):
+            c = s.get(x, y)
+            if c is None:
+                continue
+            if y <= 9:
+                s.px(x, y, cord[3])
+            elif y >= 14:
+                s.px(x, y, cord[1])
+    for x in range(5, 19, 3):  # braid twists
+        s.px(x, 6, cord[4]); s.px(x + 1, 17, cord[0])
+    s.circle(11, 17, 2, bead[2], fill=True)
+    s.px(10, 16, bead[3]); s.px(12, 18, bead[0])
+    s.line(11, 20, 11, 22, cord[1]); s.px(10, 22, cord[2]); s.px(12, 22, cord[2])  # tassel
     return finish(s)
 
 
-def straw_sandals():
+def runner_charm():
     s = canvas()
-    straw = ramp("#d9b46a", 5, hue_shift=16)
-    strap = ramp("#7a4a22", 4)
-    for ox in (2, 12):  # left and right sandal, top view
-        s.ellipse(ox, 3, ox + 8, 21, straw[2])
-        s.ellipse(ox + 1, 4, ox + 5, 18, straw[3], only="opaque")
-        s.ellipse(ox + 5, 8, ox + 8, 21, straw[1], only="opaque")
-        for y in range(6, 20, 3):
-            s.line(ox + 1, y, ox + 7, y, straw[1], only="opaque")  # weave
-        s.line(ox + 1, 8, ox + 7, 8, strap[2]); s.line(ox + 1, 9, ox + 7, 9, strap[1])
-        s.line(ox + 4, 4, ox + 4, 8, strap[2])
+    metal = ramp("#3fb6c8", 5, hue_shift=18)
+    wing = ramp("#f4f4ee", 4, hue_shift=10)
+    s.line(11, 2, 11, 6, "#7a5a34")  # cord loop
+    s.px(10, 2, "#7a5a34"); s.px(12, 2, "#7a5a34")
+    s.polygon([(6, 8), (16, 8), (18, 13), (11, 21), (4, 13)], metal[2])  # charm plate
+    s.polygon([(6, 8), (11, 8), (8, 14), (5, 13)], metal[3], only="opaque")
+    s.polygon([(13, 14), (18, 13), (11, 21)], metal[1], only="opaque")
+    for x, y in ((8, 11), (9, 11), (10, 11), (11, 11), (12, 11), (9, 12), (10, 12), (11, 12), (12, 12), (13, 12), (11, 13), (12, 13)):
+        s.px(x, y, wing[2])  # winged sneaker emblem
+    s.px(8, 10, wing[3]); s.px(13, 13, wing[0]); s.px(14, 12, "#e53935")
+    s.px(19, 6, "#e8fbff"); s.px(20, 5, "#e8fbff"); s.px(18, 5, "#e8fbff")
     return finish(s)
 
 
-def aegis_shield():
+def aegis_pendant():
     s = canvas()
     blue = ramp("#2f6fd6", 5, hue_shift=18)
     gold = ramp("#e0b030", 4, hue_shift=20)
-    s.polygon([(3, 3), (20, 3), (20, 12), (12, 21), (11, 21), (3, 12)], gold[1])   # rim
-    s.polygon([(5, 5), (18, 5), (18, 12), (12, 19), (11, 19), (5, 12)], blue[2])
-    s.polygon([(5, 5), (11, 5), (11, 18), (5, 12)], blue[3], only="opaque")
-    s.polygon([(14, 12), (18, 12), (12, 19)], blue[1], only="opaque")
-    s.line(3, 3, 20, 3, gold[3]); s.line(3, 4, 3, 12, gold[2])
-    # emblem: star cross
-    s.line(11, 7, 11, 16, gold[2]); s.line(12, 7, 12, 16, gold[1])
-    s.line(8, 10, 15, 10, gold[2]); s.line(8, 11, 15, 11, gold[1])
-    s.px(11, 7, gold[3]); s.px(8, 10, gold[3])
-    s.px(7, 6, blue[4]); s.px(8, 6, blue[4])
+    s.line(4, 2, 11, 7, gold[1]); s.line(19, 2, 12, 7, gold[1])  # chain
+    for x, y in ((5, 3), (8, 5), (18, 3), (15, 5)):
+        s.px(x, y, gold[3])
+    s.polygon([(6, 8), (17, 8), (17, 14), (12, 20), (11, 20), (6, 14)], gold[1])
+    s.polygon([(8, 10), (15, 10), (15, 14), (12, 18), (11, 18), (8, 14)], blue[2])
+    s.polygon([(8, 10), (11, 10), (11, 17), (8, 14)], blue[3], only="opaque")
+    s.line(11, 11, 11, 16, gold[2]); s.line(9, 13, 14, 13, gold[2])
+    s.px(6, 8, gold[3]); s.px(7, 8, gold[3])
     return finish(s)
 
 
@@ -344,43 +348,20 @@ ICONS = {
     "training_sword": training_sword,
     "apprentice_staff": lambda: staff("knob"),
     "cloth_bandana": cloth_bandana,
-    "straw_sandals": straw_sandals,
     "pixel_broadsword": pixel_broadsword,
     "convenience_club": convenience_club,
     "starlight_staff": lambda: staff("star"),
-    "aegis_shield": aegis_shield,
     "iron_helm": iron_helm,
     "fuel_plate": fuel_plate,
-    "runner_sneakers": runner_sneakers,
+    "lucky_cord": lucky_cord,
+    "runner_charm": runner_charm,
+    "aegis_pendant": aegis_pendant,
     "golden_luck_ring": golden_luck_ring,
     "red_potion": lambda: potion("#d8323c"),
     "blue_elixir": lambda: potion("#2f7fe0", tall=True),
     "whetstone": whetstone,
     "master_repair_kit": repair_kit,
 }
-
-# Empty-slot ghosts (RO style): the silhouette of a typical item in that slot, pale.
-SLOT_GHOSTS = {
-    "helmet": "iron_helm",
-    "chest": "cotton_shirt",
-    "weapon": "training_sword",
-    "offhand": "aegis_shield",
-    "boots": "runner_sneakers",
-    "accessory": "golden_luck_ring",
-}
-
-
-def ghost(img):
-    g = Image.new("RGBA", img.size, (0, 0, 0, 0))
-    src, dst = img.load(), g.load()
-    for y in range(img.height):
-        for x in range(img.width):
-            r, gg, b, a = src[x, y]
-            if a:
-                lum = (r * 3 + gg * 6 + b) / 10
-                dst[x, y] = (196, 206, 222, 255) if lum > 60 else (168, 180, 200, 255)
-    return g
-
 
 def main():
     os.makedirs(OUT, exist_ok=True)
@@ -389,12 +370,13 @@ def main():
         s = fn()
         s.save_png(os.path.join(OUT, f"{name}.png"))
         rendered[name] = s.composite(1)
-    for slot, src in SLOT_GHOSTS.items():
-        ghost(rendered[src]).save(os.path.join(OUT, f"slot_{slot}.png"))
+    for f in os.listdir(OUT):  # remove icons of items that no longer exist (and old slot ghosts)
+        if f.endswith(".png") and f[:-4] not in rendered:
+            os.remove(os.path.join(OUT, f))
 
     # Review sheets: 8x preview with labels, and silhouettes.
-    names = list(rendered) + [f"slot_{k}" for k in SLOT_GHOSTS]
-    imgs = list(rendered.values()) + [ghost(rendered[v]) for v in SLOT_GHOSTS.values()]
+    names = list(rendered)
+    imgs = list(rendered.values())
     Z, cols = 8, 6
     cell = S * Z + 16
     rows = (len(imgs) + cols - 1) // cols
@@ -420,7 +402,7 @@ def main():
     for i, im in enumerate(rendered.values()):
         strip.alpha_composite(im.resize((48, 48), Image.NEAREST), (4 + i * 52, 4))
     strip.save(os.path.join(HERE, "strip2x.png"))
-    print("OK", len(rendered), "icons +", len(SLOT_GHOSTS), "slot ghosts")
+    print("OK", len(rendered), "icons")
 
 
 if __name__ == "__main__":

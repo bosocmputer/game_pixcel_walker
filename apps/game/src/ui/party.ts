@@ -6,6 +6,7 @@ import { walk } from '../game/walk';
 import { autoHunt } from '../game/autohunt';
 import { store } from '../state/store';
 import { el, esc } from './dom';
+import { uiIcon } from './pixel';
 
 function distanceTo(lat: number, lng: number): number {
   const p = walk.position;
@@ -65,7 +66,7 @@ export function partyPanel(): string {
       <span class="spacer"></span>${btn}</div>`;
   };
 
-  return `<h2>👥 ปาร์ตี้ & ดันเจี้ยน</h2>
+  return `<h2>${uiIcon('party')}ปาร์ตี้ & ดันเจี้ยน</h2>
     <h3>ปาร์ตี้ ${party ? `(${party.members.length}/${PARTY_MAX})` : ''}</h3>
     ${members}
     ${party ? '<button class="btn" data-party-leave>ออกจากปาร์ตี้</button>' : ''}

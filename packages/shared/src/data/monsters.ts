@@ -108,7 +108,7 @@ export const MONSTERS: Record<string, MonsterDef> = {
   leaf_sprite: {
     id: 'leaf_sprite', name: 'Leaf Sprite', nameTh: 'ภูตใบไม้', level: 10, element: 'EARTH',
     hp: 300, mp: 50, atk: 26, matk: 40, def: 18, mdef: 22, speed: 26, evasion: 0.12,
-    exp: 120, gold: [14, 30], drops: [{ itemId: 'runner_sneakers', chance: 0.02 }],
+    exp: 120, gold: [14, 30], drops: [{ itemId: 'runner_charm', chance: 0.02 }],
     sprite: 'mob_leaf', terrain: ['GREEN'], deck: ['monster_counter'], row: 'BACK',
   },
   songthaew_mimic: {

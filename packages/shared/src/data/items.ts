@@ -22,7 +22,6 @@ export interface EquipmentDef {
   nameTh: string;
   slot: EquipSlot;
   rarity: Rarity;
-  twoHanded?: boolean;
   /** Paperdoll sprite key. */
   sprite: string;
   modifiers: Modifiers;
@@ -87,17 +86,6 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     maxDurability: 40,
     price: 50,
   },
-  straw_sandals: {
-    id: 'straw_sandals',
-    name: 'Straw Sandals',
-    nameTh: 'รองเท้าแตะสาน',
-    slot: 'boots',
-    rarity: 'COMMON',
-    sprite: 'boots_sandal_01',
-    modifiers: { flat: { agi: 1 } },
-    maxDurability: 40,
-    price: 50,
-  },
   pixel_broadsword: {
     id: 'pixel_broadsword',
     name: 'Pixel Broadsword',
@@ -128,23 +116,11 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     nameTh: 'คทาละอองดาว',
     slot: 'weapon',
     rarity: 'LEGENDARY',
-    twoHanded: true,
     sprite: 'weapon_staff_star_01',
     modifiers: { flat: { matk: 150, int: 18 } },
     effect: 'ลดเวลาร่ายเวท 20%',
     maxDurability: 250,
     price: 12000,
-  },
-  aegis_shield: {
-    id: 'aegis_shield',
-    name: 'Aegis Shield',
-    nameTh: 'โล่อีจีส',
-    slot: 'offhand',
-    rarity: 'EPIC',
-    sprite: 'shield_aegis_99',
-    modifiers: { flat: { def: 40, vit: 6 } },
-    maxDurability: 180,
-    price: 3000,
   },
   iron_helm: {
     id: 'iron_helm',
@@ -169,17 +145,38 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     maxDurability: 200,
     price: 3500,
   },
-  runner_sneakers: {
-    id: 'runner_sneakers',
-    name: 'Runner Speed Sneakers',
-    nameTh: 'รองเท้าวิ่งพิกเซล',
-    slot: 'boots',
+  lucky_cord: {
+    id: 'lucky_cord',
+    name: 'Lucky Cord Bracelet',
+    nameTh: 'สร้อยข้อมือเชือกนำโชค',
+    slot: 'accessory',
+    rarity: 'COMMON',
+    sprite: 'acc_cord_01',
+    modifiers: { flat: { luk: 1 } },
+    maxDurability: 40,
+    price: 50,
+  },
+  runner_charm: {
+    id: 'runner_charm',
+    name: 'Runner Charm',
+    nameTh: 'เครื่องรางนักวิ่ง',
+    slot: 'accessory',
     rarity: 'UNCOMMON',
-    sprite: 'boots_runner_01',
+    sprite: 'acc_runner_01',
     modifiers: { flat: { agi: 8 }, pct: { moveSpeed: 0.1 } },
-    effect: 'ลดการเสีย Durability ขณะเดิน',
     maxDurability: 100,
     price: 400,
+  },
+  aegis_pendant: {
+    id: 'aegis_pendant',
+    name: 'Aegis Pendant',
+    nameTh: 'จี้อีจีส',
+    slot: 'accessory',
+    rarity: 'EPIC',
+    sprite: 'acc_aegis_01',
+    modifiers: { flat: { def: 40, vit: 6 } },
+    maxDurability: 150,
+    price: 3000,
   },
   golden_luck_ring: {
     id: 'golden_luck_ring',
@@ -248,7 +245,17 @@ export const STARTER_GEAR: { slot: EquipSlot; items: string[] }[] = [
   { slot: 'helmet', items: ['cloth_bandana'] },
   { slot: 'chest', items: ['cotton_shirt'] },
   { slot: 'weapon', items: ['training_sword', 'apprentice_staff'] },
-  { slot: 'boots', items: ['straw_sandals'] },
+  { slot: 'accessory', items: ['lucky_cord'] },
 ];
+/**
+ * Items removed when the slots were cut to four (2026-09-23). Old saves: id → replacement id,
+ * or null = refunded as Gold at the old shop price.
+ */
+export const LEGACY_ITEMS: Record<string, { to: string | null; refund: number }> = {
+  runner_sneakers: { to: 'runner_charm', refund: 0 },
+  aegis_shield: { to: 'aegis_pendant', refund: 0 },
+  straw_sandals: { to: null, refund: 50 },
+};
+
 /** Optional potion pack bought with the starter budget. */
 export const STARTER_POTIONS = { itemId: 'red_potion', count: 5 } as const;

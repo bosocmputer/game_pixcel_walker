@@ -4,6 +4,7 @@
  * and home icons — by projecting lat/lng to screen space every frame.
  */
 import Phaser from 'phaser';
+import { PIXEL_FONT } from '../ui/pixel';
 import { FIGHT_RANGE_M, MONSTERS, haversine, type Spawn } from '@pw/shared';
 import { heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
@@ -78,7 +79,7 @@ export class WorldScene extends Phaser.Scene {
     const origin = getHeroOrigin();
     this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(origin.x, origin.y).setScale(getHeroScale());
     this.loadingText = this.add
-      .text(0, 0, 'กำลังโหลดข้อมูลแผนที่…', { fontFamily: 'Mali', fontSize: '14px', color: '#ffffff', backgroundColor: '#1b1f2acc', padding: { x: 8, y: 4 } })
+      .text(0, 0, 'กำลังโหลดข้อมูลแผนที่…', { fontFamily: PIXEL_FONT, fontSize: '14px', color: '#ffffff', backgroundColor: '#1b1f2acc', padding: { x: 8, y: 4 } })
       .setDepth(100)
       .setOrigin(0.5, 0);
 
@@ -282,7 +283,7 @@ export class WorldScene extends Phaser.Scene {
       let c = this.landmarkSprites.get(l.id);
       if (!c) {
         const icon = this.add.image(0, 0, `lm_${l.kind}`).setOrigin(0.5, 1).setScale(l.kind === 'PARK' ? 3 : 2.5);
-        const bang = this.add.text(0, -44, '!', { fontFamily: 'Silkscreen', fontSize: '22px', color: '#ff5252', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+        const bang = this.add.text(0, -44, '!', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ff5252', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
         c = this.add.container(0, 0, [icon, bang]).setDepth(7);
         c.setData({ bang, lat: l.lat, lng: l.lng });
         this.tweens.add({ targets: bang, y: -52, yoyo: true, repeat: -1, duration: 500 });
@@ -322,7 +323,7 @@ export class WorldScene extends Phaser.Scene {
         const mobScale = isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
         const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(mobScale);
         const label = this.add
-          .text(0, 4, `Lv.${def.level}`, { fontFamily: 'Silkscreen', fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })
+          .text(0, 4, `Lv.${def.level}`, { fontFamily: PIXEL_FONT, fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5, 0);
         const swords = this.add.text(0, -56, '⚔️', { fontSize: '18px' }).setOrigin(0.5).setVisible(false);
         c = this.add.container(0, 0, [shadow, img, label, swords]).setDepth(8);

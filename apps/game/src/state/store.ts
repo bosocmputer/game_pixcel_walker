@@ -10,6 +10,7 @@ import {
   SKILLS,
   classSkillPool,
   STARTER_POTIONS,
+  migrateLegacyGear,
   sanitizeStarter,
   starterGold,
   computeDerived,
@@ -127,6 +128,8 @@ class Store {
         this.data.killedSpawns ??= {};
         this.data.appearance ??= { ...DEFAULT_APPEARANCE };
         this.data.appearance.gender ??= 'male';
+        // Slots were cut to four (outfit/head/accessory/weapon): convert or refund removed gear.
+        this.data.gold += migrateLegacyGear(this.data);
         const legacyMap: Record<string, string> = {
           short: this.data.appearance.gender === 'female' ? 'F01_low_ponytail' : 'M01_short_messy',
           spiky: this.data.appearance.gender === 'female' ? 'F03_wavy_shoulder' : 'M02_shaggy_bangs',

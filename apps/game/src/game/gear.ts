@@ -6,8 +6,8 @@
  * pixels: every body frame is a grey mannequin (outline / shadow / base), so a shirt is "the torso
  * band re-shaded in cloth colours", boots are "the bottom rows of each leg", and so on. The gear
  * therefore follows every walk/idle frame automatically, and keeps working when the placeholder
- * body is replaced with original art of the same layout. Held items (weapons, shields) are small
- * procedural sprites placed at the hands found in each frame.
+ * body is replaced with original art of the same layout. Weapons are small procedural sprites
+ * placed at the hand found in each frame. Outfits (chest slot) bring their own footwear.
  */
 
 /** Same shape as the DOM's ImageData, so canvas pixels can be passed straight in. */
@@ -22,8 +22,6 @@ export interface GearLook {
   helmet?: string;
   chest?: string;
   weapon?: string;
-  offhand?: string;
-  boots?: string;
   /** OUTFIT_COLORS index — dyes cloth tops. */
   outfit?: number;
   gender?: 'male' | 'female';
@@ -247,6 +245,8 @@ interface ClothDef {
   rivets?: string;
   emblem?: 'drop';
   pauldrons?: boolean;
+  /** Footwear that comes with the outfit (BOOTS key). */
+  feet?: string;
 }
 
 const CHEST: Record<string, ClothDef> = {
@@ -256,6 +256,7 @@ const CHEST: Record<string, ClothDef> = {
     hem: 2,
     collar: 'v',
     belt: '#7a5a34',
+    feet: 'boots_sandal_01',
   },
   plate_fuel_01: {
     ramp: () => ramp('#c63a2e', 0.7, 0.32, 0.35),
@@ -267,6 +268,7 @@ const CHEST: Record<string, ClothDef> = {
     rivets: '#f7e27a',
     emblem: 'drop',
     pauldrons: true,
+    feet: 'boots_greave_01',
   },
 };
 
@@ -357,12 +359,13 @@ interface BootDef {
 }
 
 const BOOTS: Record<string, BootDef> = {
-  boots_runner_01: { height: 3, ramp: ramp('#f1f1ee', 0.66, 0.16, 0.2), stripe: '#e53935', sole: '#4a4f58' },
+  boots_greave_01: { height: 4, ramp: ramp('#9aa4b0', 0.7, 0.3, 0.4), stripe: '#f2c230', sole: '#3a3f48' },
   boots_sandal_01: { height: 3, ramp: ramp('#8d5a2b'), sole: '#5a3a1c', straps: true },
 };
 
 function paintBoots(p: Painter, a: Anatomy, look: GearLook) {
-  const def = look.boots ? BOOTS[look.boots] : undefined;
+  const feet = look.chest ? CHEST[look.chest]?.feet : undefined;
+  const def = feet ? BOOTS[feet] : undefined;
   if (!def) return;
   const from = a.hip + 4;
   for (let x = 0; x < p.w; x++) {
@@ -541,45 +544,15 @@ function paintWeapon(p: Painter, a: Anatomy, key?: string, only?: 'shaft' | 'hea
   s.stampOn(p, r[0]);
 }
 
-interface ShieldDef {
-  radius: number;
-  ramp: Ramp;
-  rim: string;
-  emblem: string;
-}
-
-const SHIELDS: Record<string, ShieldDef> = {
-  shield_aegis_99: { radius: 5, ramp: ramp('#2f6fd6', 0.7, 0.3, 0.35), rim: '#e0b030', emblem: '#f7e27a' },
-};
-
-function paintShield(p: Painter, a: Anatomy, key?: string) {
-  const def = key ? SHIELDS[key] : undefined;
-  if (!def) return;
-  const s = new Sprite(p.w, p.img.height);
-  const cx = a.nearHand.x + 2, cy = a.nearHand.y - 4, R = def.radius;
-  const rim = hex(def.rim);
-  for (let y = -R; y <= R; y++) {
-    for (let x = -R; x <= R; x++) {
-      const d = Math.hypot(x, y * 0.9);
-      if (d > R + 0.3) continue;
-      const c = d > R - 1.2 ? rim : x + y < -R * 0.6 ? def.ramp[3] : x + y > R * 0.5 ? def.ramp[1] : def.ramp[2];
-      s.dot(cx + x, cy + y, c);
-    }
-  }
-  const e = hex(def.emblem);
-  for (const [dx, dy] of [[0, -2], [0, -1], [-1, 0], [0, 0], [1, 0], [0, 1], [0, 2]] as const) s.dot(cx + dx, cy + dy, e);
-  s.stampOn(p, def.ramp[0]);
-}
-
 // ---------------------------------------------------------------------------------------------
 // Public entry points
 
 /** Keys this module knows how to draw (for tests / data validation). */
-export const GEAR_SPRITES = new Set([...Object.keys(CHEST), ...Object.keys(BOOTS), ...Object.keys(HELMS), ...Object.keys(WEAPONS), ...Object.keys(SHIELDS)]);
+export const GEAR_SPRITES = new Set([...Object.keys(CHEST), ...Object.keys(HELMS), ...Object.keys(WEAPONS)]);
 
 /** Stable cache key for a gear look. */
 export function gearKey(g: GearLook): string {
-  return [g.gender ?? '', g.helmet ?? '', g.chest ?? '', g.chest === 'chest_cotton_01' ? (g.outfit ?? 0) : '', g.weapon ?? '', g.offhand ?? '', g.boots ?? ''].join('|');
+  return [g.gender ?? '', g.helmet ?? '', g.chest ?? '', g.chest === 'chest_cotton_01' ? (g.outfit ?? 0) : '', g.weapon ?? ''].join('|');
 }
 
 /**
@@ -628,6 +601,5 @@ export function composeAvatar(
   }
   // 4. Headgear over the hair, then held items on top.
   paintHelmet(p, a, opts.gear, hairTop);
-  paintShield(p, a, opts.gear.offhand);
   paintWeapon(p, a, opts.gear.weapon, behind ? 'head' : undefined);
 }

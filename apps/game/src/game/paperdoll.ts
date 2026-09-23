@@ -4,7 +4,7 @@ import { mutationOf, type SaveData } from '../state/store';
 
 /** Visible paperdoll layers: broken gear (durability 0) is not rendered. */
 export function paperdollOf(s: SaveData): Paperdoll {
-  const layer = (slot: 'helmet' | 'chest' | 'weapon' | 'offhand' | 'boots') => {
+  const layer = (slot: 'helmet' | 'chest' | 'weapon' | 'accessory') => {
     const eq = s.equipment[slot];
     return eq && eq.durability > 0 ? EQUIPMENT[eq.itemId]?.sprite : undefined;
   };
@@ -15,8 +15,7 @@ export function paperdollOf(s: SaveData): Paperdoll {
     helmet: layer('helmet'),
     chest: layer('chest'),
     weapon: layer('weapon'),
-    offhand: layer('offhand'),
-    boots: layer('boots'),
+    accessory: layer('accessory'),
     aura: mut ? MUTATIONS[mut].aura : null,
   };
 }

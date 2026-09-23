@@ -98,6 +98,7 @@ npm run dev
 | `npm test` | เทสต์กฎเกม + จำลองสมดุล (Monte-Carlo) ใน `packages/shared` |
 | `npm run typecheck` | ตรวจ TypeScript ทั้ง shared / game / server |
 | `npm run build` | build เกมเป็น static site ที่ `apps/game/dist` |
+| `python pixel-art/ui-kit/build.py` | วาดชุด UI 16-bit ใหม่ (กรอบหน้าต่าง ปุ่ม ช่อง ไอคอนเมนู) → `apps/game/public/assets/ui/` ดูผลที่ `pixel-art/ui-kit/preview.png` |
 | `python pixel-art/item-icons/build.py` | วาดไอคอนไอเทมใหม่ทั้งชุด → `apps/game/public/assets/items/` (ต้องมี Pillow) ดูผลที่ `pixel-art/item-icons/preview.png` |
 | `npx tsx tools/artpreview/avatar.mts` | เรนเดอร์ตัวละคร + อุปกรณ์ทุกท่าเป็นภาพ `tools/artpreview/avatar.png` (ไว้ตรวจงานพิกเซลโดยไม่ต้องเปิดเกม) |
 

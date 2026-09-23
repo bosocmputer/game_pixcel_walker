@@ -14,7 +14,9 @@ export type MutationId =
 
 export type Rarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
-export type EquipSlot = 'helmet' | 'chest' | 'weapon' | 'offhand' | 'boots' | 'accessory';
+/** Wearable slots (MASTER_SPEC §5): outfit, head, accessory, weapon. Outfits include their footwear. */
+export type EquipSlot = 'chest' | 'helmet' | 'accessory' | 'weapon';
+export const EQUIP_SLOTS: EquipSlot[] = ['chest', 'helmet', 'accessory', 'weapon'];
 
 /** Additive and multiplicative modifiers applied on top of base derived stats. */
 export interface Modifiers {

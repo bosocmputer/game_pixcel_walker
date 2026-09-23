@@ -2,6 +2,7 @@
 import { MONSTERS, landmarkWaves, type WaveDef } from '@pw/shared';
 import { bus, toast } from '../game/bus';
 import { esc } from './dom';
+import { uiIcon } from './pixel';
 
 const MAX_LINEUP = 5;
 
@@ -30,7 +31,7 @@ export function arenaPanel(): string {
       <br><small class="muted">HP ${m.hp.toLocaleString()} · ATK ${m.atk} · DEF ${m.def}${m.row === 'BACK' ? ' · แถวหลัง' : ''}${m.deck?.length ? ` · สกิล ${m.deck.length}` : ''}</small></div>
       <span class="spacer"></span>${extra}</div>`;
   };
-  return `<h2>🧪 สนามทดสอบการต่อสู้</h2>
+  return `<h2>${uiIcon('swords')}สนามทดสอบการต่อสู้</h2>
     <p class="muted">เลือกมอนสเตอร์มาลองชุดสกิล — เริ่ม HP/MP เต็มทุกครั้ง ใช้ยาทดสอบ (HP 5 · MP 5) ไม่แตะของในกระเป๋า ไม่ได้รางวัล ไม่มีบทลงโทษ</p>
     <h3>🎯 หุ่นไม้ฝึกซ้อม (ไม่ตีกลับ)</h3>
     <p class="muted">ตีได้เรื่อย ๆ จนครบจำนวนรอบ ใช้ดูดาเมจต่อรอบและความถี่ของสกิล</p>

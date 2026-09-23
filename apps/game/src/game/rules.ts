@@ -135,17 +135,6 @@ export function equip(index: number) {
     const current = s.equipment[def.slot];
     if (current) s.gearBag.push(current);
     s.equipment[def.slot] = item;
-    if (def.twoHanded && s.equipment.offhand) {
-      s.gearBag.push(s.equipment.offhand);
-      delete s.equipment.offhand;
-    }
-    if (def.slot === 'offhand') {
-      const w = s.equipment.weapon && EQUIPMENT[s.equipment.weapon.itemId];
-      if (w && w.twoHanded) {
-        s.gearBag.push(s.equipment.weapon!);
-        delete s.equipment.weapon;
-      }
-    }
     clampVitals(s);
   });
 }

@@ -77,6 +77,9 @@ npx tsx tools/artpreview/avatar.mts   # avatar pack + equipment layers → tools
   (`.claude/skills/pixel-art-studio`, needs Python 3 + `pip install pillow`). Keep each artwork's
   `pixel-art/<slug>/build.py` in git — it is the source; never hand-edit exported PNGs. Copy the final
   1× export into `apps/game/public/assets/...` for the game to load.
+- UI is 16-bit pixel art everywhere except the map: frames/buttons/icons come from `pixel-art/ui-kit/build.py`
+  (`assets/ui`), styled in `apps/game/src/pixel-theme.css`. Reuse the existing classes (`.btn`, `.mini`, `.pick`,
+  `.sheet`, `.modal`…) for new UI and `uiIcon()` (`ui/pixel.ts`) instead of emoji. Keep pixel sizes at 2× (even px).
 - Runtime layers (equipment on the avatar, recolours) stay in TypeScript (`apps/game/src/game/gear.ts`);
   review them with `npx tsx tools/artpreview/avatar.mts`.
 - Art must be original or properly licensed. The current avatar body/hair is prototype art from another

@@ -22,6 +22,7 @@ import {
 import { DEFAULT_APPEARANCE, HAIR_COLORS, HAIR_STYLES, OUTFIT_COLORS, SKIN_TONES, type Appearance, type Gender, type Paperdoll } from '../game/art';
 import { getDefaultStyleForGender, getHairSwatchColors, getSkinSwatchColors, getStylesForGender, isAvatarPackLoaded, USE_AVATAR_PACK } from '../game/avatar';
 import { el, esc } from './dom';
+import { uiIcon } from './pixel';
 import { equipWindowHtml, gearStatBonus, itemIcon, statText, wireEquipWindow, LEFT_SLOTS, RIGHT_SLOTS } from './equipWindow';
 
 const HAIR_TH: Record<string, string> = { short: 'สั้น', spiky: 'ชี้ฟู', long: 'ยาว', bun: 'มวย' };
@@ -60,10 +61,10 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
       <div class="opt-row"><span>สีผม</span><div class="swatches" data-sw="hairColor"></div></div>
       <div class="opt-row"><span>สีผิว</span><div class="swatches" data-sw="skin"></div></div>
       <div class="opt-row outfit-row"><span>สีเสื้อ</span><div class="swatches" data-sw="outfit"></div></div>
-      <button class="btn" data-random>🎲 สุ่มหน้าตา</button>
+      <button class="btn" data-random>${uiIcon('star', true)}สุ่มหน้าตา</button>
     </div>
     <div class="starter">
-      <div class="starter-head"><b>🎒 อุปกรณ์เริ่มต้น</b><span class="starter-gold">💰 เริ่มด้วย <b data-gold></b> Gold</span></div>
+      <div class="starter-head"><b>${uiIcon('bag', true)}อุปกรณ์เริ่มต้น</b><span class="starter-gold">${uiIcon('coin', true)}เริ่มด้วย <b data-gold></b> Gold</span></div>
       <p class="muted">งบ ${STARTER_BUDGET} Gold — แตะช่องอุปกรณ์แล้วเลือกของ ชิ้นที่ไม่ใส่เก็บเป็นทองไว้ซื้อทีหลัง (ราคาเท่ากับร้านที่บ้าน)</p>
       <div class="starter-presets">
         <button type="button" class="chip-btn" data-preset="full">ใส่ครบชุด</button>
@@ -74,7 +75,7 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
     </div>
     <label>ชื่อนักเดินทาง<input id="name" maxlength="16" placeholder="เช่น Somchai_Tank" autocomplete="off" /></label>
     <div class="err"></div>
-    <p class="warn">⚠️ ระวังรถเสมอ อย่าเล่นขณะขับขี่ และอย่าเข้าพื้นที่ส่วนบุคคล</p>
+    <p class="warn">! ระวังรถเสมอ อย่าเล่นขณะขับขี่ และอย่าเข้าพื้นที่ส่วนบุคคล</p>
     <button class="btn primary" id="next">สร้างตัวละคร</button>
   </div></div>`);
   root.appendChild(view);
@@ -84,7 +85,7 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
       const id = loadout.gear[slot];
       return id ? EQUIPMENT[id]?.sprite : undefined;
     };
-    return { classId: 'NOVICE', appearance: ap, helmet: sprite('helmet'), chest: sprite('chest'), weapon: sprite('weapon'), boots: sprite('boots') };
+    return { classId: 'NOVICE', appearance: ap, helmet: sprite('helmet'), chest: sprite('chest'), weapon: sprite('weapon'), accessory: sprite('accessory') };
   };
 
   // --- Equipment window ----------------------------------------------------------------------

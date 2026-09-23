@@ -5,7 +5,6 @@ import { derivedOf, effectiveLoadout, mutationOf, type SaveData } from '../state
 export function playerSetup(s: SaveData): UnitSetup {
   const d = derivedOf(s);
   const stats = totalStats(s.allocated);
-  const shield = !!s.equipment.offhand && s.equipment.offhand.durability > 0;
   return {
     id: 'me',
     name: s.name,
@@ -14,7 +13,7 @@ export function playerSetup(s: SaveData): UnitSetup {
     level: s.level,
     classId: s.classId,
     mutation: mutationOf(s),
-    stats: statsFromDerived(d, { dex: stats.dex, luk: stats.luk, vit: stats.vit, shield }),
+    stats: statsFromDerived(d, { dex: stats.dex, luk: stats.luk, vit: stats.vit }),
     hp: s.hp,
     mp: s.mp,
     deck: effectiveLoadout(s),

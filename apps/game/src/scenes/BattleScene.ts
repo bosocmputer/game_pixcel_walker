@@ -4,6 +4,7 @@
  * animates the resulting events. Fights are dungeons of 1..N waves.
  */
 import Phaser from 'phaser';
+import { PIXEL_FONT, uiIcon } from '../ui/pixel';
 import {
   CLASSES,
   CONSUMABLES,
@@ -163,8 +164,8 @@ export class BattleScene extends Phaser.Scene {
     g.fillStyle(0x3d5a3a, 1).fillRect(0, height * 0.5, width, height * 0.5);
     for (let i = 0; i < 60; i++) g.fillStyle(0x4a6b45, 1).fillRect(Math.random() * width, height * 0.5 + Math.random() * height * 0.5, 4, 3);
 
-    this.header = this.add.text(width / 2, 12, '', { fontFamily: 'Mali', fontSize: '15px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5, 0).setDepth(50);
-    this.banner = this.add.text(width / 2, height * 0.3, '', { fontFamily: 'Mali', fontSize: '22px', color: '#ffd54f', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: width - 40 } }).setOrigin(0.5).setDepth(60).setAlpha(0);
+    this.header = this.add.text(width / 2, 12, '', { fontFamily: PIXEL_FONT, fontSize: '15px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5, 0).setDepth(50);
+    this.banner = this.add.text(width / 2, height * 0.3, '', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ffd54f', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: width - 40 } }).setOrigin(0.5).setDepth(60).setAlpha(0);
 
     this.layout();
     this.panel = el(`<div class="battle-panel"></div>`);
@@ -230,7 +231,7 @@ export class BattleScene extends Phaser.Scene {
     }
     const sprite = this.add.image(0, 0, key).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add
-      .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: 'Mali', fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+      .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: PIXEL_FONT, fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0)
       .setDepth(11);
     const bars = this.add.graphics().setDepth(11);
@@ -314,7 +315,7 @@ export class BattleScene extends Phaser.Scene {
     this.time.delayedCall(delay, () => {
       const t = this.add
         .text(v.home.x + Phaser.Math.Between(-14, 14), v.home.y - v.sprite.displayHeight * 0.7 + yOff, text, {
-          fontFamily: 'Silkscreen', fontSize: big ? '22px' : '15px', color, stroke: '#000', strokeThickness: 4,
+          fontFamily: PIXEL_FONT, fontSize: big ? '22px' : '15px', color, stroke: '#000', strokeThickness: 4,
         })
         .setOrigin(0.5)
         .setDepth(30);
@@ -439,7 +440,7 @@ export class BattleScene extends Phaser.Scene {
     const me = this.d.combat.units.find((u) => u.id === this.meId);
     if (!me) {
       // Knocked out in an earlier wave: the party fights on without us.
-      const html = `<div class="battle-vitals"><span class="hp">💀 หมดสติ — รอเพื่อนสู้ต่อ</span><span class="spacer"></span>
+      const html = `<div class="battle-vitals"><span class="hp">${uiIcon('skull', true)}หมดสติ — รอเพื่อนสู้ต่อ</span><span class="spacer"></span>
         <button class="chip" data-act="speed">${this.speed}×</button><button class="chip" data-act="skip">⏭ ข้าม</button></div>`;
       if (html === this.lastPanel) return;
       this.lastPanel = html;
@@ -551,14 +552,14 @@ export class BattleScene extends Phaser.Scene {
       .map(([id, v]) => `<tr><td>${esc(SKILLS[id]?.nameTh ?? MONSTERS[id]?.nameTh ?? id)}</td><td>${v.uses}</td><td>${v.damage.toLocaleString()}</td></tr>`)
       .join('');
     const modal = el(`<div class="modal-backdrop"><div class="modal result">
-      <h2>🧪 ${fled ? 'ออกจากสนาม' : dummy ? '⏱ ครบเวลา' : won ? 'ชนะ' : 'แพ้'} — ${st.rounds} รอบ</h2>
+      <h2>${uiIcon('swords', true)}${fled ? 'ออกจากสนาม' : dummy ? 'ครบเวลา' : won ? 'ชนะ' : 'แพ้'} — ${st.rounds} รอบ</h2>
       <p>ดาเมจที่ทำ <b>${st.dealt.toLocaleString()}</b> (เฉลี่ย <b>${Math.round(st.dealt / Math.max(1, st.rounds)).toLocaleString()}</b>/รอบ)
         · ที่ได้รับ <b>${st.taken.toLocaleString()}</b> · ฟื้นฟู <b>${st.healed.toLocaleString()}</b> · ใช้ MP <b>${st.mpUsed.toLocaleString()}</b></p>
       <p>โดน ${st.hits} · Critical ${st.crits} (${Math.round((st.crits / Math.max(1, st.hits)) * 100)}%) · Miss ${st.misses}
         ${Object.keys(st.statuses).length ? ` · สถานะ: ${Object.entries(st.statuses).map(([k, n]) => `${STATUS_TH[k] ?? k} ×${n}`).join(', ')}` : ''}</p>
       <table class="deck-stats"><tr><th>สกิล</th><th>ครั้ง</th><th>ดาเมจ</th></tr>${rows}</table>
       <p class="muted">สนามทดสอบ: เริ่ม HP/MP เต็ม ใช้ยาทดสอบ (HP 5 · MP 5) ไม่แตะของในกระเป๋า ไม่ได้รางวัล${dummy ? ' · พิษ/เลือดไหลกับหุ่นคิดจาก HP 1,000' : ''}</p>
-      <button class="btn" data-act="again">🔁 สู้ซ้ำ</button>
+      <button class="btn" data-act="again">สู้ซ้ำ</button>
       <button class="btn primary" data-act="close">กลับสู่แผนที่</button></div></div>`);
     document.getElementById('ui')!.appendChild(modal);
     const close = (again: boolean) => {
@@ -575,7 +576,7 @@ export class BattleScene extends Phaser.Scene {
 
   private showResult(o: BattleOutcome, retreat: boolean) {
     const knocked = !retreat && o.result === 'FLED' && o.worldBossDamage !== undefined;
-    const title = retreat ? '⏱ หมดเวลาโจมตี' : knocked ? '💫 ถูกตีกระเด็นออกมา!' : o.result === 'WIN' ? '🏆 ชนะ!' : o.result === 'LOSE' ? '💀 พ่ายแพ้…' : '🏃 ถอนตัว';
+    const title = retreat ? 'หมดเวลาโจมตี' : knocked ? 'ถูกตีกระเด็นออกมา!' : o.result === 'WIN' ? `${uiIcon('star')}ชนะ!` : o.result === 'LOSE' ? `${uiIcon('skull')}พ่ายแพ้…` : 'ถอนตัว';
     const items = Object.entries(o.loot.items).map(([id, n]) => `<li>${esc(itemName(id))} ×${n}</li>`).join('');
     const body =
       o.result === 'WIN'

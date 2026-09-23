@@ -4,6 +4,7 @@
  * once-per-second server updates.
  */
 import Phaser from 'phaser';
+import { PIXEL_FONT } from '../ui/pixel';
 import type { PlayerPresence } from '@pw/shared';
 import { heroCanvas, type Facing, type HairStyle, type Paperdoll } from '../game/art';
 import {
@@ -46,7 +47,7 @@ export class RemotePlayers {
         const origin = USE_AVATAR_PACK && isAvatarPackLoaded() ? { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y } : { x: 0.5, y: 0.92 };
         const sprite = this.scene.add.image(0, 0, '__DEFAULT').setOrigin(origin.x, origin.y).setDepth(9.5);
         const label = this.scene.add
-          .text(0, 0, '', { fontFamily: 'Mali', fontSize: '12px', color: '#ffffff', stroke: '#1b1f2a', strokeThickness: 4 })
+          .text(0, 0, '', { fontFamily: PIXEL_FONT, fontSize: '12px', color: '#ffffff', stroke: '#1b1f2a', strokeThickness: 4 })
           .setOrigin(0.5, 1)
           .setDepth(9.6);
         const busy = this.scene.add.text(0, 0, '⚔️', { fontSize: '16px' }).setOrigin(0.5, 1).setDepth(9.7).setVisible(false);
@@ -82,7 +83,7 @@ export class RemotePlayers {
       helmet: l.helmet,
       chest: l.chest,
       weapon: l.weapon,
-      boots: l.boots,
+      accessory: l.accessory,
       aura: l.aura,
     };
     const base = `hero_${JSON.stringify(doll)}`;

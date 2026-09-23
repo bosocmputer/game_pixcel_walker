@@ -38,8 +38,7 @@ export function look(): PlayerLook {
     helmet: d.helmet,
     chest: d.chest,
     weapon: d.weapon,
-    offhand: d.offhand,
-    boots: d.boots,
+    accessory: d.accessory,
     aura: d.aura ?? null,
   };
 }

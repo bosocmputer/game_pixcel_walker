@@ -599,8 +599,8 @@ export interface Paperdoll {
   helmet?: string;
   chest?: string;
   weapon?: string;
-  offhand?: string;
-  boots?: string;
+  /** Accessories are not drawn on the body; kept for completeness of the look. */
+  accessory?: string;
   aura?: string | null;
 }
 
@@ -619,7 +619,7 @@ export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0): HT
   if (USE_AVATAR_PACK && isAvatarPackLoaded()) {
     const gender = ap.gender ?? 'male';
     const anim: AvatarAnim = facing === 'up' ? 'walk_back' : 'walk_front';
-    const gear = { helmet: p.helmet, chest: p.chest, weapon: p.weapon, offhand: p.offhand, boots: p.boots, outfit: ap.outfit };
+    const gear = { helmet: p.helmet, chest: p.chest, weapon: p.weapon, outfit: ap.outfit };
     const body = renderAvatarFrame(gender, ap.hairStyle, ap.skin, ap.hairColor, anim, frame, gear);
     if (!p.aura) return body;
     const [c, ctx] = canvas(body.width + 8, body.height + 6);
@@ -644,7 +644,7 @@ export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0): HT
     a: naked ? skin : p.chest === 'chest_cotton_01' ? mul(hexRgb(outfit), 0.8).map((v) => v.toString(16).padStart(2, '0')).reduce((a, v) => a + v, '#') : outfit,
     g: naked ? skin : '#5a3a22',
     p: naked ? '#ffffff' : '#2b3a67',
-    b: p.boots ? GEAR_COLORS[p.boots] ?? '#26c6da' : '#6a4424',
+    b: '#6a4424',
     w: p.weapon ? GEAR_COLORS[p.weapon] ?? '#d8e0ec' : 'transparent',
   };
   const body = shadeSprite(heroTemplate(facing, frame, ap.hairStyle, !!p.helmet), pal);

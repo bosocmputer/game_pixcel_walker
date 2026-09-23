@@ -3,30 +3,30 @@
  * animated hero, a picker strip for the selected slot, and the status block underneath.
  * Used by the character creator (starter gear) and the in-game character panel.
  * Icons are pixel art from pixel-art/item-icons (served at /assets/items/<id>.png).
+ * Slots (MASTER_SPEC §5): head + weapon on the left, outfit + accessory on the right.
  */
 import { EQUIPMENT, STAT_KEYS, type DerivedStats, type EquipSlot, type StatKey, type Stats } from '@pw/shared';
 import type { Paperdoll } from '../game/art';
 import { startHeroPreview } from './heroPreview';
 import { esc } from './dom';
 
-export const LEFT_SLOTS: EquipSlot[] = ['helmet', 'weapon', 'accessory'];
-export const RIGHT_SLOTS: EquipSlot[] = ['chest', 'offhand', 'boots'];
+export const LEFT_SLOTS: EquipSlot[] = ['helmet', 'weapon'];
+export const RIGHT_SLOTS: EquipSlot[] = ['chest', 'accessory'];
 
 export const SLOT_NAME: Record<EquipSlot, string> = {
-  helmet: 'หัว',
   chest: 'ชุด',
-  weapon: 'อาวุธ',
-  offhand: 'มือรอง',
-  boots: 'รองเท้า',
+  helmet: 'หัว',
   accessory: 'เครื่องประดับ',
+  weapon: 'อาวุธ',
 };
 
 export function itemIcon(id: string, cls = 'eq-ico'): string {
   return `<img class="${cls}" src="/assets/items/${esc(id)}.png" alt="" draggable="false" />`;
 }
 
-export function slotGhost(slot: EquipSlot, cls = 'eq-ico'): string {
-  return `<img class="${cls} ghost" src="/assets/items/slot_${slot}.png" alt="" draggable="false" />`;
+/** Empty slot marker (a plain pixel "+" — clearly empty, never mistaken for a missing image). */
+export function emptySlot(cls = 'eq-empty'): string {
+  return `<span class="${cls}">+</span>`;
 }
 
 export interface SlotItem {
@@ -62,7 +62,7 @@ function slotButton(slot: EquipSlot, side: 'l' | 'r', m: EquipWindowModel): stri
   const name = def ? `<span class="eq-name">${esc(def.nameTh)}</span>${dur}` : `<span class="eq-name ghost">${SLOT_NAME[slot]}</span>`;
   const cls = ['eq-slot', side, m.selected === slot ? 'sel' : '', def ? '' : 'empty', broken ? 'broken' : '', locked ? 'locked' : ''].join(' ');
   return `<button type="button" class="${cls}" data-eqslot="${slot}" ${locked ? 'disabled' : ''}>
-    ${def ? itemIcon(def.id) : slotGhost(slot)}<span class="eq-txt">${name}</span></button>`;
+    ${def ? itemIcon(def.id) : emptySlot()}<span class="eq-txt">${name}</span></button>`;
 }
 
 const STAT_LABEL: Record<StatKey, string> = { str: 'Str', agi: 'Agi', vit: 'Vit', int: 'Int', dex: 'Dex', luk: 'Luk' };
@@ -83,7 +83,7 @@ export function equipWindowHtml(m: EquipWindowModel): string {
     ['Critical', `${(d.crit * 100).toFixed(1)}%`],
     ['Flee', `${(d.evasion * 100).toFixed(1)}%`],
     ['Speed', d.speed.toFixed(1)],
-    ['HP / SP', `${d.maxHp} / ${d.maxMp}`],
+    ['HP/SP', `${d.maxHp}/${d.maxMp}`],
     ...(m.statPoints !== undefined ? ([['Status Point', String(pts)]] as [string, string][]) : []),
     ...(m.extra ?? []),
   ];

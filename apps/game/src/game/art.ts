@@ -7,6 +7,7 @@
 import { TILE, type TileId } from '@pw/shared';
 import { isAvatarPackLoaded, renderAvatarFrame, USE_AVATAR_PACK, type Gender, type AvatarAnim } from './avatar';
 import { OUTFIT_DYES } from './gear';
+import { pixelSprite } from './sprites';
 export { USE_AVATAR_PACK, type Gender } from './avatar';
 
 export const TILE_PX = 16;
@@ -550,6 +551,8 @@ const MOB_PALETTES: Record<string, { tpl: string; pal: Palette }> = {
 };
 
 export function monsterCanvas(sprite: string): HTMLCanvasElement {
+  const px = pixelSprite('monsters', sprite);
+  if (px) return px;
   const m = MOB_PALETTES[sprite] ?? MOB_PALETTES.mob_slime!;
   return shadeSprite(MOB[m.tpl]!, m.pal);
 }
@@ -679,6 +682,8 @@ const ICONS: Record<string, { tpl: string[]; pal: Palette }> = {
 };
 
 export function landmarkIcon(kind: string): HTMLCanvasElement {
+  const px = pixelSprite('landmarks', kind);
+  if (px) return px;
   const i = ICONS[kind] ?? ICONS.PARK!;
   return shadeSprite(i.tpl, i.pal);
 }

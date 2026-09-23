@@ -15,6 +15,22 @@ export const CHUNK_TILES = 256;
 const WORLD_TILES = 2 ** DATA_Z * CHUNK_TILES;
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const LARGE_PARK_M2 = 15000;
+
+/** Map POIs that become landmarks (generic, brand-free labels). Temples host a guardian trial. */
+type PoiKind = 'CONVENIENCE' | 'MALL' | 'FUEL' | 'TEMPLE';
+const POI_LABEL: Record<PoiKind, { prefix: string; th: string }> = {
+  CONVENIENCE: { prefix: 'cv', th: 'ร้านสะดวกซื้อ' },
+  MALL: { prefix: 'ml', th: 'ห้างสรรพสินค้า' },
+  FUEL: { prefix: 'fu', th: 'ปั๊มน้ำมัน' },
+  TEMPLE: { prefix: 'tp', th: 'วัด' },
+};
+function poiKind(cls?: string, sub?: string): PoiKind | null {
+  if (cls === 'shop' && sub === 'convenience') return 'CONVENIENCE';
+  if ((cls === 'shop' || cls === 'mall') && (sub === 'mall' || sub === 'department_store')) return 'MALL';
+  if (cls === 'fuel') return 'FUEL';
+  if (cls === 'place_of_worship') return 'TEMPLE';
+  return null;
+}
 const MAX_INFLIGHT = 4;
 
 interface Chunk {
@@ -325,13 +341,13 @@ function rasterize(tile: VectorTile, cx: number, cy: number): Chunk {
   for (const f of pois) {
     const cls = prop(f, 'class');
     const sub = prop(f, 'subclass');
-    const kind = cls === 'shop' && sub === 'convenience' ? 'CONVENIENCE' : cls === 'fuel' ? 'FUEL' : null;
+    const kind = poiKind(cls, sub);
     if (!kind) continue;
     const p = f.loadGeometry()[0]?.[0];
     if (!p || p.x < 0 || p.y < 0 || p.x >= extent || p.y >= extent) continue;
     const ll = toLL(p.x, p.y);
-    const id = `${kind === 'CONVENIENCE' ? 'cv' : 'fu'}_${f.id ?? `${ll.lat.toFixed(5)}_${ll.lng.toFixed(5)}`}`;
-    landmarks.push({ id, kind, label: kind === 'CONVENIENCE' ? 'ร้านสะดวกซื้อ' : 'ปั๊มน้ำมัน', lat: ll.lat, lng: ll.lng });
+    const id = `${POI_LABEL[kind].prefix}_${f.id ?? `${ll.lat.toFixed(5)}_${ll.lng.toFixed(5)}`}`;
+    landmarks.push({ id, kind, label: POI_LABEL[kind].th, lat: ll.lat, lng: ll.lng });
   }
   const mPerUnit = metersPerTile(toLL(extent / 2, extent / 2).lat) * k;
   for (const f of landcover) {

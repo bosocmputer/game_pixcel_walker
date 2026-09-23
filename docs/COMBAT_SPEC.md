@@ -157,6 +157,8 @@ diff it on replay. Nothing in the UI influences the outcome.
 
 - **Deterministic ultimate** (`BossInfo.skills[0]`): every Nth boss turn, unavoidable (no miss/block).
   Plan around it with Taunt, shields (Iron Wall / Mana Shield / Last Prayer) or Pure Tank's once-per-fight block.
+- **Monster decks scale with level** (2026-09-23): `MonsterDef.deck` lists signature skills in unlock order and
+  `monsterDeck()` keeps the first `monsterSkillSlots(level)` of them (Lv 1-7: 1, 8-15: 2, 16-23: 3, 24+: 4; bosses: all).
 - **Phase shift** (`BossInfo.phases`): at `hpBelow` the boss multiplies stats, gains launch-rate bonus, adds deck
   skills and may speed up its ultimate cadence (`everyTurns`). Emits `PHASE`.
 - **Enrage** (`enrageRound`): after N rounds → 100% crit, ×10 ATK/MATK. Emits `ENRAGE`.

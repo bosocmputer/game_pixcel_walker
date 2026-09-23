@@ -28,6 +28,7 @@ import {
   type WaveDef,
 } from '@pw/shared';
 import { heroCanvas, monsterCanvas, type HairStyle, type Paperdoll } from '../game/art';
+import { hasPixelSprite } from '../game/sprites';
 import {
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
@@ -226,8 +227,8 @@ export class BattleScene extends Phaser.Scene {
     if (isHero) {
       finalScale = isPack ? scale * 0.55 : scale;
     } else {
-      // Monsters: regular ~32-48px on screen, bosses up to ~64px
-      finalScale = isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
+      // Native-res pixel monsters use the hero's pixel size so both read as one art style.
+      finalScale = hasPixelSprite('monsters', u.sprite) ? (isPack ? scale * 0.55 : scale / 2) : isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
     }
     const sprite = this.add.image(0, 0, key).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add

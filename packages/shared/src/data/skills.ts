@@ -265,4 +265,138 @@ export const SKILLS: Record<string, SkillDef> = {
       { kind: 'STATUS', status: 'BLEED', turns: 2, chance: 0.3, potency: 0.04 },
     ],
   }),
+
+  // ---------------------------------------------------------------- Monster signature skills
+  // Each monster lists its skills in unlock order; how many it uses depends on its level
+  // (monsterSkillSlots). Generic fillers: monster_counter, monster_guard, monster_rage.
+  monster_guard: S({
+    id: 'monster_guard', name: 'Hunker Down', nameTh: 'หดตัวป้องกัน', description: 'HP ต่ำกว่า 60%: เกราะ 15% Max HP 2 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 4, mp: 0, target: 'SELF', condition: 'SELF_HP_BELOW_60', priority: 4,
+    effects: [{ kind: 'SHIELD', pctMaxHp: 0.15, turns: 2 }],
+  }),
+  monster_rage: S({
+    id: 'monster_rage', name: 'Cornered', nameTh: 'จนตรอกฮึดสู้', description: 'HP ต่ำกว่า 30%: ATK/MATK +30% 3 เทิร์น',
+    kind: 'REACTIVE', trigger: 'ON_LOW_HP', element: 'NEUTRAL', rate: 100, cooldown: 0, mp: 0, target: 'SELF', oncePerBattle: true,
+    effects: [{ kind: 'BUFF', stat: 'atk', pct: 0.3, turns: 3, self: true }, { kind: 'BUFF', stat: 'matk', pct: 0.3, turns: 3, self: true }],
+  }),
+  slime_bounce: S({
+    id: 'slime_bounce', name: 'Bounce', nameTh: 'เด้งดึ๋ง', description: '90% ATK และ 20% ทำให้ช้าลง',
+    kind: 'ACTIVE', element: 'WATER', rate: 30, cooldown: 1, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.9 } }, { kind: 'STATUS', status: 'SLOW', turns: 1, chance: 0.2, potency: 0.3 }],
+  }),
+  pigeon_peck: S({
+    id: 'pigeon_peck', name: 'Flock Peck', nameTh: 'จิกรุม', description: 'จิก 2 ครั้ง ครั้งละ 55% ATK',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 35, cooldown: 1, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.55 }, hits: 2 }],
+  }),
+  rat_nibble: S({
+    id: 'rat_nibble', name: 'Nibble', nameTh: 'แทะ', description: '80% ATK และ 30% เลือดไหล',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 1, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.8 } }, { kind: 'STATUS', status: 'BLEED', turns: 2, chance: 0.3, potency: 0.03 }],
+  }),
+  cat_pounce: S({
+    id: 'cat_pounce', name: 'Roof Pounce', nameTh: 'กระโจนจากหลังคา', description: 'จู่โจมแถวหลัง 120% ATK',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 30, cooldown: 2, mp: 0, target: 'ENEMY_BACK',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.2 } }],
+  }),
+  ant_bite: S({
+    id: 'ant_bite', name: 'Acid Bite', nameTh: 'กัดกรดมด', description: '70% ATK และ 40% ติดพิษ',
+    kind: 'ACTIVE', element: 'EARTH', rate: 30, cooldown: 1, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.7 } }, { kind: 'STATUS', status: 'POISON', turns: 3, chance: 0.4, potency: 0.03 }],
+  }),
+  scarecrow_hex: S({
+    id: 'scarecrow_hex', name: 'Straw Hex', nameTh: 'คำสาปฟาง', description: '100% MATK และ 40% ทำให้ช้าลง 2 เทิร์น',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 30, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1 } }, { kind: 'STATUS', status: 'SLOW', turns: 2, chance: 0.4, potency: 0.3 }],
+  }),
+  gecko_call: S({
+    id: 'gecko_call', name: 'Tokay Call', nameTh: 'ร้องตุ๊กแก', description: '80% ATK และ 25% มึน 1 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.8 } }, { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.25 }],
+  }),
+  leaf_whirl: S({
+    id: 'leaf_whirl', name: 'Leaf Whirl', nameTh: 'พายุใบไม้', description: 'ทุกตัว 70% MATK ธาตุดิน',
+    kind: 'ACTIVE', element: 'EARTH', rate: 25, cooldown: 2, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 0.7 } }],
+  }),
+  firefly_flash: S({
+    id: 'firefly_flash', name: 'Wisp Flash', nameTh: 'แสงพรายวูบ', description: '110% MATK สายฟ้า และ 20% มึน',
+    kind: 'ACTIVE', element: 'LIGHTNING', rate: 30, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1.1 } }, { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.2 }],
+  }),
+  tuktuk_ram: S({
+    id: 'tuktuk_ram', name: 'Three-Wheel Ram', nameTh: 'พุ่งชนสามล้อ', description: '140% ATK และ 25% มึน',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 28, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.4 } }, { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.25 }],
+  }),
+  songthaew_horn: S({
+    id: 'songthaew_horn', name: 'Blaring Horn', nameTh: 'บีบแตรลั่น', description: 'ทุกตัว 40% ATK และ 30% ทำให้ช้าลง',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 22, cooldown: 3, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.4 } }, { kind: 'STATUS', status: 'SLOW', turns: 2, chance: 0.3, potency: 0.3 }],
+  }),
+  crab_pinch: S({
+    id: 'crab_pinch', name: 'Pincer Grip', nameTh: 'ก้ามหนีบ', description: '110% ATK + 80% DEF',
+    kind: 'ACTIVE', element: 'WATER', rate: 30, cooldown: 1, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.1, def: 0.8 } }],
+  }),
+  lantern_flare: S({
+    id: 'lantern_flare', name: 'Lantern Flare', nameTh: 'โคมลุกโชน', description: 'ทุกตัว 90% MATK ไฟ และ 30% ติดไฟ',
+    kind: 'ACTIVE', element: 'FIRE', rate: 28, cooldown: 2, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 0.9 } }, { kind: 'STATUS', status: 'BURN', turns: 2, chance: 0.3, potency: 0.3 }],
+  }),
+  bat_screech: S({
+    id: 'bat_screech', name: 'Neon Screech', nameTh: 'กรีดร้องนีออน', description: 'ทุกตัว 50% MATK สายฟ้า และ 40% ช้าลง',
+    kind: 'ACTIVE', element: 'LIGHTNING', rate: 20, cooldown: 3, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 0.5 } }, { kind: 'STATUS', status: 'SLOW', turns: 2, chance: 0.4, potency: 0.3 }],
+  }),
+  python_squeeze: S({
+    id: 'python_squeeze', name: 'Constrict', nameTh: 'รัดกระดูก', description: '120% ATK และ 35% ถูกรัด 1 เทิร์น',
+    kind: 'ACTIVE', element: 'WATER', rate: 28, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.2 } }, { kind: 'STATUS', status: 'ROOT', turns: 1, chance: 0.35 }],
+  }),
+  krasue_glow: S({
+    id: 'krasue_glow', name: 'Eerie Glow', nameTh: 'แสงผีกระสือ', description: '150% MATK เงา และ 30% เลือดไหล',
+    kind: 'ACTIVE', element: 'SHADOW', rate: 30, cooldown: 2, mp: 0, target: 'ENEMY_LOWEST_HP',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1.5 } }, { kind: 'STATUS', status: 'BLEED', turns: 2, chance: 0.3, potency: 0.04 }],
+  }),
+  wraith_chill: S({
+    id: 'wraith_chill', name: 'Mountain Chill', nameTh: 'หมอกเยือกแข็ง', description: '130% MATK น้ำ และ 25% แช่แข็ง',
+    kind: 'ACTIVE', element: 'WATER', rate: 28, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 1.3 } }, { kind: 'STATUS', status: 'FREEZE', turns: 1, chance: 0.25 }],
+  }),
+  root_snare: S({
+    id: 'root_snare', name: 'Root Snare', nameTh: 'รากตรึง', description: '100% ATK และ 30% ถูกรัด',
+    kind: 'ACTIVE', element: 'EARTH', rate: 28, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1 } }, { kind: 'STATUS', status: 'ROOT', turns: 1, chance: 0.3 }],
+  }),
+  elephant_stomp: S({
+    id: 'elephant_stomp', name: 'Ancient Stomp', nameTh: 'กระทืบธรณี', description: 'ทุกตัว 110% ATK และ 20% มึน',
+    kind: 'ACTIVE', element: 'EARTH', rate: 25, cooldown: 3, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.1 } }, { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.2 }],
+  }),
+  mannequin_pose: S({
+    id: 'mannequin_pose', name: 'Frozen Pose', nameTh: 'โพสนิ่งจ้อง', description: 'DEF +40% 2 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 0, target: 'SELF',
+    effects: [{ kind: 'BUFF', stat: 'def', pct: 0.4, turns: 2, self: true }],
+  }),
+  price_tag_toss: S({
+    id: 'price_tag_toss', name: 'Price Tag Toss', nameTh: 'ปาป้ายราคา', description: 'ทุกตัว 80% ATK',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 2, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 0.8 } }],
+  }),
+  flash_sale: S({
+    id: 'flash_sale', name: 'Flash Sale', nameTh: 'แฟลชเซล', description: 'ความเร็วตัวเอง +40% 3 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 4, mp: 0, target: 'SELF', priority: 2,
+    effects: [{ kind: 'BUFF', stat: 'speed', pct: 0.4, turns: 3, self: true }],
+  }),
+  guardian_mace: S({
+    id: 'guardian_mace', name: 'Guardian Mace', nameTh: 'กระบองทวารบาล', description: '160% ATK และ 30% มึน',
+    kind: 'ACTIVE', element: 'EARTH', rate: 30, cooldown: 2, mp: 0, target: 'ENEMY',
+    effects: [{ kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1.6 } }, { kind: 'STATUS', status: 'STUN', turns: 1, chance: 0.3 }],
+  }),
+  gate_roar: S({
+    id: 'gate_roar', name: 'Gate Roar', nameTh: 'คำรามหน้าประตู', description: 'ทุกตัว 90% MATK และ 40% ช้าลง',
+    kind: 'ACTIVE', element: 'HOLY', rate: 25, cooldown: 3, mp: 0, target: 'ALL_ENEMIES',
+    effects: [{ kind: 'DAMAGE', type: 'MAGIC', scaling: { matk: 0.9 } }, { kind: 'STATUS', status: 'SLOW', turns: 2, chance: 0.4, potency: 0.3 }],
+  }),
 };

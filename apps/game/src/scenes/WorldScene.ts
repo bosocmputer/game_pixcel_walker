@@ -16,6 +16,7 @@ import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
+import { LANDMARK_KINDS, hasPixelSprite } from '../game/sprites';
 import { net } from '../game/net';
 import {
   AVATAR_ORIGIN_X,
@@ -64,7 +65,7 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
-    for (const kind of ['CONVENIENCE', 'FUEL', 'PARK', 'HOME']) {
+    for (const kind of LANDMARK_KINDS) {
       if (!this.textures.exists(`lm_${kind}`)) this.textures.addCanvas(`lm_${kind}`, landmarkIcon(kind));
     }
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
@@ -194,7 +195,7 @@ export class WorldScene extends Phaser.Scene {
       this.homeSprite = null;
       return;
     }
-    if (!this.homeSprite) this.homeSprite = this.add.image(0, 0, 'lm_HOME').setScale(2.5).setDepth(8).setOrigin(0.5, 1);
+    if (!this.homeSprite) this.homeSprite = this.add.image(0, 0, 'lm_HOME').setScale(this.homeScale()).setDepth(8).setOrigin(0.5, 1);
   }
 
   update(time: number, delta: number) {
@@ -282,11 +283,13 @@ export class WorldScene extends Phaser.Scene {
       seen.add(l.id);
       let c = this.landmarkSprites.get(l.id);
       if (!c) {
-        const icon = this.add.image(0, 0, `lm_${l.kind}`).setOrigin(0.5, 1).setScale(l.kind === 'PARK' ? 3 : 2.5);
-        const bang = this.add.text(0, -44, '!', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ff5252', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+        // Native-res pixel buildings share the hero's pixel size; old procedural icons are tiny.
+        const icon = this.add.image(0, 0, `lm_${l.kind}`).setOrigin(0.5, 1)
+          .setScale(hasPixelSprite('landmarks', l.kind) ? getHeroScale() : l.kind === 'PARK' ? 3 : 2.5);
+        const bang = this.add.text(0, -icon.displayHeight - 4, '!', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ff5252', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
         c = this.add.container(0, 0, [icon, bang]).setDepth(7);
         c.setData({ bang, lat: l.lat, lng: l.lng });
-        this.tweens.add({ targets: bang, y: -52, yoyo: true, repeat: -1, duration: 500 });
+        this.tweens.add({ targets: bang, y: bang.y - 8, yoyo: true, repeat: -1, duration: 500 });
         this.landmarkSprites.set(l.id, c);
       }
       (c.getData('bang') as Phaser.GameObjects.Text).setVisible(bossAvailableAt(l, s, now) <= now);
@@ -301,6 +304,10 @@ export class WorldScene extends Phaser.Scene {
 
   // -------------------------------------------------------------------------------------------
   // World monsters
+
+  private homeScale(): number {
+    return hasPixelSprite('landmarks', 'HOME') ? getHeroScale() : 2.5;
+  }
 
   private levelColor(level: number): string {
     const d = level - store.s.level;
@@ -320,12 +327,12 @@ export class WorldScene extends Phaser.Scene {
         const shadow = this.add.ellipse(0, 0, 36, 10, 0x000000, 0.25);
         const isBoss = !!def.boss;
         const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
-        const mobScale = isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
+        const mobScale = hasPixelSprite('monsters', def.sprite) ? getHeroScale() : isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
         const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(mobScale);
         const label = this.add
           .text(0, 4, `Lv.${def.level}`, { fontFamily: PIXEL_FONT, fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })
           .setOrigin(0.5, 0);
-        const swords = this.add.text(0, -56, '⚔️', { fontSize: '18px' }).setOrigin(0.5).setVisible(false);
+        const swords = this.add.text(0, -img.displayHeight - 10, '⚔️', { fontSize: '18px' }).setOrigin(0.5).setVisible(false);
         c = this.add.container(0, 0, [shadow, img, label, swords]).setDepth(8);
         c.setData({ spawn: sp, img, swords, label });
         this.tweens.add({ targets: img, y: -4, yoyo: true, repeat: -1, duration: 600 + Math.random() * 400, ease: 'Sine.easeInOut' });
@@ -389,7 +396,7 @@ export class WorldScene extends Phaser.Scene {
     const home = store.s.home;
     if (home && this.homeSprite) {
       const p = project(home.lat, home.lng);
-      this.homeSprite.setPosition(p.x, p.y).setScale(2.5 * depthScale(p.y, h) * zs);
+      this.homeSprite.setPosition(p.x, p.y).setScale(this.homeScale() * depthScale(p.y, h) * zs);
     }
   }
 }

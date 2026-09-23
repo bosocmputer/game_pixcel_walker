@@ -98,6 +98,8 @@ npm run dev
 | `npm test` | เทสต์กฎเกม + จำลองสมดุล (Monte-Carlo) ใน `packages/shared` |
 | `npm run typecheck` | ตรวจ TypeScript ทั้ง shared / game / server |
 | `npm run build` | build เกมเป็น static site ที่ `apps/game/dist` |
+| `python pixel-art/monsters/build.py` | วาดมอนสเตอร์/บอสทั้งหมด → `apps/game/public/assets/monsters/` ดูผลที่ `pixel-art/monsters/preview.png` |
+| `python pixel-art/landmarks/build.py` | วาดหมุดแลนด์มาร์ก (วัด ห้าง ร้าน ปั๊ม สวน บ้าน) → `apps/game/public/assets/landmarks/` |
 | `python pixel-art/skill-icons/build.py` | วาดไอคอนสกิลใหม่ทั้งชุด → `apps/game/public/assets/skills/` ดูผลที่ `pixel-art/skill-icons/preview.png` |
 | `python pixel-art/ui-kit/build.py` | วาดชุด UI 16-bit ใหม่ (กรอบหน้าต่าง ปุ่ม ช่อง ไอคอนเมนู) → `apps/game/public/assets/ui/` ดูผลที่ `pixel-art/ui-kit/preview.png` |
 | `python pixel-art/item-icons/build.py` | วาดไอคอนไอเทมใหม่ทั้งชุด → `apps/game/public/assets/items/` (ต้องมี Pillow) ดูผลที่ `pixel-art/item-icons/preview.png` |

@@ -15,6 +15,7 @@ import { autoHunt } from './game/autohunt';
 import { net } from './game/net';
 import { el } from './ui/dom';
 import { loadAvatarPack, USE_AVATAR_PACK } from './game/avatar';
+import { loadPixelSprites } from './game/sprites';
 
 /** First GPS fix (or last known / default spot) so the map can be centred before rendering. */
 function initialPosition(): Promise<{ lat: number; lng: number }> {
@@ -38,6 +39,7 @@ function initialPosition(): Promise<{ lat: number; lng: number }> {
 
 async function boot() {
   await document.fonts?.ready;
+  await loadPixelSprites();
   if (USE_AVATAR_PACK) {
     try {
       await loadAvatarPack();

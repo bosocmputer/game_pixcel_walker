@@ -8,7 +8,7 @@
  *                                                                On-Low-HP, Assist, On-Ally-Death
  * Fully deterministic from (config, seed): all randomness uses the combat RNG.
  */
-import { MONSTERS, type BossSkill } from '../data/monsters';
+import { MONSTERS, monsterDeck, type BossSkill } from '../data/monsters';
 import { BASIC_ATTACK, SKILLS } from '../data/skills';
 import { CONSUMABLES } from '../data/items';
 import { createRng, type Rng } from '../rules/rng';
@@ -140,7 +140,7 @@ export function monsterSetup(monsterId: string, id: string, opts: { hp?: number;
     monsterId,
     isBoss: !!m.boss,
     passive: !!m.passive,
-    deck: m.deck ?? [],
+    deck: monsterDeck(m),
     hp: opts.hp !== undefined ? Math.min(maxHp, opts.hp) : maxHp,
     stats: {
       maxHp,

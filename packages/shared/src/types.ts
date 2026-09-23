@@ -50,4 +50,4 @@ export interface DerivedStats {
 
 export type Element = 'NEUTRAL' | 'FIRE' | 'WATER' | 'LIGHTNING' | 'EARTH' | 'HOLY' | 'SHADOW';
 
-export type LandmarkKind = 'CONVENIENCE' | 'FUEL' | 'PARK' | 'CITY';
+export type LandmarkKind = 'CONVENIENCE' | 'MALL' | 'FUEL' | 'TEMPLE' | 'PARK' | 'CITY';

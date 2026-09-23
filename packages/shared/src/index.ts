@@ -17,4 +17,5 @@ export * from './combat/dungeon';
 export * from './data/map';
 export * from './rules/spawns';
 export * from './rules/party';
+export * from './rules/starter';
 export * from './net/protocol';

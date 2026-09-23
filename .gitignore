@@ -8,5 +8,6 @@ tools/osm/cache/
 .DS_Store
 tools/artpreview/preview.png
 tools/artpreview/heroes.png
+tools/artpreview/avatar.png
 apps/game/public/maps/
 *.tsbuildinfo

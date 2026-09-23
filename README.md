@@ -92,6 +92,7 @@ npm run dev
 | `npm test` | เทสต์กฎเกม + จำลองสมดุล (Monte-Carlo) ใน `packages/shared` |
 | `npm run typecheck` | ตรวจ TypeScript ทั้ง shared / game / server |
 | `npm run build` | build เกมเป็น static site ที่ `apps/game/dist` |
+| `npx tsx tools/artpreview/avatar.mts` | เรนเดอร์ตัวละคร + อุปกรณ์ทุกท่าเป็นภาพ `tools/artpreview/avatar.png` (ไว้ตรวจงานพิกเซลโดยไม่ต้องเปิดเกม) |
 
 ---
 

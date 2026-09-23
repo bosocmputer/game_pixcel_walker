@@ -1,9 +1,10 @@
 /**
  * Avatar pack loader & renderer.
  * Loads base body + hairstyles from apps/game/public/assets/avatar/manifest.json.
- * Stacks body and hair layers, recolors skin and hair tones according to HANDOFF.md,
- * and caches rendered frames as offscreen canvases.
+ * Stacks body, equipment and hair layers (pixel work in `gear.ts`), recolors skin and hair tones
+ * according to HANDOFF.md, and caches rendered frames as offscreen canvases.
  */
+import { composeAvatar, gearKey, type GearLook } from './gear';
 
 export const USE_AVATAR_PACK = true;
 
@@ -57,16 +58,11 @@ export const AVATAR_ORIGIN_X = AVATAR_ANCHOR_X / AVATAR_CELL_W; // 0.5
 export const AVATAR_ORIGIN_Y = AVATAR_ANCHOR_Y / AVATAR_CELL_H; // 0.90625
 export const AVATAR_WORLD_SCALE = 1.6;
 
-type RGB = [number, number, number];
 
 let manifest: AvatarManifest | null = null;
 const imageCache = new Map<string, HTMLImageElement>();
 const canvasCache = new Map<string, HTMLCanvasElement>();
 
-function hexToRgb(h: string): RGB {
-  const n = parseInt(h.slice(1), 16);
-  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
-}
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   const cached = imageCache.get(src);
@@ -163,91 +159,56 @@ export function getSkinSwatchColors(): string[] {
   return getSkinTones().map((s) => s.base);
 }
 
+/** Raw pixels of a loaded pack image (read once, reused for every recolour). */
+const rawCache = new Map<string, ImageData>();
+function rawPixels(src: string): ImageData | null {
+  const hit = rawCache.get(src);
+  if (hit) return hit;
+  const img = imageCache.get(src);
+  if (!img) return null;
+  const c = document.createElement('canvas');
+  c.width = AVATAR_CELL_W;
+  c.height = AVATAR_CELL_H;
+  const ctx = c.getContext('2d', { willReadFrequently: true })!;
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, AVATAR_CELL_W, AVATAR_CELL_H);
+  rawCache.set(src, data);
+  return data;
+}
+
 /**
- * Composite and recolor a body + hair frame into a 48×64 canvas.
- * Results are cached in canvasCache.
+ * Composite one frame into a 48×64 canvas: recoloured body, equipment layers, hair.
+ * Results are cached per (frame, skin, hair colour, gear).
  */
 export function compositeAvatar(
   bodyPath: string,
   hairPath: string,
   skinIdx: number,
   hairColorIdx: number,
+  gear: GearLook = {},
   baseUrl = '/assets/avatar',
 ): HTMLCanvasElement {
-  const cacheKey = `${bodyPath}|${hairPath}|${skinIdx}|${hairColorIdx}`;
+  const cacheKey = `${bodyPath}|${hairPath}|${skinIdx}|${hairColorIdx}|${gearKey(gear)}`;
   const existing = canvasCache.get(cacheKey);
   if (existing) return existing;
 
   const canvas = document.createElement('canvas');
   canvas.width = AVATAR_CELL_W;
   canvas.height = AVATAR_CELL_H;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return canvas;
+  const ctx = canvas.getContext('2d');
+  const body = rawPixels(`${baseUrl}/${bodyPath}`);
+  if (!ctx || !body) return canvas;
 
-  const bodyImg = imageCache.get(`${baseUrl}/${bodyPath}`);
-  const hairImg = imageCache.get(`${baseUrl}/${hairPath}`);
-
-  if (!bodyImg || !hairImg) {
-    // If not in cache, fallback to empty or synchronous draw if possible
-    return canvas;
-  }
-
-  // 1. Draw body to get pixel data
-  ctx.drawImage(bodyImg, 0, 0);
-  const imgData = ctx.getImageData(0, 0, AVATAR_CELL_W, AVATAR_CELL_H);
-  const data = imgData.data;
-
-  // Body skin colors
   const skinTones = getSkinTones();
-  const skin = skinTones[skinIdx] ?? skinTones[0]!;
-  const shadowRgb = hexToRgb(skin.shadow);
-  const baseRgb = hexToRgb(skin.base);
-
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] === 0) continue;
-    const r = data[i]!;
-    // Exact grey matching per HANDOFF.md: 0x47 = shadow, 0x8a = base
-    if (r === 0x47) {
-      data[i] = shadowRgb[0];
-      data[i + 1] = shadowRgb[1];
-      data[i + 2] = shadowRgb[2];
-    } else if (r === 0x8a) {
-      data[i] = baseRgb[0];
-      data[i + 1] = baseRgb[1];
-      data[i + 2] = baseRgb[2];
-    }
-  }
-
-  // 2. Read hair pixel data & recolor hair on top
-  const hairCanvas = document.createElement('canvas');
-  hairCanvas.width = AVATAR_CELL_W;
-  hairCanvas.height = AVATAR_CELL_H;
-  const hairCtx = hairCanvas.getContext('2d', { willReadFrequently: true });
-  if (hairCtx) {
-    hairCtx.drawImage(hairImg, 0, 0);
-    const hairData = hairCtx.getImageData(0, 0, AVATAR_CELL_W, AVATAR_CELL_H).data;
-
-    // Hair color ramp (6 entries, index 0 is outline)
-    const rampKeys = getHairRampKeys();
-    const rampKey = rampKeys[hairColorIdx] ?? rampKeys[0] ?? 'black';
-    const rampHex = getHairColorRamps()[rampKey] ?? [];
-    const rampRgb = rampHex.map(hexToRgb);
-
-    for (let i = 0; i < hairData.length; i += 4) {
-      if (hairData[i + 3] === 0) continue;
-      const grey = hairData[i]!;
-      const level = Math.min(Math.round(grey / 40), 5);
-      const rgb = rampRgb[level] ?? rampRgb[0] ?? [0, 0, 0];
-
-      // Hair overlays directly onto body
-      data[i] = rgb[0];
-      data[i + 1] = rgb[1];
-      data[i + 2] = rgb[2];
-      data[i + 3] = 255;
-    }
-  }
-
-  ctx.putImageData(imgData, 0, 0);
+  const rampKeys = getHairRampKeys();
+  const hairRamp = getHairColorRamps()[rampKeys[hairColorIdx] ?? rampKeys[0] ?? 'black'] ?? ['#000000'];
+  const out = ctx.createImageData(AVATAR_CELL_W, AVATAR_CELL_H);
+  composeAvatar(body, rawPixels(`${baseUrl}/${hairPath}`), out, {
+    skin: skinTones[skinIdx] ?? skinTones[0]!,
+    hairRamp,
+    gear,
+  });
+  ctx.putImageData(out, 0, 0);
   canvasCache.set(cacheKey, canvas);
   return canvas;
 }
@@ -264,6 +225,7 @@ export function renderAvatarFrame(
   hairColorIdx: number,
   anim: AvatarAnim = 'walk_front',
   frameIdx = 0,
+  gear: GearLook = {},
 ): HTMLCanvasElement {
   if (!manifest) {
     const c = document.createElement('canvas');
@@ -282,5 +244,5 @@ export function renderAvatarFrame(
   const frames = style.anims[anim] ?? style.anims.walk_front;
   const frame = frames[frameIdx % frames.length]!;
 
-  return compositeAvatar(frame.body, frame.hair, skinIdx, hairColorIdx);
+  return compositeAvatar(frame.body, frame.hair, skinIdx, hairColorIdx, { ...gear, gender });
 }

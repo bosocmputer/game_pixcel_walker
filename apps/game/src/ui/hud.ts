@@ -43,7 +43,7 @@ import {
   worldBossHp,
   worldBossReadyAt,
 } from '../game/rules';
-import { LOADOUT_SIZE, derivedOf, effectiveLoadout, learnableSkills, mutationOf, store, type SaveData } from '../state/store';
+import { LOADOUT_SIZE, applyStarter, derivedOf, effectiveLoadout, learnableSkills, mutationOf, store, type SaveData } from '../state/store';
 import { bar, el, esc } from './dom';
 import { showCreator } from './creator';
 import { arenaPanel, wireArena } from './arena';
@@ -69,7 +69,7 @@ const SLOT_TH: Record<EquipSlot, string> = {
   accessory: 'เครื่องประดับ',
 };
 
-const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'iron_helm', 'runner_sneakers'];
+const HOME_SHOP = ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'straw_sandals', 'iron_helm', 'runner_sneakers'];
 const SMITH_SHOP = ['whetstone', 'master_repair_kit', 'pixel_broadsword', 'iron_helm'];
 
 const root = () => document.getElementById('ui')!;
@@ -84,37 +84,12 @@ const ENCOUNTER_TTL_MS = 90_000;
 // Onboarding
 
 export function showOnboarding(onDone: () => void) {
-  showCreator(root(), (name, appearance) => {
+  // Appearance and starter gear are chosen on one page (the old separate "Naked Dilemma" step).
+  showCreator(root(), (name, appearance, loadout) => {
     store.create(name, appearance);
-    showStarterChoice(onDone);
+    store.update((s) => applyStarter(s, loadout));
+    onDone();
   });
-}
-
-function showStarterChoice(onDone: () => void) {
-  const view = el(`<div class="onboard">
-    <div class="card wide">
-      <h2>ทางเลือกแรกเกิด (เลือกได้ครั้งเดียว)</h2>
-      <div class="choices">
-        <button class="choice" data-c="STANDARD">
-          <b>A · นักเดินทางสายมาตรฐาน</b>
-          <span>เสื้อผ้าฝ้าย (DEF+2), ดาบไม้ (ATK+3), ยา HP ×5, 50 Gold</span>
-        </button>
-        <button class="choice naked" data-c="NAKED">
-          <b>B · กำเนิดใหม่ตัวเปล่า</b>
-          <span>เหลือแค่ชุดชั้นใน 8-bit แต่ได้เงินก้อนโต <em>500 Gold</em></span>
-        </button>
-      </div>
-      <p class="warn">⚠️ ระวังรถเสมอ อย่าเล่นขณะขับขี่ และอย่าเข้าพื้นที่ส่วนบุคคล</p>
-    </div></div>`);
-  root().appendChild(view);
-  view.querySelectorAll<HTMLButtonElement>('.choice').forEach((b) =>
-    b.addEventListener('click', async () => {
-      const { applyStarter } = await import('../state/store');
-      store.update((s) => applyStarter(s, b.dataset.c as 'STANDARD' | 'NAKED'));
-      view.remove();
-      onDone();
-    }),
-  );
 }
 
 // ---------------------------------------------------------------------------------------------

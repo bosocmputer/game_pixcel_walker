@@ -6,6 +6,7 @@
  */
 import { TILE, type TileId } from '@pw/shared';
 import { isAvatarPackLoaded, renderAvatarFrame, USE_AVATAR_PACK, type Gender, type AvatarAnim } from './avatar';
+import { OUTFIT_DYES } from './gear';
 export { USE_AVATAR_PACK, type Gender } from './avatar';
 
 export const TILE_PX = 16;
@@ -398,7 +399,8 @@ export type HairStyle = 'short' | 'spiky' | 'long' | 'bun' | string;
 export const HAIR_STYLES: HairStyle[] = ['short', 'spiky', 'long', 'bun'];
 export const SKIN_TONES = ['#f2c79b', '#e0ac7e', '#c68a5a', '#8d5a3a'];
 export const HAIR_COLORS = ['#2a1e1a', '#5a3a22', '#e8c46a', '#b8422e', '#3a5ec8', '#e87aa8', '#c8ccd8'];
-export const OUTFIT_COLORS = ['#ffa726', '#3f7ce0', '#3aa655', '#8e44ad', '#d64545', '#3a3f48'];
+/** Shirt dyes — shared with the avatar-pack gear painter so both renderers agree. */
+export const OUTFIT_COLORS = OUTFIT_DYES;
 
 function setCh(rows: string[], y: number, x: number, ch: string, onlyIfEmpty = true) {
   const r = rows[y];
@@ -597,6 +599,7 @@ export interface Paperdoll {
   helmet?: string;
   chest?: string;
   weapon?: string;
+  offhand?: string;
   boots?: string;
   aura?: string | null;
 }
@@ -616,7 +619,8 @@ export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0): HT
   if (USE_AVATAR_PACK && isAvatarPackLoaded()) {
     const gender = ap.gender ?? 'male';
     const anim: AvatarAnim = facing === 'up' ? 'walk_back' : 'walk_front';
-    const body = renderAvatarFrame(gender, ap.hairStyle, ap.skin, ap.hairColor, anim, frame);
+    const gear = { helmet: p.helmet, chest: p.chest, weapon: p.weapon, offhand: p.offhand, boots: p.boots, outfit: ap.outfit };
+    const body = renderAvatarFrame(gender, ap.hairStyle, ap.skin, ap.hairColor, anim, frame, gear);
     if (!p.aura) return body;
     const [c, ctx] = canvas(body.width + 8, body.height + 6);
     const grad = ctx.createRadialGradient(c.width / 2, c.height * 0.55, 2, c.width / 2, c.height * 0.55, c.width / 2);

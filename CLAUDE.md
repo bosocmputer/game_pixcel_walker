@@ -56,6 +56,7 @@ npm run dev:all     # presence server + game
 npm run dev:lan     # same over HTTPS for phones on the Wi-Fi (https://<pc-ip>:5173)
 npm run map:build && npx tsx tools/artpreview/preview.mts [lat lng]   # map art sheet (needs a baked map)
 npx tsx tools/artpreview/heroes.mts
+npx tsx tools/artpreview/avatar.mts   # avatar pack + equipment layers → tools/artpreview/avatar.png
 ```
 
 ## Rules for changes

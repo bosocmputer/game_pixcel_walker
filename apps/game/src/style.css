@@ -232,6 +232,18 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .sw { width: 28px; height: 28px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 1px #d8cfc0; padding: 0; }
 .sw.on { box-shadow: 0 0 0 3px var(--orange); }
 .err { color: var(--bad); min-height: 18px; font-size: 13px; }
+.opt-row.off { opacity: .35; pointer-events: none; }
+.starter { margin-top: 14px; padding: 10px 12px; border-radius: 14px; background: #fbf5ea; box-shadow: inset 0 0 0 2px #efe4d2; text-align: left; }
+.starter-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 8px; }
+.starter-head > * { white-space: nowrap; }
+.starter-gold b { color: var(--orange-d); font-size: 18px; }
+.starter .muted { font-size: 12px; margin: 4px 0 8px; }
+.starter-presets { display: flex; gap: 6px; margin-bottom: 8px; }
+.starter-presets .chip-btn { margin-left: 0; font-size: 13px; white-space: nowrap; }
+.starter .opt-row.starter-row { grid-template-columns: 56px 1fr; margin-top: 6px; }
+.starter-row .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.starter-row .chip-btn { margin-left: 0; font-size: 13px; padding: 4px 10px; white-space: nowrap; }
+.starter-row .chip-btn small { font-weight: 500; color: var(--muted); }
 
 .zoom { position: absolute; right: 8px; top: calc(120px + env(safe-area-inset-top)); display: grid; gap: 6px; }
 .zoom button { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(255,250,242,.95); font-size: 20px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }

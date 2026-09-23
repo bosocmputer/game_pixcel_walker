@@ -1,4 +1,20 @@
-/** Character creator: name + appearance with a live, rotating, walking 16-bit preview. */
+/**
+ * Character creator: name, appearance and starter gear on one page, with a live, rotating,
+ * walking preview wearing the chosen gear. Unspent starter budget becomes Gold (MASTER_SPEC §5).
+ */
+import {
+  EQUIPMENT,
+  STARTER_BUDGET,
+  STARTER_FULL,
+  STARTER_GEAR,
+  STARTER_NAKED,
+  STARTER_POTIONS,
+  CONSUMABLES,
+  starterGold,
+  starterPotionCost,
+  type EquipSlot,
+  type StarterLoadout,
+} from '@pw/shared';
 import {
   DEFAULT_APPEARANCE,
   HAIR_COLORS,
@@ -21,6 +37,15 @@ import {
 import { el, esc } from './dom';
 
 const HAIR_TH: Record<string, string> = { short: 'สั้น', spiky: 'ชี้ฟู', long: 'ยาว', bun: 'มวย' };
+const SLOT_TH: Partial<Record<EquipSlot, string>> = { helmet: 'หัว', chest: 'ตัว', weapon: 'อาวุธ', boots: 'เท้า' };
+
+/** "+2 DEF" style summary of an item's flat bonuses. */
+function statText(id: string): string {
+  const flat = EQUIPMENT[id]?.modifiers.flat ?? {};
+  return Object.entries(flat)
+    .map(([k, v]) => `${k.toUpperCase()}+${v}`)
+    .join(' ');
+}
 const SPIN: { facing: Facing; flip: boolean }[] = [
   { facing: 'down', flip: false },
   { facing: 'side', flip: false },
@@ -28,7 +53,7 @@ const SPIN: { facing: Facing; flip: boolean }[] = [
   { facing: 'side', flip: true },
 ];
 
-export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appearance) => void) {
+export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appearance, loadout: StarterLoadout) => void) {
   const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
   const initialGender: Gender = 'male';
   const initialHair = isPack ? getDefaultStyleForGender(initialGender) : 'short';
@@ -40,6 +65,7 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
     hairStyle: initialHair,
     skin: Math.floor(Math.random() * skinCount),
   };
+  let loadout: StarterLoadout = { gear: { ...STARTER_FULL.gear }, potions: STARTER_FULL.potions };
 
   const view = el(`<div class="onboard"><div class="card creator">
     <div class="logo">ก้าวข้ามมิติ</div>
@@ -62,12 +88,22 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
         </div>
         <div class="opt-row"><span>สีผม</span><div class="swatches" data-sw="hairColor"></div></div>
         <div class="opt-row"><span>สีผิว</span><div class="swatches" data-sw="skin"></div></div>
-        <div class="opt-row"><span>สีชุด</span><div class="swatches" data-sw="outfit"></div></div>
+        <div class="opt-row outfit-row"><span>สีเสื้อ</span><div class="swatches" data-sw="outfit"></div></div>
         <button class="btn" data-random>🎲 สุ่ม</button>
       </div>
     </div>
+    <div class="starter">
+      <div class="starter-head"><b>🎒 อุปกรณ์เริ่มต้น</b><span class="starter-gold">💰 เริ่มด้วย <b data-gold></b> Gold</span></div>
+      <p class="muted">งบ ${STARTER_BUDGET} Gold — ใส่ชิ้นไหนหักราคาชิ้นนั้น ชิ้นที่ไม่ใส่เก็บเป็นทองไว้ซื้อทีหลัง (ราคาเท่ากับร้านที่บ้าน)</p>
+      <div class="starter-presets">
+        <button type="button" class="chip-btn" data-preset="full">ใส่ครบชุด</button>
+        <button type="button" class="chip-btn" data-preset="naked">ตัวเปล่า · ${STARTER_BUDGET} G</button>
+      </div>
+      <div data-slots></div>
+    </div>
     <label>ชื่อนักเดินทาง<input id="name" maxlength="16" placeholder="เช่น Somchai_Tank" autocomplete="off" /></label>
     <div class="err"></div>
+    <p class="warn">⚠️ ระวังรถเสมอ อย่าเล่นขณะขับขี่ และอย่าเข้าพื้นที่ส่วนบุคคล</p>
     <button class="btn primary" id="next">สร้างตัวละคร</button>
   </div></div>`);
   root.appendChild(view);
@@ -87,9 +123,42 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
     return { hairColor: HAIR_COLORS, skin: SKIN_TONES, outfit: OUTFIT_COLORS };
   };
 
+  const renderStarter = () => {
+    const chip = (on: boolean, attrs: string, label: string, sub = '') =>
+      `<button type="button" class="chip-btn ${on ? 'on' : ''}" ${attrs}>${label}${sub ? ` <small>${sub}</small>` : ''}</button>`;
+    const rows = STARTER_GEAR.map(({ slot, items }) => {
+      const cur = loadout.gear[slot] ?? null;
+      const opts = [chip(!cur, `data-slot="${slot}" data-item=""`, 'ไม่ใส่')]
+        .concat(items.map((id) => chip(cur === id, `data-slot="${slot}" data-item="${id}"`, esc(EQUIPMENT[id]!.nameTh), `${statText(id)} · ${EQUIPMENT[id]!.price}G`)))
+        .join('');
+      return `<div class="opt-row starter-row"><span>${SLOT_TH[slot] ?? slot}</span><div class="chips">${opts}</div></div>`;
+    });
+    const potionName = CONSUMABLES[STARTER_POTIONS.itemId]?.nameTh ?? 'ยา';
+    rows.push(`<div class="opt-row starter-row"><span>ของใช้</span><div class="chips">${chip(!loadout.potions, 'data-potions="0"', 'ไม่เอา')}${chip(loadout.potions, 'data-potions="1"', `${esc(potionName)} ×${STARTER_POTIONS.count}`, `${starterPotionCost()}G`)}</div></div>`);
+    const box = view.querySelector<HTMLElement>('[data-slots]')!;
+    box.innerHTML = rows.join('');
+    view.querySelector('[data-gold]')!.textContent = String(starterGold(loadout));
+    box.querySelectorAll<HTMLElement>('[data-slot]').forEach((b) =>
+      b.addEventListener('click', () => {
+        loadout.gear[b.dataset.slot as EquipSlot] = b.dataset.item || null;
+        renderOpts();
+      }),
+    );
+    box.querySelectorAll<HTMLElement>('[data-potions]').forEach((b) =>
+      b.addEventListener('click', () => {
+        loadout.potions = b.dataset.potions === '1';
+        renderOpts();
+      }),
+    );
+    // The shirt dye only matters when wearing a cloth top.
+    const dyeable = loadout.gear.chest === 'cotton_shirt';
+    view.querySelector('.outfit-row')!.classList.toggle('off', !dyeable);
+  };
+
   const renderOpts = () => {
     const usingPack = USE_AVATAR_PACK && isAvatarPackLoaded();
     const gender = ap.gender ?? 'male';
+    renderStarter();
 
     // Update gender toggle buttons
     view.querySelectorAll<HTMLButtonElement>('.gender-btn').forEach((b) => {
@@ -171,6 +240,18 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
     renderOpts();
   });
 
+  view.querySelectorAll<HTMLElement>('[data-preset]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const preset = b.dataset.preset === 'naked' ? STARTER_NAKED : STARTER_FULL;
+      loadout = { gear: { ...preset.gear }, potions: preset.potions };
+      renderOpts();
+    }),
+  );
+  const sprite = (slot: EquipSlot) => {
+    const id = loadout.gear[slot];
+    return id ? EQUIPMENT[id]?.sprite : undefined;
+  };
+
   // Preview animation timer
   let tick = 0;
   const timer = window.setInterval(() => {
@@ -178,11 +259,15 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
     const spin = SPIN[Math.floor(tick / 12) % SPIN.length]!;
     const isPackActive = USE_AVATAR_PACK && isAvatarPackLoaded();
     const frame = isPackActive ? tick % 4 : [1, 0, 2, 0][tick % 4]!;
-    const sprite = heroCanvas({ classId: 'NOVICE', appearance: ap, chest: 'chest_cotton_01', weapon: 'weapon_wood_01' }, spin.facing, frame);
+    const hero = heroCanvas(
+      { classId: 'NOVICE', appearance: ap, helmet: sprite('helmet'), chest: sprite('chest'), weapon: sprite('weapon'), boots: sprite('boots') },
+      spin.facing,
+      frame,
+    );
 
     const scale = isPackActive ? 2 : 4;
-    const sw = sprite.width * scale;
-    const sh = sprite.height * scale;
+    const sw = hero.width * scale;
+    const sh = hero.height * scale;
     const dx = (canvas.width - sw) / 2;
     const dy = canvas.height - sh;
 
@@ -192,7 +277,7 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
       ctx.translate(canvas.width, 0);
       ctx.scale(-1, 1);
     }
-    ctx.drawImage(sprite, dx, dy, sw, sh);
+    ctx.drawImage(hero, dx, dy, sw, sh);
     ctx.restore();
   }, 160);
 
@@ -206,7 +291,7 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
     }
     window.clearInterval(timer);
     view.remove();
-    onDone(name, { ...ap });
+    onDone(name, { ...ap }, loadout);
   };
   view.querySelector('#next')!.addEventListener('click', submit);
   input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());

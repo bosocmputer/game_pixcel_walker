@@ -9,7 +9,9 @@ import {
   EQUIPMENT,
   SKILLS,
   classSkillPool,
-  STARTER_KITS,
+  STARTER_POTIONS,
+  sanitizeStarter,
+  starterGold,
   computeDerived,
   detectMutation,
   totalStats,
@@ -18,6 +20,7 @@ import {
   type EquipSlot,
   type Modifiers,
   type MutationId,
+  type StarterLoadout,
   type Stats,
 } from '@pw/shared';
 import { DEFAULT_APPEARANCE, type Appearance } from '../game/art';
@@ -35,7 +38,8 @@ export interface SaveData {
   name: string;
   appearance: Appearance;
   createdAt: number;
-  starter: 'STANDARD' | 'NAKED' | null;
+  /** How the character started (STANDARD/NAKED = old two-choice start, CUSTOM = creator loadout). */
+  starter: 'STANDARD' | 'NAKED' | 'CUSTOM' | null;
   classId: ClassId;
   level: number;
   exp: number;
@@ -207,15 +211,16 @@ export function derivedOf(s: SaveData): DerivedStats {
   });
 }
 
-export function applyStarter(s: SaveData, choice: 'STANDARD' | 'NAKED') {
-  const kit = STARTER_KITS[choice];
-  s.starter = choice;
-  s.gold = kit.gold;
-  for (const id of kit.equipment) {
-    const def = EQUIPMENT[id]!;
-    s.equipment[def.slot] = { itemId: id, durability: def.maxDurability };
+/** Gear picked in the character creator; unspent budget becomes Gold (MASTER_SPEC §5). */
+export function applyStarter(s: SaveData, loadout: StarterLoadout) {
+  const l = sanitizeStarter(loadout);
+  s.starter = 'CUSTOM';
+  s.gold = starterGold(l);
+  for (const id of Object.values(l.gear)) {
+    const def = id ? EQUIPMENT[id] : undefined;
+    if (def) s.equipment[def.slot] = { itemId: def.id, durability: def.maxDurability };
   }
-  for (const [id, n] of Object.entries(kit.consumables)) s.bag[id] = (s.bag[id] ?? 0) + (n as number);
+  if (l.potions) s.bag[STARTER_POTIONS.itemId] = (s.bag[STARTER_POTIONS.itemId] ?? 0) + STARTER_POTIONS.count;
   const d = derivedOf(s);
   s.hp = d.maxHp;
   s.mp = d.maxMp;

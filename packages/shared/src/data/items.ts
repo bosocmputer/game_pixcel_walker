@@ -52,7 +52,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     sprite: 'chest_cotton_01',
     modifiers: { flat: { def: 2 } },
     maxDurability: 50,
-    price: 20,
+    price: 150,
   },
   training_sword: {
     id: 'training_sword',
@@ -63,7 +63,40 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     sprite: 'weapon_wood_01',
     modifiers: { flat: { atk: 3 } },
     maxDurability: 50,
-    price: 20,
+    price: 150,
+  },
+  apprentice_staff: {
+    id: 'apprentice_staff',
+    name: 'Apprentice Staff',
+    nameTh: 'ไม้เท้าฝึกหัด',
+    slot: 'weapon',
+    rarity: 'COMMON',
+    sprite: 'weapon_staff_wood_01',
+    modifiers: { flat: { matk: 5 } },
+    maxDurability: 50,
+    price: 150,
+  },
+  cloth_bandana: {
+    id: 'cloth_bandana',
+    name: 'Cloth Bandana',
+    nameTh: 'ผ้าโพกหัว',
+    slot: 'helmet',
+    rarity: 'COMMON',
+    sprite: 'head_bandana_01',
+    modifiers: { flat: { def: 1 } },
+    maxDurability: 40,
+    price: 50,
+  },
+  straw_sandals: {
+    id: 'straw_sandals',
+    name: 'Straw Sandals',
+    nameTh: 'รองเท้าแตะสาน',
+    slot: 'boots',
+    rarity: 'COMMON',
+    sprite: 'boots_sandal_01',
+    modifiers: { flat: { agi: 1 } },
+    maxDurability: 40,
+    price: 50,
   },
   pixel_broadsword: {
     id: 'pixel_broadsword',
@@ -205,15 +238,17 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
   },
 };
 
-export const STARTER_KITS = {
-  STANDARD: {
-    equipment: ['cotton_shirt', 'training_sword'],
-    consumables: { red_potion: 5 },
-    gold: 50,
-  },
-  NAKED: {
-    equipment: [] as string[],
-    consumables: {},
-    gold: 500,
-  },
-} as const;
+/**
+ * Character creator starter gear (MASTER_SPEC §5): every player gets STARTER_BUDGET Gold and picks
+ * what to wear from these lists; whatever they skip stays in their pocket as Gold. Prices are the
+ * same as in the home shop, so skipping an item now and buying it later costs the same.
+ */
+export const STARTER_BUDGET = 500;
+export const STARTER_GEAR: { slot: EquipSlot; items: string[] }[] = [
+  { slot: 'helmet', items: ['cloth_bandana'] },
+  { slot: 'chest', items: ['cotton_shirt'] },
+  { slot: 'weapon', items: ['training_sword', 'apprentice_staff'] },
+  { slot: 'boots', items: ['straw_sandals'] },
+];
+/** Optional potion pack bought with the starter budget. */
+export const STARTER_POTIONS = { itemId: 'red_potion', count: 5 } as const;

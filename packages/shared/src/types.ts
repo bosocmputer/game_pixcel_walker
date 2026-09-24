@@ -50,4 +50,19 @@ export interface DerivedStats {
 
 export type Element = 'NEUTRAL' | 'FIRE' | 'WATER' | 'LIGHTNING' | 'EARTH' | 'HOLY' | 'SHADOW';
 
-export type LandmarkKind = 'CONVENIENCE' | 'MALL' | 'FUEL' | 'TEMPLE' | 'PARK' | 'CITY';
+/**
+ * Map places that matter to the game (docs/STORY.md §4). Gates (with a boss): CONVENIENCE, MALL, FUEL,
+ * STATION, TEMPLE (guardian trial), MUSEUM, PARK. Services: HOSPITAL, MARKET, SANCTUARY (other faiths).
+ */
+export type LandmarkKind =
+  | 'CONVENIENCE'
+  | 'MALL'
+  | 'FUEL'
+  | 'STATION'
+  | 'TEMPLE'
+  | 'MUSEUM'
+  | 'PARK'
+  | 'HOSPITAL'
+  | 'MARKET'
+  | 'SANCTUARY'
+  | 'CITY';

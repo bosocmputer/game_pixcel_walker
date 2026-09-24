@@ -87,16 +87,18 @@ function sellTab(s: SaveData): string {
     return `<p class="muted bag-hint">ชั้นวางในบ้านไม่รับซื้อของ — เอาของดรอปไปขายที่ร้านบนแผนที่
       (ร้านของชำ · ห้าง · ปั๊มน้ำมัน) แล้วเอาเงินมาซื้อของใหม่</p>`;
   }
+  const bonus = shop.junkBonus ?? 1;
   const junk = Object.entries(s.bag).filter(([id, n]) => MATERIALS[id] && n > 0);
   const uses = Object.entries(s.bag).filter(([id, n]) => CONSUMABLES[id] && n > 0);
-  const total = junkValue(s.bag);
+  const total = junkValue(s.bag, bonus);
   const stack = ([id, n]: [string, number]) => {
     const info = itemInfo(id)!;
+    const each = sellPrice(id, undefined, bonus);
     return sellRow(
       itemIcon(id, 'sl-ico'),
       `<span style="color:${RARITY_CSS[info.rarity]}">${esc(info.nameTh)}</span> ×${n}`,
-      `ชิ้นละ ${sellPrice(id).toLocaleString()} G`,
-      sellPrice(id) * n,
+      `ชิ้นละ ${each.toLocaleString()} G`,
+      each * n,
       `<button type="button" class="mini" data-sellitem="${id}" data-qty="1">ขาย 1</button><button type="button" class="mini" data-sellitem="${id}" data-qty="${n}">หมด</button>`,
     );
   };
@@ -113,7 +115,8 @@ function sellTab(s: SaveData): string {
   });
   const section = (title: string, rows: string[]) => (rows.filter(Boolean).length ? `<div class="ro-eq-sub">${title}</div><div class="sl-list">${rows.join('')}</div>` : '');
   const empty = !junk.length && !uses.length && !gear.filter(Boolean).length;
-  return `<button type="button" class="btn primary sl-all" data-sellalljunk ${total ? '' : 'disabled'}>ขายของดรอปทั้งหมด ${coins(total)}</button>
+  return `${bonus > 1 ? `<p class="sys-line">ตลาดรับซื้อของดรอปแพงกว่าร้านอื่น ${Math.round((bonus - 1) * 100)}%</p>` : ''}
+    <button type="button" class="btn primary sl-all" data-sellalljunk ${total ? '' : 'disabled'}>ขายของดรอปทั้งหมด ${coins(total)}</button>
     ${section('▼ ของดรอปจากมอนสเตอร์', junk.map(stack))}
     ${section('▼ ของใช้ (รับซื้อ 25%)', uses.map(stack))}
     ${section('▼ อุปกรณ์ในกระเป๋า (รับซื้อ 30%)', gear)}
@@ -143,14 +146,14 @@ export function wireShopWindow(body: HTMLElement, rerender: () => void) {
     rerender();
   });
   on('[data-sellitem]', (x) => {
-    const gold = sellItem(x.dataset.sellitem!, Number(x.dataset.qty));
+    const gold = sellItem(x.dataset.sellitem!, Number(x.dataset.qty), SHOPS[shopState.shopId]?.junkBonus ?? 1);
     if (gold) {
       sfx('coin');
       toast(`ขายได้ ${gold.toLocaleString()} Gold`, 'good');
     }
   });
   on('[data-sellalljunk]', () => {
-    const gold = sellAllJunk();
+    const gold = sellAllJunk(SHOPS[shopState.shopId]?.junkBonus ?? 1);
     if (gold) {
       sfx('coin');
       toast(`ขายของดรอปทั้งหมด ได้ ${gold.toLocaleString()} Gold`, 'good');

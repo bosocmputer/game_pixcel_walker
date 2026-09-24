@@ -78,6 +78,20 @@ def selected():
     return s
 
 
+def sys_frame(edge, glow, fill="#141c38"):
+    """[ระบบ] window (docs/STORY.md §5): dark navy hologram, glowing edge, bracket corners."""
+    s = Sprite(12, 12)
+    s.rect(1, 1, 10, 10, fill)
+    s.line(1, 0, 10, 0, edge); s.line(1, 11, 10, 11, edge); s.line(0, 1, 0, 10, edge); s.line(11, 1, 11, 10, edge)
+    s.line(1, 1, 10, 1, "#1e2c54"); s.line(1, 10, 10, 10, "#0c1226")
+    for x, y in ((0, 0), (1, 0), (0, 1), (11, 0), (10, 0), (11, 1), (0, 11), (1, 11), (0, 10), (11, 11), (10, 11), (11, 10)):
+        s.px(x, y, glow)                                                                       # bracket corners
+    return s
+
+
+SYS_FRAMES = {"sys": ("#4fd8ff", "#c8f6ff"), "sys-gold": ("#f2c230", "#fff2b0"), "sys-red": ("#ff5a5a", "#ffc8c8")}
+
+
 # --------------------------------------------------------------------------------------------
 # 16x16 icons
 
@@ -250,6 +264,22 @@ def ic_star():
     return done(s)
 
 
+def ic_quest():
+    s = icon()
+    paper, rod = "#f2e6c0", "#a8743e"
+    s.rect(4, 3, 11, 13, paper); s.line(4, 3, 4, 13, "#fffaf0"); s.line(11, 3, 11, 13, "#cdbf9f")
+    s.rect(3, 2, 12, 3, rod); s.rect(3, 13, 12, 14, rod)
+    s.rect(7, 5, 8, 9, "#e0302a"); s.rect(7, 11, 8, 11, "#e0302a")                  # "!"
+    return done(s)
+
+
+def ic_gate():
+    s = icon()
+    s.ellipse(2, 1, 13, 14, "#9a4fd0"); s.ellipse(3, 2, 12, 13, "#c88aff"); s.ellipse(5, 4, 10, 11, "#2a1a48")
+    s.px(7, 6, "#7ff0ff"); s.px(9, 9, "#7ff0ff"); s.px(1, 4, "#c88aff"); s.px(14, 11, "#c88aff")
+    return done(s)
+
+
 def ic_chat():
     s = icon()
     s.rect(2, 3, 13, 10, "#f6f0e1"); s.polygon([(4, 10), (7, 10), (4, 13)], "#f6f0e1")
@@ -261,7 +291,7 @@ ICONS = {
     "char": ic_char, "bag": ic_bag, "party": ic_party, "home": ic_home, "settings": ic_settings,
     "auto": ic_auto, "plus": ic_plus, "minus": ic_minus, "compass": ic_compass, "run": ic_run,
     "pin": ic_pin, "coin": ic_coin, "swords": ic_swords, "skull": ic_skull, "close": ic_close,
-    "heart": ic_heart, "drop": ic_drop, "star": ic_star, "chat": ic_chat,
+    "heart": ic_heart, "drop": ic_drop, "star": ic_star, "chat": ic_chat, "quest": ic_quest, "gate": ic_gate,
 }
 
 
@@ -271,6 +301,8 @@ def main():
     for name in ("btn", "btn-primary", "btn-blue", "btn-danger", "btn-dark"):
         pieces[f"{name}-down"] = frame(THEMES[name], pressed=True)
     pieces["well"] = well()
+    for name, (edge, glow) in SYS_FRAMES.items():
+        pieces[name] = sys_frame(edge, glow)
     pieces["selected"] = selected()
     for name, s in pieces.items():
         s.save_png(os.path.join(OUT, f"{name}.png"))

@@ -321,6 +321,51 @@ export const MONSTERS: Record<string, MonsterDef> = {
       ],
     },
   },
+  phantom_stationmaster: {
+    deck: ['bat_screech', 'wraith_chill', 'monster_counter'],
+    id: 'phantom_stationmaster', name: 'Phantom Stationmaster', nameTh: 'นายสถานีเงา', level: 22,
+    element: 'SHADOW', hp: 11000, mp: 450, atk: 170, matk: 150, def: 80, mdef: 95, speed: 26, evasion: 0.06,
+    exp: 7000, gold: [2600, 3200],
+    drops: [
+      { itemId: 'phantom_ticket', chance: 0.5, qty: [1, 1] },
+      { itemId: 'moat_guard_sword', chance: 0.06 },
+      { itemId: 'blue_elixir', chance: 1, qty: [2, 4] },
+    ],
+    sprite: 'boss_stationmaster',
+    boss: {
+      landmark: 'STATION', respawnMinutes: 240, recommendedParty: [2, 3],
+      phases: [{ hpBelow: 0.5, message: 'ประกาศ: ขบวนรถไฟผีกำลังเข้าชานชาลา! นายสถานีเร็วขึ้น', statMult: { speed: 1.25 }, addDeck: ['bat_screech'], everyTurns: 3 }],
+      enrageRound: 30,
+      dungeonWaves: [['tuktuk_phantom', 'neon_bat'], ['songthaew_mimic', 'lantern_spirit']],
+      skills: [
+        { id: 'last_train', name: 'Last Train', nameTh: 'รถไฟขบวนสุดท้าย', everyTurns: 4,
+          damageScale: 1.05, aoe: true, status: { status: 'STUN', turns: 1 }, ultimate: true },
+      ],
+    },
+  },
+  relic_colossus: {
+    deck: ['elephant_stomp', 'root_snare', 'gate_roar', 'monster_counter'],
+    id: 'relic_colossus', name: 'Ancient Relic Guardian', nameTh: 'ศิลาผู้พิทักษ์โบราณ', level: 33,
+    element: 'EARTH', hp: 15000, mp: 600, atk: 195, matk: 150, def: 115, mdef: 110, speed: 17, evasion: 0,
+    exp: 16000, gold: [5000, 6000],
+    drops: [
+      { itemId: 'relic_fragment', chance: 0.5, qty: [1, 1] },
+      { itemId: 'elephant_amulet', chance: 0.05 },
+      { itemId: 'starlight_staff', chance: 0.01 },
+      { itemId: 'master_repair_kit', chance: 1 },
+    ],
+    sprite: 'boss_relic',
+    boss: {
+      landmark: 'MUSEUM', respawnMinutes: 360, recommendedParty: [2, 3],
+      phases: [{ hpBelow: 0.5, message: 'อักขระโบราณสว่างวาบ! "ผู้ใดปลุกข้าจากนิทรา จงพิสูจน์ตน"', statMult: { def: 1.15 }, everyTurns: 3 }],
+      enrageRound: 34,
+      dungeonWaves: [['stone_elephant'], ['doi_mist_wraith', 'krasue']],
+      skills: [
+        { id: 'awaken_quake', name: 'Awakening Quake', nameTh: 'ศิลาตื่นสะเทือนภพ', everyTurns: 4,
+          damageScale: 1.0, aoe: true, status: { status: 'ROOT', turns: 1 }, ultimate: true },
+      ],
+    },
+  },
   park_treant: {
     id: 'park_treant', name: 'Ancient Park Treant', nameTh: 'พฤกษาอสูรในสวนสาธารณะ', level: 30,
     element: 'EARTH', hp: 80000, mp: 1000, atk: 450, matk: 300, def: 220, mdef: 160, speed: 18, evasion: 0.0,
@@ -344,12 +389,15 @@ export const MONSTERS: Record<string, MonsterDef> = {
   },
 };
 
-export const LANDMARK_BOSS: Record<Exclude<LandmarkKind, 'CITY'>, string> = {
+/** Gate landmarks and their boss. Service places (hospital, market, sanctuaries) have none. */
+export const LANDMARK_BOSS: Partial<Record<LandmarkKind, string>> = {
   CONVENIENCE: 'goblin_king',
   MALL: 'sale_queen',
   FUEL: 'octane_overlord',
   TEMPLE: 'yaksha_guardian',
   PARK: 'park_treant',
+  STATION: 'phantom_stationmaster',
+  MUSEUM: 'relic_colossus',
 };
 
 /**

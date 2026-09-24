@@ -512,6 +512,52 @@ def treant():
         s.px(x, y, "#b6f28c")
     return done(s, "#1a0e04")
 
+def stationmaster():
+    """Phantom Stationmaster (STATION gate, pixel layer): ghost conductor, lantern, misty tail."""
+    s = Sprite(64, 64); coat = R("#2a3a68", hs=18); mist = R("#8fa8c8", hs=14); gold = R("#f2c230", 4, 22)
+    s.polygon([(20, 44), (44, 44), (40, 56), (46, 62), (34, 58), (30, 63), (26, 57), (16, 61), (22, 54)], mist[2])   # misty tail
+    s.polygon([(22, 46), (32, 46), (28, 56), (22, 54)], mist[3], only="opaque")
+    s.polygon([(18, 22), (46, 22), (48, 48), (16, 48)], coat[2]); s.polygon([(18, 22), (28, 22), (22, 48), (16, 48)], coat[3], only="opaque")
+    s.polygon([(38, 22), (46, 22), (48, 48), (42, 48)], coat[1], only="opaque")
+    s.line(32, 24, 32, 47, coat[0])
+    for y in (27, 33, 39, 45):
+        s.px(30, y, gold[3]); s.px(34, y, gold[2])                                         # buttons
+    s.line(34, 30, 42, 36, gold[2]); s.circle(42, 37, 2, gold[2])                          # watch chain
+    s.circle(32, 15, 8, "#c8e0f0", fill=True); s.circle(30, 13, 4, "#e8f4ff", fill=True)   # pale face
+    s.rect(27, 14, 29, 16, "#1a2a48"); s.rect(35, 14, 37, 16, "#1a2a48"); s.px(28, 15, "#7ff0ff"); s.px(36, 15, "#7ff0ff")
+    s.line(29, 20, 35, 20, "#6a88a8")
+    s.rect(22, 4, 42, 9, coat[2]); s.rect(22, 4, 42, 5, coat[3]); s.rect(22, 8, 42, 9, gold[2])   # cap
+    s.rect(19, 9, 45, 10, "#10182a"); s.rect(30, 5, 34, 7, gold[3])                       # visor + badge
+    s.rect(46, 26, 50, 38, coat[2]); s.rect(12, 26, 17, 36, coat[1])                     # arms
+    s.line(49, 38, 49, 42, INK); s.rect(46, 42, 53, 51, gold[1]); s.rect(47, 43, 52, 50, "#58d06a")  # lantern
+    s.rect(48, 45, 51, 48, "#c8ffb0"); s.line(46, 42, 53, 42, gold[3])
+    for x, y in ((8, 20), (56, 14), (6, 44), (58, 56)):
+        s.px(x, y, "#7ff0ff")
+    return done(s, "#0a1020")
+
+
+def relic_colossus():
+    """Ancient Relic Guardian (MUSEUM gate, myth layer): awakened stone statue with glowing runes."""
+    s = Sprite(72, 72); st = R("#b0a890", hs=12); gold = R("#f2c230", 5, 22)
+    for x, y, r in ((8, 18, 3), (64, 12, 2), (60, 40, 3), (6, 46, 2)):
+        s.circle(x, y, r, st[1], fill=True); s.px(x - 1, y - 1, st[3])                      # floating shards
+    s.rect(22, 26, 50, 58, st[2]); s.rect(22, 26, 28, 58, st[3]); s.rect(44, 26, 50, 58, st[1])   # torso
+    s.rect(18, 24, 54, 30, st[2]); s.line(18, 24, 54, 24, st[3])                           # shoulders
+    s.rect(26, 6, 46, 24, st[2]); s.rect(26, 6, 31, 24, st[3]); s.rect(42, 6, 46, 24, st[1])     # carved head
+    s.polygon([(24, 6), (36, 0), (48, 6)], st[3])                                         # crown ridge
+    s.rect(29, 13, 33, 15, gold[4]); s.rect(39, 13, 43, 15, gold[4])                       # glowing eyes
+    s.line(31, 19, 41, 19, st[0]); s.line(36, 7, 36, 11, gold[2])
+    for x0, y0, x1, y1 in ((25, 32, 33, 40), (47, 32, 39, 40), (36, 42, 36, 54), (28, 50, 44, 50)):
+        s.line(x0, y0, x1, y1, gold[3])                                                   # rune lines
+    s.circle(36, 38, 3, gold[2], fill=True); s.px(36, 38, "#ffffff")                       # core rune
+    s.rect(10, 28, 18, 50, st[2]); s.rect(54, 28, 62, 50, st[1])                           # arms
+    s.rect(6, 50, 20, 56, st[2]); s.rect(52, 50, 66, 56, st[1])                           # fists
+    s.rect(24, 58, 32, 68, st[2]); s.rect(40, 58, 48, 68, st[1])                          # legs
+    s.rect(20, 68, 52, 70, st[0])
+    s.line(46, 8, 44, 16, st[0]); s.line(52, 34, 50, 42, st[0])                           # cracks
+    return done(s, "#1a140a")
+
+
 
 SPRITES = {
     "mob_slime": slime, "mob_pigeon": pigeon, "mob_rat": rat, "mob_cat": cat, "mob_ant": ant,
@@ -522,6 +568,7 @@ SPRITES = {
     "mob_mannequin": mannequin, "mob_dummy": lambda: dummy(False), "mob_dummy_armored": lambda: dummy(True),
     "boss_goblin_king": goblin_king, "boss_sale_queen": sale_queen, "boss_octane": octane,
     "boss_yaksha": yaksha, "boss_treant": treant,
+    "boss_stationmaster": stationmaster, "boss_relic": relic_colossus,
 }
 
 

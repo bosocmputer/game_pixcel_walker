@@ -34,11 +34,11 @@ export function itemName(id: string): string {
   return itemInfo(id)?.nameTh ?? id;
 }
 
-/** Gold a shop pays for one item. `durability` only matters for gear. */
-export function sellPrice(id: string, durability?: number): number {
+/** Gold a shop pays for one item. `durability` only matters for gear; `junkBonus` = shop multiplier. */
+export function sellPrice(id: string, durability?: number, junkBonus = 1): number {
   const info = itemInfo(id);
   if (!info) return 0;
-  if (info.kind === 'junk') return info.price;
+  if (info.kind === 'junk') return Math.round(info.price * junkBonus);
   if (info.kind === 'use') return Math.max(1, Math.floor(info.price * SELL_RATE_CONSUMABLE));
   const broken = durability !== undefined && durability <= 0;
   return Math.floor(info.price * SELL_RATE_GEAR * (broken ? SELL_RATE_BROKEN : 1));
@@ -50,8 +50,8 @@ export function meetsLevel(id: string, level: number): boolean {
 }
 
 /** Gold from selling every piece of junk in a bag (`bag` = item id → count). */
-export function junkValue(bag: Record<string, number>): number {
+export function junkValue(bag: Record<string, number>, junkBonus = 1): number {
   let total = 0;
-  for (const [id, n] of Object.entries(bag)) if (MATERIALS[id] && n > 0) total += MATERIALS[id]!.price * n;
+  for (const [id, n] of Object.entries(bag)) if (MATERIALS[id] && n > 0) total += sellPrice(id, undefined, junkBonus) * n;
   return total;
 }

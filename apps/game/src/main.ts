@@ -19,6 +19,8 @@ import { loadAvatarPack, USE_AVATAR_PACK } from './game/avatar';
 import { loadPixelSprites } from './game/sprites';
 import * as audio from './game/audio';
 import { music, sfx, unlockAudio } from './game/audio';
+import { rankOf } from '@pw/shared';
+import { systemNotice } from './ui/systemUi';
 
 /** Audio needs a user gesture; UI buttons click, the map gets its song. */
 function mountAudio() {
@@ -89,7 +91,11 @@ async function start() {
   mountHud();
   let level = store.s.level;
   store.subscribe(() => {
-    if (store.s.level > level) sfx('levelup');
+    if (store.s.level > level) {
+      sfx('levelup');
+      const s = store.s;
+      systemNotice(`เลเวลอัป! Lv.${s.level}`, [`แรงก์ ${rankOf(s.level)} · แต้มสเตตัสที่ยังไม่ใช้ ${s.unspentPoints}`], 'gold');
+    }
     level = store.s.level;
   });
   bus.on('party:invited', () => sfx('notice'));

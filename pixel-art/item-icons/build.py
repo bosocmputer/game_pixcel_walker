@@ -761,6 +761,60 @@ def ancient_bark():
     s.px(17, 6, "#3a9a3a"); s.px(18, 7, "#3a9a3a")                                          # moss
     return finish(s)
 
+def sticky_rice_pork():
+    s = canvas()
+    basket = ramp("#c8a060", 5, hue_shift=16)
+    s.ellipse(3, 11, 14, 21, basket[2]); s.ellipse(3, 11, 9, 17, basket[3], only="opaque")   # kratip basket
+    for y in range(13, 20, 2):
+        s.line(4, y, 13, y, basket[1], only="opaque")
+    s.ellipse(4, 8, 13, 13, "#fbf6ea"); s.px(6, 9, "#ffffff")                                  # sticky rice
+    stick = "#c89454"
+    s.line(9, 20, 21, 4, stick)
+    meat = ramp("#b8542a", 4, hue_shift=16)
+    for k, (x, y) in enumerate(((17, 8), (15, 11), (13, 14))):
+        s.rect(x - 1, y - 1, x + 2, y + 1, meat[2]); s.px(x - 1, y - 1, meat[3]); s.px(x + 2, y + 1, meat[0])  # grilled pork
+    s.px(20, 2, "#e0e0e0"); s.px(21, 1, "#e0e0e0")                                             # steam
+    return finish(s)
+
+
+def thai_iced_tea():
+    s = canvas()
+    cup = ramp("#dfe8ee", 4, hue_shift=10)
+    tea = ramp("#f08a3a", 5, hue_shift=20)
+    s.polygon([(6, 6), (17, 6), (15, 21), (8, 21)], cup[1])
+    s.polygon([(7, 8), (16, 8), (14, 20), (9, 20)], tea[2])
+    s.polygon([(7, 8), (16, 8), (15, 12), (8, 12)], "#f6e6d0", only="opaque")                   # milk top
+    s.rect(9, 14, 10, 15, "#ffffff"); s.rect(12, 16, 13, 17, "#e8f6ff")                        # ice
+    s.line(7, 8, 9, 20, tea[3], only="opaque")
+    s.line(13, 2, 11, 10, "#58b8e8"); s.line(14, 2, 12, 10, "#3a98c8")                         # straw
+    s.line(5, 6, 18, 6, cup[3])
+    return finish(s)
+
+
+def phantom_ticket():
+    s = canvas()
+    paper = ramp("#e8dcc0", 5, hue_shift=14)
+    s.polygon([(3, 7), (20, 4), (21, 16), (4, 19)], paper[2])
+    s.polygon([(3, 7), (20, 4), (20, 8), (3, 11)], paper[3], only="opaque")
+    for x, y in ((8, 11), (11, 10), (14, 10)):
+        s.px(x, y, "#6a5a48")                                                                     # printed text
+    s.line(6, 14, 15, 13, "#6a5a48")
+    s.circle(17, 12, 2, "#7ff0ff"); s.px(17, 12, "#2a5a8a")                                        # ghostly stamp
+    s.px(2, 3, "#7ff0ff"); s.px(22, 20, "#7ff0ff")
+    return finish(s)
+
+
+def relic_fragment():
+    s = canvas()
+    st = ramp("#b0a890", 5, hue_shift=12)
+    s.polygon([(4, 9), (12, 3), (20, 6), (21, 15), (14, 21), (5, 18)], st[2])
+    s.polygon([(4, 9), (12, 3), (13, 11), (6, 15)], st[3], only="opaque")
+    s.polygon([(13, 11), (21, 15), (14, 21)], st[1], only="opaque")
+    gold = "#f2c230"
+    s.line(8, 9, 11, 7, gold); s.line(9, 12, 16, 10, gold); s.line(11, 15, 17, 14, gold); s.px(14, 8, "#fff6c8")  # glowing script
+    s.px(2, 4, "#fff6c8"); s.px(21, 2, "#fff6c8")
+    return finish(s)
+
 
 ICONS = {
     "cotton_shirt": cotton_shirt,
@@ -813,6 +867,10 @@ ICONS = {
     "octane_core": octane_core,
     "guardian_gold_leaf": gold_leaf,
     "ancient_bark": ancient_bark,
+    "sticky_rice_pork": sticky_rice_pork,
+    "thai_iced_tea": thai_iced_tea,
+    "phantom_ticket": phantom_ticket,
+    "relic_fragment": relic_fragment,
 }
 
 def main():

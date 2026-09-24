@@ -7,7 +7,7 @@ import { MONSTERS } from '@pw/shared';
 
 type Sheet = 'monsters' | 'landmarks';
 const images = new Map<string, HTMLImageElement>();
-export const LANDMARK_KINDS = ['CONVENIENCE', 'MALL', 'FUEL', 'TEMPLE', 'PARK', 'HOME'];
+export const LANDMARK_KINDS = ['CONVENIENCE', 'MALL', 'FUEL', 'STATION', 'TEMPLE', 'MUSEUM', 'PARK', 'HOSPITAL', 'MARKET', 'SANCTUARY', 'HOME'];
 
 function load(src: string): Promise<void> {
   return new Promise((resolve) => {

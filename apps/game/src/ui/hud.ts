@@ -6,6 +6,8 @@ import {
   EQUIPMENT,
   itemName,
   shopForLandmark,
+  gateRank,
+  hospitalCost,
   MONSTERS,
   MUTATIONS,
   MUTATION_MIN_LEVEL,
@@ -31,6 +33,12 @@ import { DEFAULT_POS, walk } from '../game/walk';
 import {
   allocate,
   bank,
+  claimDaily,
+  claimDailyBonus,
+  dailyQuests,
+  hospitalHeal,
+  sanctuaryReadyAt,
+  sanctuaryRest,
   bossAvailableAt,
   bossIdFor,
   buy,
@@ -63,6 +71,7 @@ import { bankWindowHtml, repairWindowHtml } from './homeWindows';
 import { openShopState, shopWindowHtml, wireShopWindow } from './shopWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
+import { SYS, playerRank, questWindowHtml, questsClaimable, rankChip, systemNotice } from './systemUi';
 
 
 const root = () => document.getElementById('ui')!;
@@ -77,11 +86,24 @@ const ENCOUNTER_TTL_MS = 90_000;
 // Onboarding
 
 export function showOnboarding(onDone: () => void) {
-  // Appearance and starter gear are chosen on one page (the old separate "Naked Dilemma" step).
-  showCreator(root(), (name, appearance, loadout) => {
-    store.create(name, appearance);
-    store.update((s) => applyStarter(s, loadout));
-    onDone();
+  // The awakening (docs/STORY.md §1), then appearance + starter gear on one page.
+  const intro = el(`<div class="onboard sys-intro"><div class="sys-win intro-win">
+    <div class="sys-title"><span>${uiIcon('gate', true)}${SYS}</span><small>การตื่นรู้</small></div>
+    <p class="intro-line">คืนนี้ <b>รอยแยกพิกเซล</b> เปิดขึ้นทุกเมืองทั่วโลก ของรอบตัวคุณเริ่มกลายเป็นพิกเซล และมีบางอย่างกำลังคลานออกมา…</p>
+    <p class="intro-line">${SYS} ตรวจพบผู้มีคุณสมบัติ · แรงก์ E</p>
+    <p class="intro-line">ปราบมอนสเตอร์เพื่อเก็บเลเวล · ปิดประตูมิติที่ร้านค้า ปั๊ม ห้าง และสถานี · ยิ่งประตูลึกยิ่งเจอตำนานเก่าที่หลับอยู่</p>
+    <p class="intro-ask"><b>คุณจะรับการตื่นรู้เป็น Walker หรือไม่?</b></p>
+    <button type="button" class="btn primary intro-go" data-awaken>ยอมรับ</button>
+  </div></div>`);
+  root().appendChild(intro);
+  intro.querySelector('[data-awaken]')!.addEventListener('click', () => {
+    intro.remove();
+    showCreator(root(), (name, appearance, loadout) => {
+      store.create(name, appearance);
+      store.update((s) => applyStarter(s, loadout));
+      systemNotice(`ยินดีต้อนรับ Walker ${name}`, ['เควสรายวันพร้อมแล้ว — ดูที่ปุ่ม "เควส"'], 'info');
+      onDone();
+    });
   });
 }
 
@@ -100,6 +122,7 @@ export function mountHud() {
       <button class="menu-btn" data-open="char">${uiIcon('char')}<span>ตัวละคร</span></button>
       <button class="menu-btn" data-open="bag">${uiIcon('bag')}<span>กระเป๋า</span></button>
       <button class="menu-btn" data-open="party">${uiIcon('party')}<span>ปาร์ตี้</span><i class="badge hidden"></i></button>
+      <button class="menu-btn" data-open="quests">${uiIcon('quest')}<span>เควส</span><i class="badge q-badge hidden"></i></button>
       <button class="menu-btn" data-open="home">${uiIcon('home')}<span>บ้าน</span></button>
       <button class="menu-btn" data-open="settings">${uiIcon('settings')}<span>ตั้งค่า</span></button>
     </div>
@@ -128,6 +151,10 @@ export function mountHud() {
   const render = () => {
     renderTopbar(hud.querySelector('.topbar')!, store.s);
     renderNear(hud.querySelector('.near')!);
+    const qb = hud.querySelector<HTMLElement>('.q-badge')!;
+    const n = store.s.daily ? questsClaimable(store.s.daily) : 0;
+    qb.classList.toggle('hidden', !n);
+    qb.textContent = n ? String(n) : '';
   };
   store.subscribe(render);
   bus.on('landmark:near', ({ landmarks }) => {
@@ -191,7 +218,7 @@ function renderTopbar(elm: HTMLElement, s: SaveData) {
   elm.innerHTML = `
     <div class="who">
       <b>${esc(s.name)}</b>
-      <span class="tag">Lv.${s.level} ${esc(CLASSES[s.classId].nameTh)}</span>
+      <span class="tag">Lv.${s.level} ${esc(CLASSES[s.classId].nameTh)}</span>${playerRank(s.level)}
       ${mut ? `<span class="tag mut">${esc(MUTATIONS[mut].titleTh)}</span>` : ''}
       ${s.unspentPoints ? `<span class="badge">+${s.unspentPoints}</span>` : ''}
     </div>
@@ -220,21 +247,40 @@ function renderNear(box: HTMLElement) {
   }
   const now = Date.now();
   const cards = near.slice(0, 2).map((l) => {
-    const bossId = bossIdFor(l)!;
-    const boss = MONSTERS[bossId]!;
+    const shop = shopForLandmark(l.kind);
+    const shopBtn = shop ? `<button class="btn primary" data-shop="${shop.id}">${uiIcon('bag', true)}${esc(shop.nameTh)}</button>` : '';
+    if (l.kind === 'HOSPITAL') {
+      const cost = hospitalCost(s.level);
+      return `<div class="lm-card svc"><div class="lm-title">${uiIcon('heart', true)}${esc(l.label)} <small>จุดรักษาของสมาคม Walker</small></div>
+        <div class="lm-sub">ฟื้นฟู HP/MP เต็มทันที</div>
+        <div class="lm-actions"><button class="btn primary" data-hospital ${s.gold >= cost ? '' : 'disabled'}>รักษา ${uiIcon('coin', true)}${cost}</button></div></div>`;
+    }
+    if (l.kind === 'SANCTUARY') {
+      const wait = sanctuaryReadyAt(s) - now;
+      return `<div class="lm-card svc"><div class="lm-title">${uiIcon('star', true)}${esc(l.label)} <small>เขตศักดิ์สิทธิ์</small></div>
+        <div class="lm-sub">รอยแยกเปิดใกล้ที่นี่ไม่ได้ · พักใจฟื้นฟู HP/MP ครึ่งหนึ่ง</div>
+        <div class="lm-actions">${wait > 0 ? `<button class="btn" disabled>พักได้อีกใน ${fmtWait(wait)}</button>` : '<button class="btn primary" data-bless>พักใจ</button>'}</div></div>`;
+    }
+    const bossId = bossIdFor(l);
+    const boss = bossId ? MONSTERS[bossId] : undefined;
+    if (!boss) {
+      return `<div class="lm-card svc"><div class="lm-title">${uiIcon('bag', true)}${esc(l.label)}</div>
+        <div class="lm-actions">${shopBtn}</div></div>`;
+    }
     const at = bossAvailableAt(l, s, now);
     const ready = at <= now;
     const wb = boss.boss?.worldBoss;
     const hpInfo = wb && ready ? ` · HP ${worldBossHp(l, s).toLocaleString()}/${boss.hp.toLocaleString()}` : '';
     const trial = l.kind === 'PARK' && canChangeClass(s.classId, s.level);
     const wbWait = wb && ready ? worldBossReadyAt(l, s) - now : 0;
-    return `<div class="lm-card">
-      <div class="lm-title">${uiIcon('skull', true)}${esc(l.label)}</div>
-      <div class="lm-sub">${esc(boss.nameTh)} Lv.${boss.level}${wb ? ' (บอสโลก)' : ''} — ${ready ? `<b class="good">ปรากฏแล้ว!</b>${hpInfo}` : `เกิดใหม่ใน ${fmtWait(at - now)}`}</div>
+    const rank = gateRank(l.kind);
+    return `<div class="lm-card gate">
+      <div class="lm-title">${rank ? rankChip(rank) : ''}${uiIcon('gate', true)}ประตูมิติ · ${esc(l.label)}</div>
+      <div class="lm-sub">${esc(boss.nameTh)} Lv.${boss.level}${wb ? ' (บอสโลก)' : ''} — ${ready ? `<b class="good">ประตูเปิดอยู่!</b>${hpInfo}` : `ประตูปิด เปิดใหม่ใน ${fmtWait(at - now)}`}</div>
       <div class="lm-actions">
-        ${ready && wbWait <= 0 ? `<button class="btn danger" data-boss="${l.id}">${uiIcon('swords', true)}ท้าบอส</button>` : ''}
+        ${ready && wbWait <= 0 ? `<button class="btn danger" data-boss="${l.id}">${uiIcon('swords', true)}เข้าประตู</button>` : ''}
         ${ready && wbWait > 0 ? `<button class="btn" disabled>พักฟื้น ${fmtWait(wbWait)}</button>` : ''}
-        ${shopForLandmark(l.kind) ? `<button class="btn primary" data-shop="${shopForLandmark(l.kind)!.id}">${uiIcon('bag', true)}${esc(shopForLandmark(l.kind)!.nameTh)}</button>` : ''}
+        ${shopBtn}
         ${trial ? `<button class="btn primary" data-trial="${l.id}">${uiIcon('star', true)}บททดสอบอาชีพ</button>` : ''}
       </div></div>`;
   });
@@ -281,11 +327,22 @@ function renderNear(box: HTMLElement) {
     }),
   );
   box.querySelectorAll<HTMLElement>('[data-shop]').forEach((b) => b.addEventListener('click', () => openPanel(`shop:${b.dataset.shop}`)));
+  box.querySelector('[data-hospital]')?.addEventListener('click', () => {
+    if (!hospitalHeal()) return toast('Gold ไม่พอ', 'bad');
+    sfx('heal');
+    toast('รักษาเสร็จ HP/MP เต็มแล้ว', 'good');
+  });
+  box.querySelector('[data-bless]')?.addEventListener('click', () => {
+    if (!sanctuaryRest()) return;
+    sfx('holy');
+    toast('จิตใจสงบลง HP/MP ฟื้นฟูครึ่งหนึ่ง', 'good');
+    renderNear(box);
+  });
   box.querySelectorAll<HTMLElement>('[data-trial]').forEach((b) => b.addEventListener('click', () => openPanel('trial')));
 }
 
 function showToast(box: HTMLElement, text: string, kind: string) {
-  const t = el(`<div class="toast ${kind}">${esc(text)}</div>`);
+  const t = el(`<div class="toast ${kind}"><i class="sys-tag">${SYS}</i> ${esc(text)}</div>`);
   box.appendChild(t);
   window.setTimeout(() => t.classList.add('out'), 2600);
   window.setTimeout(() => t.remove(), 3100);
@@ -380,6 +437,9 @@ function renderPanel() {
     case 'home':
       body.innerHTML = homePanel(s);
       break;
+    case 'quests':
+      body.innerHTML = questWindowHtml(dailyQuests(), s.level);
+      break;
     case 'hbank':
       body.innerHTML = bankWindowHtml(s);
       break;
@@ -418,6 +478,21 @@ function renderPanel() {
   wirePanel(body);
   if (panelName === 'bag') wireBagWindow(body, renderPanel);
   if (panelName.startsWith('shop:')) wireShopWindow(body, renderPanel);
+  if (panelName === 'quests') {
+    body.querySelectorAll<HTMLElement>('[data-claim]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const r = claimDaily(Number(b.dataset.claim));
+        if (!r) return;
+        sfx('coin');
+        toast(`รับรางวัลเควส: EXP ${r.exp.toLocaleString()} · ${r.gold.toLocaleString()} Gold`, 'good');
+      }),
+    );
+    body.querySelector('[data-claim-bonus]')?.addEventListener('click', () => {
+      if (!claimDailyBonus()) return;
+      sfx('levelup');
+      systemNotice('เควสรายวันครบทั้งหมด!', ['ได้รับแต้มสเตตัส +1 และยา HP ×3'], 'gold');
+    });
+  }
   if (panelName === 'char') {
     const on = (sel: string, fn: (el: HTMLElement) => void) =>
       body.querySelectorAll<HTMLElement>(sel).forEach((x) => x.addEventListener('click', () => fn(x)));

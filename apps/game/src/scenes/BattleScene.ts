@@ -13,6 +13,9 @@ import {
   MONSTERS,
   SKILLS,
   createDungeon,
+  dailyTitle,
+  gateRank,
+  rankOf,
   itemName as sharedItemName,
   createRng,
   landmarkWaves,
@@ -76,6 +79,8 @@ export class BattleScene extends Phaser.Scene {
   private speed = 2;
   private finished = false;
   private worldBossStartHp = 0;
+  /** Rank letter of the gate being fought (landmark boss or dungeon), for the [ระบบ] banner. */
+  private gateRank: string | null = null;
   private panel!: HTMLElement;
   private header!: Phaser.GameObjects.Text;
   private banner!: Phaser.GameObjects.Text;
@@ -157,6 +162,12 @@ export class BattleScene extends Phaser.Scene {
         enemyScale = { hp: partyFieldHpScale(party.length), atk: 1 };
       }
     }
+    const lastWave = waves.at(-1);
+    this.gateRank = this.req.landmark
+      ? gateRank(this.req.landmark.kind)
+      : this.req.kind === 'DUNGEON' && lastWave?.boss
+        ? rankOf(MONSTERS[lastWave.monsterIds[0]!]?.level ?? 1)
+        : null;
     this.d = createDungeon({
       party,
       waves,
@@ -373,7 +384,7 @@ export class BattleScene extends Phaser.Scene {
     let lead = 0;
     switch (e.type) {
       case 'WAVE':
-        this.showBanner(`เวฟ ${e.wave}/${e.total}${e.modifier ? `\n${e.modifier}` : ''}`);
+        this.showBanner(`${e.wave === 1 && this.gateRank ? `[ระบบ] ประตูระดับ ${this.gateRank}\n` : ''}เวฟ ${e.wave}/${e.total}${e.modifier ? `\n${e.modifier}` : ''}`);
         sfx('wave');
         break;
       case 'SKILL': {
@@ -670,13 +681,18 @@ export class BattleScene extends Phaser.Scene {
 
   private showResult(o: BattleOutcome, retreat: boolean) {
     const knocked = !retreat && o.result === 'FLED' && o.worldBossDamage !== undefined;
-    const title = retreat ? 'หมดเวลาโจมตี' : knocked ? 'ถูกตีกระเด็นออกมา!' : o.result === 'WIN' ? `${uiIcon('star')}ชนะ!` : o.result === 'LOSE' ? `${uiIcon('skull')}พ่ายแพ้…` : 'ถอนตัว';
+    const gate = this.req.kind === 'BOSS' || this.req.kind === 'DUNGEON';
+    const title = retreat ? 'หมดเวลาโจมตี' : knocked ? 'ถูกตีกระเด็นออกมา!'
+      : o.result === 'WIN' ? (gate && !o.worldBossDamage ? `${uiIcon('gate')}ปิดประตูมิติสำเร็จ!` : `${uiIcon('star')}ชนะ!`)
+      : o.result === 'LOSE' ? `${uiIcon('skull')}พ่ายแพ้…` : 'ถอนตัว';
+    const quests = (o.questsDone ?? []).map((q) => `<li class="sys-q">[ระบบ] เควสสำเร็จ: ${esc(dailyTitle(q))}</li>`).join('');
     const items = Object.entries(o.loot.items).map(([id, n]) => `<li>${esc(itemName(id))} ×${n}</li>`).join('');
     const body =
       o.result === 'WIN'
         ? `<p>+${o.loot.exp.toLocaleString()} EXP · +${o.loot.gold.toLocaleString()} Gold</p>
            ${o.levelsGained ? `<p class="good">เลเวลอัป +${o.levelsGained}!</p>` : ''}
-           ${items ? `<ul class="loot">${items}</ul>` : ''}`
+           ${items ? `<ul class="loot">${items}</ul>` : ''}
+           ${quests ? `<ul class="loot">${quests}</ul>` : ''}`
         : o.result === 'LOSE'
           ? `<p class="bad">ชุดเกราะพังทั้งหมด (Durability 0)</p><p class="bad">เสีย ${o.goldLost.toLocaleString()} Gold ที่ถืออยู่</p><p>EXP ไม่ลด — ลองปรับชุดสกิล/Build ใหม่ได้เลย!</p>`
           : '';

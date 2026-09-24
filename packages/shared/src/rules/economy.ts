@@ -24,3 +24,12 @@ export function repairCost(itemPrice: number, fraction: number, atHome: boolean)
   const cost = itemPrice * 0.1 * Math.min(1, Math.max(0, fraction));
   return Math.ceil(atHome ? cost * 0.5 : cost);
 }
+
+/** Hospital: full HP/MP for Gold, cheap early and still worth it late (docs/STORY.md §4). */
+export function hospitalCost(level: number): number {
+  return 20 + Math.max(1, level) * 6;
+}
+
+/** Sanctuaries (places of worship without a gate): a free 50% HP/MP rest, once per hour. */
+export const SANCTUARY_HEAL = 0.5;
+export const SANCTUARY_COOLDOWN_MS = 60 * 60_000;

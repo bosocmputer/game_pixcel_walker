@@ -2,8 +2,8 @@
  * Streaming real-world map. Vector tiles (OpenMapTiles schema) come free from OpenFreeMap and
  * are rasterized in the browser into our 16-bit tile grid, so the game works anywhere on Earth.
  *
- * Grid: one data chunk = one z14 vector tile = CHUNK_TILES² game tiles (~9 m per tile at
- * Chiang Mai). Coordinates are local to an origin chunk so Phaser positions stay small
+ * Grid: one data chunk = one z14 vector tile = CHUNK_TILES² game tiles (~9 m per tile near the
+ * equator). Coordinates are local to an origin chunk so Phaser positions stay small
  * (float32 precision).
  */
 import { VectorTile, type VectorTileFeature } from '@mapbox/vector-tile';
@@ -16,21 +16,57 @@ const WORLD_TILES = 2 ** DATA_Z * CHUNK_TILES;
 const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const LARGE_PARK_M2 = 15000;
 
-/** Map POIs that become landmarks (generic, brand-free labels). Temples host a guardian trial. */
-type PoiKind = 'CONVENIENCE' | 'MALL' | 'FUEL' | 'TEMPLE';
+/**
+ * Map POIs that become landmarks (docs/STORY.md §4) — generic, brand-free labels that work in any
+ * country. Class/subclass values come from the OpenMapTiles `poi` layer that OpenFreeMap serves;
+ * `npx tsx tools/osm/probe-pois.mts` counts what exists around a few cities.
+ */
+type PoiKind = 'CONVENIENCE' | 'MALL' | 'FUEL' | 'STATION' | 'TEMPLE' | 'MUSEUM' | 'HOSPITAL' | 'MARKET' | 'SANCTUARY';
 const POI_LABEL: Record<PoiKind, { prefix: string; th: string }> = {
   CONVENIENCE: { prefix: 'cv', th: 'ร้านสะดวกซื้อ' },
   MALL: { prefix: 'ml', th: 'ห้างสรรพสินค้า' },
   FUEL: { prefix: 'fu', th: 'ปั๊มน้ำมัน' },
+  STATION: { prefix: 'st', th: 'สถานี' },
   TEMPLE: { prefix: 'tp', th: 'วัด' },
+  MUSEUM: { prefix: 'mu', th: 'พิพิธภัณฑ์' },
+  HOSPITAL: { prefix: 'hp', th: 'โรงพยาบาล' },
+  MARKET: { prefix: 'mk', th: 'ตลาด' },
+  SANCTUARY: { prefix: 'sa', th: 'ศาสนสถาน' },
+};
+/** Place-of-worship labels by faith; only Buddhist temples host the guardian trial (a gate). */
+const FAITH_LABEL: Record<string, string> = {
+  christian: 'โบสถ์',
+  muslim: 'มัสยิด',
+  shinto: 'ศาลเจ้า',
+  hindu: 'เทวสถาน',
+  jewish: 'ธรรมศาลา',
+  sikh: 'คุรุทวารา',
+  chinese_folk: 'ศาลเจ้าจีน',
+  taoist: 'ศาลเจ้าจีน',
 };
 function poiKind(cls?: string, sub?: string): PoiKind | null {
   if (cls === 'shop' && sub === 'convenience') return 'CONVENIENCE';
-  if ((cls === 'shop' || cls === 'mall') && (sub === 'mall' || sub === 'department_store')) return 'MALL';
+  if (sub === 'mall' || sub === 'department_store') return 'MALL';
   if (cls === 'fuel') return 'FUEL';
-  if (cls === 'place_of_worship') return 'TEMPLE';
+  if (cls === 'railway' || sub === 'bus_station' || cls === 'ferry_terminal') return 'STATION';
+  if (cls === 'place_of_worship') return sub === 'buddhist' ? 'TEMPLE' : 'SANCTUARY';
+  if (cls === 'museum' || cls === 'castle' || cls === 'monument') return 'MUSEUM';
+  if (cls === 'hospital' && sub === 'hospital') return 'HOSPITAL';
+  if (sub === 'marketplace') return 'MARKET';
   return null;
 }
+function poiLabel(kind: PoiKind, cls?: string, sub?: string): string {
+  if (kind === 'SANCTUARY') return FAITH_LABEL[sub ?? ''] ?? POI_LABEL.SANCTUARY.th;
+  if (kind === 'STATION') return cls === 'ferry_terminal' ? 'ท่าเรือ' : sub === 'bus_station' ? 'สถานีขนส่ง' : 'สถานีรถไฟ';
+  if (kind === 'MUSEUM') return cls === 'castle' ? (sub === 'ruins' ? 'โบราณสถาน' : 'ปราสาท') : cls === 'monument' ? 'อนุสาวรีย์' : 'พิพิธภัณฑ์';
+  return POI_LABEL[kind].th;
+}
+/**
+ * Dense cities list the same place many times (entrances, platforms): keep one pin per ~60 m,
+ * and one convenience store per ~270 m so megacities don't drown in them.
+ */
+const DEDUPE_DEG = 0.0006;
+const DEDUPE_DEG_BY_KIND: Partial<Record<PoiKind, number>> = { CONVENIENCE: 0.0025 };
 const MAX_INFLIGHT = 4;
 
 interface Chunk {
@@ -338,6 +374,7 @@ function rasterize(tile: VectorTile, cx: number, cy: number): Chunk {
   // Landmarks — generic, brand-free labels.
   const landmarks: Landmark[] = [];
   const toLL = (px: number, py: number) => globalToLatLng(cx * CHUNK_TILES + px * k, cy * CHUNK_TILES + py * k);
+  const seen = new Set<string>();
   for (const f of pois) {
     const cls = prop(f, 'class');
     const sub = prop(f, 'subclass');
@@ -346,8 +383,12 @@ function rasterize(tile: VectorTile, cx: number, cy: number): Chunk {
     const p = f.loadGeometry()[0]?.[0];
     if (!p || p.x < 0 || p.y < 0 || p.x >= extent || p.y >= extent) continue;
     const ll = toLL(p.x, p.y);
+    const step = DEDUPE_DEG_BY_KIND[kind] ?? DEDUPE_DEG;
+    const cell = `${kind}:${Math.round(ll.lat / step)}:${Math.round(ll.lng / step)}`;
+    if (seen.has(cell)) continue;
+    seen.add(cell);
     const id = `${POI_LABEL[kind].prefix}_${f.id ?? `${ll.lat.toFixed(5)}_${ll.lng.toFixed(5)}`}`;
-    landmarks.push({ id, kind, label: POI_LABEL[kind].th, lat: ll.lat, lng: ll.lng });
+    landmarks.push({ id, kind, label: poiLabel(kind, cls, sub), lat: ll.lat, lng: ll.lng });
   }
   const mPerUnit = metersPerTile(toLL(extent / 2, extent / 2).lat) * k;
   for (const f of landcover) {

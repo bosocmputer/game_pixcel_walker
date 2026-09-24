@@ -21,4 +21,6 @@ export * from './rules/party';
 export * from './rules/starter';
 export * from './rules/deck';
 export * from './rules/shop';
+export * from './rules/rank';
+export * from './rules/daily';
 export * from './net/protocol';

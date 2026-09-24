@@ -5,7 +5,7 @@
  */
 import Phaser from 'phaser';
 import { PIXEL_FONT } from '../ui/pixel';
-import { FIGHT_RANGE_M, MONSTERS, haversine, type Spawn } from '@pw/shared';
+import { FIGHT_RANGE_M, MONSTERS, RANK_COLOR, gateRank, haversine, type Spawn } from '@pw/shared';
 import { heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
@@ -299,13 +299,18 @@ export class WorldScene extends Phaser.Scene {
         // Native-res pixel buildings share the hero's pixel size; old procedural icons are tiny.
         const icon = this.add.image(0, 0, `lm_${l.kind}`).setOrigin(0.5, 1)
           .setScale(hasPixelSprite('landmarks', l.kind) ? getHeroScale() : l.kind === 'PARK' ? 3 : 2.5);
-        const bang = this.add.text(0, -icon.displayHeight - 4, '!', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ff5252', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5);
+        // Gates carry their rank letter (docs/STORY.md §5); services have none.
+        const rank = gateRank(l.kind);
+        const bang = this.add
+          .text(0, -icon.displayHeight - 4, rank ?? '', { fontFamily: PIXEL_FONT, fontSize: '20px', color: rank ? RANK_COLOR[rank] : '#fff', stroke: '#000', strokeThickness: 5 })
+          .setOrigin(0.5);
         c = this.add.container(0, 0, [icon, bang]).setDepth(7);
         c.setData({ bang, lat: l.lat, lng: l.lng });
         this.tweens.add({ targets: bang, y: bang.y - 8, yoyo: true, repeat: -1, duration: 500 });
         this.landmarkSprites.set(l.id, c);
       }
-      (c.getData('bang') as Phaser.GameObjects.Text).setVisible(bossAvailableAt(l, s, now) <= now);
+      // Open gates show a bright bouncing rank; closed ones a faint one.
+      (c.getData('bang') as Phaser.GameObjects.Text).setAlpha(bossAvailableAt(l, s, now) <= now ? 1 : 0.35);
     }
     for (const [id, c] of this.landmarkSprites) {
       if (seen.has(id)) continue;

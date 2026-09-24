@@ -10,6 +10,7 @@ import {
   SKILLS,
   classSkillPool,
   STARTER_POTIONS,
+  type DailyState,
   migrateLegacyGear,
   sanitizeStarter,
   starterGold,
@@ -70,6 +71,10 @@ export interface SaveData {
   totalMeters: number;
   lastRegenAt: number;
   stats: { battlesWon: number; deaths: number; bossesKilled: number };
+  /** [ระบบ] daily hunting quests (docs/STORY.md §3). */
+  daily?: DailyState;
+  /** Last free rest at a sanctuary (epoch ms). */
+  blessedAt?: number;
 }
 
 const zeroStats = (): Stats => ({ str: 0, agi: 0, vit: 0, int: 0, dex: 0, luk: 0 });

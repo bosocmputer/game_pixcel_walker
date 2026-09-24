@@ -402,6 +402,28 @@ export const CONSUMABLES: Record<string, ConsumableDef> = {
     source: 'คราฟต์จากเศษแร่ปั๊มน้ำมัน',
     lore: 'หินลับมีดเนื้อละเอียดจากลำห้วยบนดอย ลับไม่กี่ทีคมกลับมาเหมือนใหม่',
   },
+  sticky_rice_pork: {
+    id: 'sticky_rice_pork',
+    name: 'Grilled Pork & Sticky Rice',
+    nameTh: 'ข้าวเหนียวหมูปิ้ง',
+    kind: 'HEAL_HP',
+    amount: 350,
+    cooldown: 3,
+    price: 25,
+    source: 'ตลาด',
+    lore: 'อาหารเช้าของ Walker ทั่วเมือง พกง่าย อิ่มนาน กลิ่นหอมจนมอนสเตอร์ชั้นพิกเซลยังหันมามอง',
+  },
+  thai_iced_tea: {
+    id: 'thai_iced_tea',
+    name: 'Thai Iced Tea',
+    nameTh: 'ชาเย็นใส่น้ำแข็ง',
+    kind: 'HEAL_MP',
+    amount: 250,
+    cooldown: 5,
+    price: 30,
+    source: 'ตลาด',
+    lore: 'ชาส้มหวานมันเย็นเจี๊ยบ แม่ค้าบอกว่าชงด้วยน้ำจากลำห้วยใกล้รอยแยก ร่ายเวทต่อได้อีกหลายรอบ',
+  },
   master_repair_kit: {
     id: 'master_repair_kit',
     name: 'Master Repair Kit',
@@ -438,6 +460,8 @@ export const MATERIALS: Record<string, MaterialDef> = {
   gold_price_tag: { id: 'gold_price_tag', name: 'Golden Price Tag', nameTh: 'ป้ายลดราคาทองคำ', rarity: 'RARE', price: 300, source: 'ราชินีลดกระหน่ำ (บอส)', lore: 'ป้ายราคาชุบทองจากตัวราชินี เขียนว่า "ลด 99%" แต่ขายได้ราคาเต็ม' },
   octane_core: { id: 'octane_core', name: 'Octane Core', nameTh: 'แกนหัวจ่ายน้ำมัน', rarity: 'RARE', price: 400, source: 'หุ่นยนต์หัวจ่ายน้ำมัน (บอส)', lore: 'แกนพลังงานที่ยังส่งเสียงหึ่ง ๆ ช่างตีเหล็กให้ราคาสูงมาก' },
   guardian_gold_leaf: { id: 'guardian_gold_leaf', name: 'Guardian Gold Leaf', nameTh: 'เปลวทองผู้พิทักษ์', rarity: 'RARE', price: 500, source: 'ยักษ์ทวารบาล (บอส)', lore: 'เปลวทองที่หลุดจากกระบองของยักษ์หลังยอมรับในฝีมือผู้ท้าทาย' },
+  phantom_ticket: { id: 'phantom_ticket', name: 'Last Train Ticket', nameTh: 'ตั๋วรถไฟขบวนสุดท้าย', rarity: 'RARE', price: 350, source: 'นายสถานีเงา (บอส)', lore: 'ตั๋วกระดาษเก่าที่ไม่มีปลายทาง ตราประทับยังอุ่นอยู่ นักสะสมบอกว่ามันเคยพาใครบางคนไปมิติอื่น' },
+  relic_fragment: { id: 'relic_fragment', name: 'Relic Inscription Shard', nameTh: 'เศษจารึกโบราณ', rarity: 'EPIC', price: 650, source: 'ศิลาผู้พิทักษ์โบราณ (บอส)', lore: 'เศษศิลาที่มีอักขระเรืองแสงจาง ๆ อ่านไม่ออกแต่ฟังแล้วเหมือนมีคนกระซิบเล่าตำนานของเมือง' },
   ancient_bark: { id: 'ancient_bark', name: 'Thousand-year Bark', nameTh: 'เปลือกไม้พันปี', rarity: 'EPIC', price: 600, source: 'พฤกษาอสูร (บอส)', lore: 'เปลือกไม้หอมที่มีวงปีนับไม่ถ้วน ร้านยาสมุนไพรยอมจ่ายแพงเพื่อได้สักชิ้น' },
 };
 

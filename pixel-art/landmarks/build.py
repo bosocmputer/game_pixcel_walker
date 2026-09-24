@@ -124,16 +124,120 @@ def home():
     return done(s)
 
 
-LANDMARKS = {"TEMPLE": temple, "MALL": mall, "CONVENIENCE": convenience, "FUEL": fuel, "PARK": park, "HOME": home}
+# --------------------------------------------------------------------------------------------
+# Worldwide places (docs/STORY.md §4)
+
+def station():
+    s = Sprite(W, H); base(s, "#3a7ae8")
+    wall = R("#e6dcc8", hs=10); roof = R("#3a5ea8", hs=16)
+    s.rect(5, 22, 42, 43, wall[2]); s.rect(5, 22, 8, 43, wall[3]); s.rect(39, 22, 42, 43, wall[1])
+    s.polygon([(3, 22), (24, 12), (44, 22)], roof[2]); s.polygon([(3, 22), (24, 12), (24, 22)], roof[3], only="opaque")
+    s.circle(24, 18, 4, "#fff6e0", fill=True); s.circle(24, 18, 4, INK); s.line(24, 18, 24, 15, INK); s.line(24, 18, 26, 18, INK)   # clock
+    for x in (9, 31):
+        s.rect(x, 27, x + 6, 35, "#8fc8ff"); s.px(x, 27, "#ffffff")                                   # windows
+    s.rect(19, 29, 28, 43, "#6a4424"); s.ellipse(19, 26, 28, 32, "#6a4424"); s.line(23, 30, 23, 43, "#8a5a34")   # arch door
+    for x in (6, 41):
+        s.line(x, 44, x, 48, "#6a6470")
+    s.line(6, 45, 41, 45, "#9aa4b0"); s.line(6, 47, 41, 47, "#9aa4b0")                                 # rails
+    for x in range(8, 41, 4):
+        s.line(x, 44, x, 48, "#8a5a34")
+    return done(s)
+
+
+def museum():
+    s = Sprite(W, H); base(s, "#b89a6a")
+    stone = R("#e8e0cc", hs=10)
+    s.polygon([(4, 18), (24, 7), (43, 18)], stone[2]); s.polygon([(4, 18), (24, 7), (24, 18)], stone[3], only="opaque")
+    s.circle(24, 14, 2, "#f2c230", fill=True)                                                          # relic glow in the pediment
+    s.rect(5, 18, 42, 21, stone[1])
+    for x in (8, 16, 27, 35):
+        s.rect(x, 22, x + 4, 39, stone[2]); s.line(x, 22, x, 39, stone[3]); s.line(x + 4, 22, x + 4, 39, stone[0])   # columns
+    s.rect(20, 28, 25, 39, "#4a3a2a")                                                                  # doorway
+    s.rect(4, 39, 43, 41, stone[1]); s.rect(2, 41, 45, 43, stone[0])                                   # steps
+    for x, y in ((12, 26), (31, 31)):
+        s.px(x, y, "#f2c230")                                                                          # glowing runes
+    return done(s)
+
+
+def hospital():
+    s = Sprite(W, H); base(s, "#2fb8a8")
+    wall = R("#f2f4f6", hs=8); teal = R("#2fb8a8", hs=16)
+    s.rect(10, 12, 37, 43, wall[2]); s.rect(10, 12, 13, 43, wall[3]); s.rect(34, 12, 37, 43, wall[1])
+    for y in range(20, 36, 5):
+        for x in range(14, 34, 5):
+            s.rect(x, y, x + 2, y + 2, "#8fc8e8")
+    s.rect(19, 36, 28, 43, teal[1]); s.line(23, 36, 23, 43, wall[3])                                   # doors
+    # heart + plus sign on the roof (no Red Cross emblem)
+    s.circle(21, 5, 2, "#e8507a", fill=True); s.circle(26, 5, 2, "#e8507a", fill=True)
+    s.polygon([(19, 6), (28, 6), (23, 11)], "#e8507a")
+    s.rect(22, 3, 24, 8, "#ffffff"); s.rect(21, 5, 25, 6, "#ffffff")
+    s.rect(9, 11, 38, 12, teal[2])
+    return done(s)
+
+
+def market():
+    s = Sprite(W, H); base(s, "#e07a2a")
+    for i, (x, col) in enumerate(((4, "#d8323a"), (18, "#2f8a4a"), (32, "#f2a02a"))):
+        s.rect(x + 1, 26, x + 11, 42, "#a87850"); s.rect(x + 1, 26, x + 2, 42, "#c89454")              # stall
+        for k in range(0, 12, 3):
+            s.rect(x + k, 18, x + k + 1, 25, col); s.rect(x + k + 2, 18, x + k + 2, 25, "#ffffff")       # striped awning
+        s.line(x, 25, x + 11, 25, INK)
+        fruit = ("#f2c230", "#e8507a", "#58d06a")[i]
+        for fx in range(x + 2, x + 11, 3):
+            s.circle(fx, 29, 1, fruit, fill=True)                                                     # produce
+        s.rect(x + 2, 33, x + 10, 34, "#8a5a34")
+    s.rect(14, 8, 33, 14, "#fff6e0"); s.rect(14, 8, 33, 9, "#f2c230"); s.line(18, 11, 29, 11, "#d8323a")   # banner
+    s.line(14, 14, 14, 18, INK); s.line(33, 14, 33, 18, INK)
+    return done(s)
+
+
+def sanctuary():
+    s = Sprite(W, H); base(s, "#e8dca8")
+    wall = R("#f6f2e6", hs=8); gold = R("#f2c230", 5, 22)
+    s.circle(24, 16, 15, "#f6e6a8", fill=True); s.circle(24, 16, 12, "#fff6d0", fill=True)             # soft halo
+    s.rect(11, 24, 36, 43, wall[2]); s.rect(11, 24, 14, 43, wall[3]); s.rect(33, 24, 36, 43, wall[1])
+    s.ellipse(14, 12, 33, 30, wall[2]); s.ellipse(14, 12, 23, 26, wall[3], only="opaque")               # dome
+    s.rect(11, 23, 36, 24, gold[2])
+    s.rect(20, 32, 27, 43, "#c8a060"); s.ellipse(20, 29, 27, 35, "#c8a060"); s.line(23, 32, 23, 43, gold[3])   # door
+    for x in (14, 31):
+        s.rect(x, 29, x + 2, 34, "#8fc8e8")
+    for x, y in ((8, 41), (39, 41), (6, 38), (41, 38)):
+        s.px(x, y, "#e8507a"); s.px(x, y - 1, "#58d06a")                                             # flowers
+    return done(s)
+
+
+def rift(color="#b85aff", core="#2a1a48", sparkle="#7ff0ff"):
+    """A dimensional rift drawn behind gate buildings: pixel layer = violet/cyan, myth layer = gold."""
+    s = Sprite(W, H)
+    r = R(color, hs=24)
+    s.ellipse(6, 0, 41, 40, r[1]); s.ellipse(8, 1, 39, 38, r[3]); s.ellipse(11, 4, 36, 35, core)
+    for x, y in ((12, 10), (34, 8), (9, 24), (38, 26), (24, 2), (16, 33), (32, 34)):
+        s.px(x, y, sparkle)
+    for x, y in ((4, 14), (43, 18), (2, 30), (45, 6)):
+        s.px(x, y, r[3])                                                                              # stray pixels
+    return s
+
+
+LANDMARKS = {
+    "TEMPLE": temple, "MALL": mall, "CONVENIENCE": convenience, "FUEL": fuel, "PARK": park, "HOME": home,
+    "STATION": station, "MUSEUM": museum, "HOSPITAL": hospital, "MARKET": market, "SANCTUARY": sanctuary,
+}
+# Gates show a rift behind the building (docs/STORY.md §5): pixel layer vs myth layer.
+PIXEL_GATES = {"CONVENIENCE", "MALL", "FUEL", "STATION"}
+MYTH_GATES = {"TEMPLE", "MUSEUM", "PARK"}
 
 
 def main():
     os.makedirs(OUT, exist_ok=True)
     out = {}
     for name, fn in LANDMARKS.items():
-        s = fn()
-        s.save_png(os.path.join(OUT, f"{name}.png"))
-        out[name] = s.composite(1)
+        im = fn().composite(1).copy()
+        if name in PIXEL_GATES or name in MYTH_GATES:
+            back = (rift() if name in PIXEL_GATES else rift("#f2c230", "#4a2a10", "#fff6c8")).composite(1).copy()
+            back.alpha_composite(im)
+            im = back
+        im.save(os.path.join(OUT, f"{name}.png"))
+        out[name] = im
     Z = 5
     sheet = Image.new("RGBA", (len(out) * (W * Z + 12) + 12, H * Z + 40), (178, 214, 150, 255))
     d = ImageDraw.Draw(sheet)

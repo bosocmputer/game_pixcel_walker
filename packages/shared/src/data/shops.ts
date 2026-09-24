@@ -15,9 +15,14 @@ export interface ShopDef {
   buys: boolean;
   /** Offers the repair service (full price; home is half). */
   repair?: boolean;
+  /** Multiplier on what monster junk sells for here (markets pay more). */
+  junkBonus?: number;
   /** Item ids for sale, in display order. */
   stock: string[];
 }
+
+/** Markets pay 20% more for monster junk. */
+export const MARKET_JUNK_BONUS = 1.2;
 
 export const SHOPS: Record<string, ShopDef> = {
   home: {
@@ -42,6 +47,15 @@ export const SHOPS: Record<string, ShopDef> = {
     landmark: 'MALL',
     buys: true,
     stock: ['cotton_shirt', 'indigo_farmer_shirt', 'rattan_armor', 'cloth_bandana', 'iron_helm', 'bronze_helm', 'jasmine_garland', 'runner_charm', 'elephant_amulet'],
+  },
+  market: {
+    id: 'market',
+    nameTh: 'ตลาดแลกของมิติ',
+    keeperTh: 'แม่ค้าข้าวเหนียว',
+    landmark: 'MARKET',
+    buys: true,
+    junkBonus: MARKET_JUNK_BONUS,
+    stock: ['sticky_rice_pork', 'thai_iced_tea', 'red_potion', 'blue_elixir', 'whetstone'],
   },
   smith: {
     id: 'smith',

@@ -5,7 +5,8 @@ with 16-bit sprites drawn on a transparent Phaser canvas; gameplay terrain/landm
 same vector tiles (`game/world.ts`). The player community launches in Chiang Mai. A small Thai team builds it
 with Claude Code — reply in Thai, keep code/comments in English.
 
-**Design source of truth: `docs/MASTER_SPEC.md`.** `docs/source/` holds the original docs;
+**Design source of truth: `docs/MASTER_SPEC.md`.** **Story bible: `docs/STORY.md`** — check new monsters,
+bosses, items, skills and screens against it (pixel layer vs myth layer, [ระบบ] voice, UI two layers). `docs/source/` holds the original docs;
 where they disagree with MASTER_SPEC, MASTER_SPEC wins. Update MASTER_SPEC when a design decision changes.
 How to install/run everything: `README.md`.
 

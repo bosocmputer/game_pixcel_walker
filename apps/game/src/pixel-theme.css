@@ -383,3 +383,84 @@ button.hs-card.sel { background: #fff6d0; box-shadow: 0 0 0 2px #f2c230, inset 0
 .sl-info b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sl-price { font-size: 12px; white-space: nowrap; }
 .sl-act { display: flex; gap: 4px; }
+
+/* ============================================================================================
+   [ระบบ] layer (docs/STORY.md §5): holographic system windows. Parchment frames stay for items.
+   ============================================================================================ */
+:root { --sys-ink: #e8f6ff; --sys-dim: #8fb8d8; --sys-glow: #4fd8ff; }
+.sys-tag { font-style: normal; font-family: 'Silkscreen', 'Chakra Petch', monospace; color: var(--sys-glow); font-size: 11px; }
+.toast, .toast.good, .toast.bad {
+  border-image-source: url(/assets/ui/sys.png) !important; color: var(--sys-ink); text-shadow: 1px 1px 0 #000;
+  padding: 4px 10px; max-width: min(92vw, 520px);
+}
+.toast.good { border-image-source: url(/assets/ui/sys-gold.png) !important; }
+.toast.good .sys-tag { color: #f2c230; }
+.toast.bad { border-image-source: url(/assets/ui/sys-red.png) !important; }
+.toast.bad .sys-tag { color: #ff8a8a; }
+
+/* Walker / gate rank badge */
+.rank-chip {
+  display: inline-block; font-style: normal; font-family: 'Silkscreen', monospace; font-size: 10px; line-height: 14px;
+  padding: 0 4px; margin: 0 4px 0 2px; color: #fff; background: var(--rank); border: 2px solid var(--ink);
+  text-shadow: 1px 1px 0 var(--ink); vertical-align: middle;
+}
+
+/* Centred system notice (level up, all quests done) */
+.sys-notice {
+  position: fixed; left: 50%; top: 34%; transform: translate(-50%, -50%); z-index: 60; pointer-events: none;
+  min-width: 240px; max-width: 88vw; padding: 10px 16px; text-align: center; color: var(--sys-ink); text-shadow: 1px 1px 0 #000;
+  border: 8px solid transparent; border-image: url(/assets/ui/sys.png) 4 fill / 8px stretch;
+  animation: sys-in .25s steps(4); transition: opacity .5s;
+}
+.sys-notice.gold { border-image-source: url(/assets/ui/sys-gold.png); }
+.sys-notice.red { border-image-source: url(/assets/ui/sys-red.png); }
+.sys-notice .sys-head { font-family: 'Silkscreen', monospace; color: var(--sys-glow); font-size: 12px; letter-spacing: 1px; }
+.sys-notice.gold .sys-head { color: #f2c230; }
+.sys-notice b { display: block; font-size: 20px; margin: 2px 0; }
+.sys-notice p { margin: 2px 0; font-size: 13px; color: var(--sys-dim); }
+.sys-notice.out { opacity: 0; }
+@keyframes sys-in { from { opacity: 0; transform: translate(-50%, -40%) scale(.9); } }
+
+/* System windows inside the bottom sheet (daily quests) */
+.sheet:has(.sys-win) { border-image-source: url(/assets/ui/sys.png) !important; color: var(--sys-ink); }
+.sys-win { color: var(--sys-ink); text-shadow: 1px 1px 0 #000; }
+.sys-title { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 2px 4px 6px; border-bottom: 2px solid #2a6a9a;
+  font-family: 'Silkscreen', 'Chakra Petch', sans-serif; font-size: 15px; color: var(--sys-glow); }
+.sys-title small { color: var(--sys-dim); font-size: 11px; margin-right: 36px; }
+.sys-line { margin: 6px 2px; font-size: 13px; color: var(--sys-dim); }
+.sys-win .muted { color: var(--sys-dim) !important; }
+.sys-ok { color: #7affb0; }
+.sq-list { display: grid; gap: 6px; }
+.sq-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; padding: 6px 8px; background: #1c2a50; border: 2px solid #2a6a9a; }
+.sq-row.done { border-color: #f2c230; background: #2a2a40; }
+.sq-row.claimed { opacity: .6; }
+.sq-info { display: grid; gap: 3px; min-width: 0; }
+.sq-info b { font-size: 13px; }
+.sq-info small { font-size: 11px; color: var(--sys-dim); }
+.sq-bar { display: block; height: 8px; background: #0c1226; border: 2px solid #000; }
+.sq-bar > i { display: block; height: 100%; background: linear-gradient(90deg, #4fd8ff, #b8f4ff); }
+.sq-row.done .sq-bar > i { background: #f2c230; }
+.sq-bonus { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; padding: 6px 8px;
+  border: 2px dashed #f2c230; font-size: 12px; }
+
+/* Gate cards on the map speak as the System; service cards stay parchment */
+.lm-card.gate { border-image-source: url(/assets/ui/sys.png) !important; color: var(--sys-ink); text-shadow: 1px 1px 0 #000; }
+.lm-card.gate .lm-sub { color: var(--sys-dim); }
+.lm-card.gate .lm-sub .good { color: #7affb0; }
+.lm-title small { font-weight: 400; font-size: 11px; opacity: .75; }
+.loot li.sys-q { color: #2c4c9e; }
+
+/* Six menu buttons still fit a 360 px phone */
+@media (max-width: 440px) {
+  .bottombar { gap: 2px; padding-left: 4px; padding-right: 4px; }
+  .menu-btn { width: 56px; height: 56px; }
+  .menu-btn span { font-size: 10px; }
+}
+
+/* Awakening intro (first launch) */
+.sys-intro { position: fixed; inset: 0; display: grid; place-items: center; background: radial-gradient(circle at 50% 40%, #2a1a48, #0a0c1e 70%); z-index: 50; pointer-events: auto; padding: 16px; }
+.intro-win { max-width: 460px; padding: 14px 16px; border: 8px solid transparent; border-image: url(/assets/ui/sys.png) 4 fill / 8px stretch; animation: sys-in-plain .4s steps(5); }
+.intro-line { font-size: 14px; line-height: 1.55; margin: 8px 0; color: var(--sys-ink); }
+.intro-ask { margin: 12px 0 8px; color: #f2c230; }
+.intro-go { width: 100%; }
+@keyframes sys-in-plain { from { opacity: 0; transform: scale(.94); } }

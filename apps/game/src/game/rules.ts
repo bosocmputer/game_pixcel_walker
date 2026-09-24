@@ -10,6 +10,16 @@ import {
   deathGoldLoss,
   gainExp,
   haversine,
+  dailyBonusReady,
+  dailyReward,
+  dayKey,
+  ensureDaily,
+  hospitalCost,
+  recordBattle,
+  DAILY_BONUS,
+  SANCTUARY_COOLDOWN_MS,
+  SANCTUARY_HEAL,
+  type DailyQuest,
   itemInfo,
   meetsLevel,
   MATERIALS,
@@ -40,14 +50,15 @@ export function worldBossReadyAt(l: Landmark, s: SaveData): number {
 // Landmarks & bosses
 
 export function bossIdFor(l: Landmark): string | null {
-  return l.kind === 'CITY' ? null : LANDMARK_BOSS[l.kind];
+  return LANDMARK_BOSS[l.kind] ?? null;
 }
 
-/** Start of the current daily spawn window (Asia/Bangkok) for "HH:MM". */
+/** Start of the current daily spawn window for "HH:MM" in the player's local time (worldwide). */
 function dailyWindowStart(hhmm: string, now: number): number {
   const [h, m] = hhmm.split(':').map(Number) as [number, number];
-  const bkk = new Date(now + 7 * 3600_000);
-  const start = Date.UTC(bkk.getUTCFullYear(), bkk.getUTCMonth(), bkk.getUTCDate(), h, m) - 7 * 3600_000;
+  const d = new Date(now);
+  d.setHours(h, m, 0, 0);
+  const start = d.getTime();
   return start <= now ? start : start - 86400_000;
 }
 
@@ -196,10 +207,10 @@ export function buy(itemId: string, qty = 1): boolean {
 }
 
 /** Sells up to `qty` of a stackable item (potion or junk). Returns the Gold received. */
-export function sellItem(itemId: string, qty = 1): number {
+export function sellItem(itemId: string, qty = 1, junkBonus = 1): number {
   const n = Math.min(qty, store.s.bag[itemId] ?? 0);
   if (n <= 0) return 0;
-  const gold = sellPrice(itemId) * n;
+  const gold = sellPrice(itemId, undefined, junkBonus) * n;
   store.update((s) => {
     s.bag[itemId] = (s.bag[itemId] ?? 0) - n;
     if (s.bag[itemId]! <= 0) delete s.bag[itemId];
@@ -209,9 +220,9 @@ export function sellItem(itemId: string, qty = 1): number {
 }
 
 /** Sells every piece of monster junk in the bag at once. Returns the Gold received. */
-export function sellAllJunk(): number {
+export function sellAllJunk(junkBonus = 1): number {
   let gold = 0;
-  for (const id of Object.keys(store.s.bag)) if (MATERIALS[id]) gold += sellItem(id, Infinity);
+  for (const id of Object.keys(store.s.bag)) if (MATERIALS[id]) gold += sellItem(id, Infinity, junkBonus);
   return gold;
 }
 
@@ -257,6 +268,77 @@ export function setHome(lat: number, lng: number): boolean {
   return true;
 }
 
+/** Today's [ระบบ] quests (rolled on first look each day). */
+export function dailyQuests() {
+  const today = ensureDaily(store.s.daily, dayKey(new Date()), store.s.level);
+  if (today !== store.s.daily) store.update((s) => (s.daily = today));
+  return today;
+}
+
+function grantExp(s: SaveData, exp: number): number {
+  const r = gainExp({ level: s.level, exp: s.exp }, exp);
+  s.level = r.level;
+  s.exp = r.exp;
+  s.unspentPoints += r.statPointsGained;
+  return r.levelsGained;
+}
+
+/** Claims one finished daily quest. Returns the reward, or null if it isn't claimable. */
+export function claimDaily(index: number): { exp: number; gold: number } | null {
+  const d = dailyQuests();
+  const q = d.quests[index];
+  if (!q || q.claimed || q.progress < q.target) return null;
+  const reward = dailyReward(store.s.level);
+  store.update((s) => {
+    s.daily!.quests[index] = { ...q, claimed: true };
+    s.gold += reward.gold;
+    grantExp(s, reward.exp);
+  });
+  return reward;
+}
+
+/** The all-three bonus: +1 stat point and potions. */
+export function claimDailyBonus(): boolean {
+  const d = dailyQuests();
+  if (!dailyBonusReady(d)) return false;
+  store.update((s) => {
+    s.daily!.bonusClaimed = true;
+    s.unspentPoints += DAILY_BONUS.statPoints;
+    for (const [id, n] of Object.entries(DAILY_BONUS.items)) s.bag[id] = (s.bag[id] ?? 0) + n;
+  });
+  return true;
+}
+
+/** Hospital: full HP/MP for Gold. */
+export function hospitalHeal(): boolean {
+  const cost = hospitalCost(store.s.level);
+  if (store.s.gold < cost) return false;
+  store.update((s) => {
+    const d = derivedOf(s);
+    s.gold -= cost;
+    s.hp = d.maxHp;
+    s.mp = d.maxMp;
+  });
+  return true;
+}
+
+/** Epoch ms when the sanctuary rest is available again (≤ now = ready). */
+export function sanctuaryReadyAt(s: SaveData): number {
+  return (s.blessedAt ?? 0) + SANCTUARY_COOLDOWN_MS;
+}
+
+/** Sanctuary: free 50% HP/MP rest, once per hour. */
+export function sanctuaryRest(now = Date.now()): boolean {
+  if (sanctuaryReadyAt(store.s) > now) return false;
+  store.update((s) => {
+    const d = derivedOf(s);
+    s.hp = Math.min(d.maxHp, s.hp + Math.round(d.maxHp * SANCTUARY_HEAL));
+    s.mp = Math.min(d.maxMp, s.mp + Math.round(d.maxMp * SANCTUARY_HEAL));
+    s.blessedAt = now;
+  });
+  return true;
+}
+
 export function bank(amount: number) {
   store.update((s) => {
     const a = Math.max(-s.bankGold, Math.min(s.gold, amount));
@@ -287,6 +369,8 @@ export interface BattleOutcome {
   levelsGained: number;
   goldLost: number;
   worldBossDamage?: number;
+  /** [ระบบ] daily quests this fight completed. */
+  questsDone?: DailyQuest[];
 }
 
 export function applyBattleOutcome(opts: {
@@ -356,6 +440,15 @@ export function applyBattleOutcome(opts: {
         }
       }
       s.stats.battlesWon++;
+      // [ระบบ] daily hunting quests
+      const daily = recordBattle(ensureDaily(s.daily, dayKey(new Date()), s.level), {
+        defeated: opts.defeated,
+        playerLevel: s.level - outcome.levelsGained,
+        gateCleared: (opts.kind === 'BOSS' && !opts.worldBoss) || opts.kind === 'DUNGEON',
+        loot: outcome.loot.items,
+      });
+      s.daily = daily.state;
+      outcome.questsDone = daily.completed;
       if (opts.kind === 'BOSS' && opts.landmark) {
         s.bossKills[opts.landmark.id] = Date.now();
         s.stats.bossesKilled++;

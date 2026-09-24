@@ -34,6 +34,33 @@
 **ทดสอบ:** npm test (104 ผ่าน) · typecheck ผ่าน · จำลอง 1,000 ไฟต์ / 60,000 เทิร์น: Novice ตีธรรมดา 58.9% · Throw Stone 17.6% · Rush 13.4% · Focus 10.1% (ก่อนคิด Counter Tackle)
 **ค้าง / ข้อควรรู้:** Rush, Throw Stone และ Counter Tackle ใช้ id/ไอคอนเดิม (`power_smash`, `stone_throw`, `counter_jab`) ชั่วคราวเพื่อให้ภาพและเซฟเข้ากันได้; ถ้าต้องการภาพเฉพาะของชื่อใหม่ ให้เพิ่ม source ใน `pixel-art/skill-icons/build.py` แล้วสร้าง PNG ใหม่
 
+## 2026-09-24 — ท่าฟันดาบในฉากต่อสู้ + อัปเดต avatar pack รอบใหม่ (Nong + Claude)
+> commit นี้**รวมงานของ session ก่อนหน้าที่ยังไม่ได้ commit ทิ้งไว้ในเครื่อง**มาด้วย (แยกไม่ได้เพราะท่าฟันเขียนต่อจากมันโดยตรง):
+> `lungeAtTarget()` พุ่งเข้าหาเป้าหมายในฉากต่อสู้ · `meleeSwing()` เอฟเฟกต์ฟันเส้นทองใน `battleFx.ts` ·
+> pixel art `pixel-art/novice-battle-attack/` + `assets/characters/novice_battle_slash.png` · บันทึกสกิล `learned/006-chibi-turning-melee-combo.md`
+> งานส่วนนั้นผมไม่ได้เขียนเองและยังไม่ได้ทดสอบแยก — ถ้าจะแก้ต่อให้ดูที่ไฟล์พวกนี้ก่อน
+
+**เพิ่ม**
+- **ท่าฟันดาบ 3 เฟรม** (ง้าง / ฟัน / ตามแรง) จาก pack ของทีม 48bit — เล่นตอน**พุ่งเข้าหาเป้าหมาย**ด้วยสกิลระยะประชิด
+  ใน `lungeAtTarget()`: ง้างดาบตอนพุ่งเข้า → เฟรมฟันตรงจังหวะดาเมจลง (`hit_frame = 1`) → ตามแรงตอนถอยกลับ → กลับท่าเดิม
+- ชั้นภาพใหม่ในการประกอบตัวละคร: `fx` (เส้นฟัน วาดหลังตัว) · `weapon` (ดาบของ pack ใช้แทนอาวุธที่โค้ดวาดระหว่างฟัน) ·
+  `hand` (มือกำดาบ ย้อมสีผิวแบบเดียวกับตัว) — ลำดับ fx → body → outfit → hair → weapon → hand ตาม HANDOFF
+- `animFrameCount()` / `avatarAction()` ใน `game/avatar.ts` อ่านจำนวนเฟรมและเวลาของท่าจาก manifest
+**แก้ไข / เปลี่ยน**
+- ก๊อป avatar pack รอบใหม่ทับทั้งโฟลเดอร์ (body เพิ่ม `slash_0..2`, ชุดทั้ง 2 มีเฟรมฟันครบ, เพิ่ม `hand/`, `weapon/W01_short_sword/`,
+  `fx/slash/`, `preview/`) — manifest มี `outfits` / `actions` / `anims.slash` ของทุกทรงผม
+- `heroCanvas(doll, facing, frame, pose)` เปลี่ยนพารามิเตอร์ที่ 4 จาก `idle: boolean` เป็น `pose: 'walk' | 'idle' | 'slash'`
+- ตัวละครที่ใช้ชุดจาก pack เลิกใช้เอฟเฟกต์ฟันแบบเดิม (`meleeSwing`) เพราะภาพท่าฟันมีเส้นฟันมาในตัวแล้ว — ตัวละครแบบเก่ายังใช้เหมือนเดิม
+- แผ่นรีวิว `tools/artpreview/avatar.mts` เพิ่มคอลัมน์ท่าฟัน 3 เฟรม
+**ไฟล์หลักที่แตะ:** `apps/game/public/assets/avatar/**` (pack ใหม่ทั้งชุด), `apps/game/src/game/{avatar,gear,art}.ts`,
+`apps/game/src/scenes/{BattleScene,WorldScene,remotePlayers}.ts`, `tools/artpreview/avatar.mts`, `docs/MASTER_SPEC.md`
+**ทดสอบ:** npm test (104 ผ่าน) · typecheck ผ่าน · build ผ่าน · `npx tsx tools/artpreview/avatar.mts` ท่าฟันขึ้นครบทั้ง 11 ลุค ·
+ในเกม: เข้าสู้แล้ว texture ของฮีโร่ไล่ `side_0 → slash_0 → slash_1 → slash_2 → side_0` (พุ่งเข้า 4 ครั้งในหนึ่งการต่อสู้) ·
+หยุดเกมที่เฟรมฟันแล้วดูภาพ: ตัวละครถึงตัวมอน ดาบกางพร้อมเส้นฟัน · กลับมาบนแผนที่ยังเล่นท่ายืนปกติ
+**ค้าง / ข้อควรรู้:** ระหว่างท่าฟันใช้**ดาบของ pack เสมอ** ไม่ว่าผู้เล่นถืออาวุธอะไร (ไม้เท้า/หอกก็เห็นเป็นดาบ) — รอ art ของอาวุธอื่นจากฝั่ง 48bit ·
+ท่าฟันมีเฉพาะฝั่งผู้เล่น มอนสเตอร์ยังใช้เอฟเฟกต์เดิม · เวลาใน `actions.slash.frame_ms` ([260, 90, 300]) ยังไม่ได้ใช้ตรง ๆ
+เพราะผูกเฟรมกับจังหวะพุ่ง/ฟัน/ถอยของ `lungeAtTarget` เพื่อให้ตรงกับดาเมจและความเร็วเกม (2×/4×)
+
 ## 2026-09-24 — ชุดตัวละครวาดมือ 2 ชุด แทนชุดเดิม 4 แบบ (Nong + Claude)
 **เพิ่ม**
 - **ชุดจาก avatar pack ของทีม 48bit**: `A01_starter_leather` (ชุดหนัง) และ `A02_light_armor` (ชุดเกราะเบา) ชุดละ 21 เฟรม

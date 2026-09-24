@@ -1,7 +1,7 @@
 /**
  * Renders avatar-pack frames with equipment layers to avatar.png (4× zoom) — review gear pixel art
  * without a browser.   npx tsx tools/artpreview/avatar.mts
- * Rows = outfits, columns = walk_front 0–3 · walk_back 0–3 · idle 0–3 (the standing animation).
+ * Rows = outfits, columns = walk_front 0–3 · walk_back 0–3 · idle 0–3 · slash 0–2 (sword swing).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -37,6 +37,7 @@ const cols: [string, number][] = [
   ['walk_front', 0], ['walk_front', 1], ['walk_front', 2], ['walk_front', 3],
   ['walk_back', 0], ['walk_back', 1], ['walk_back', 2], ['walk_back', 3],
   ['idle', 0], ['idle', 1], ['idle', 2], ['idle', 3],
+  ['slash', 0], ['slash', 1], ['slash', 2],
 ];
 const CW = 48 * S + 8, CH = 64 * S + 8;
 const sheet = blank(cols.length * CW + 8, looks.length * CH + 8, [214, 222, 206]);
@@ -47,7 +48,15 @@ looks.forEach((look, row) => {
     const out = blank(48, 64);
     const outfitId = packOutfitId(look.gear.chest);
     const outfit = outfitId ? png(`outfit/${outfitId}/${(frame.body as string).split('/').pop()}`) : null;
-    composeAvatar(png(frame.body), png(frame.hair), out, { skin: skins[look.skin]!, hairRamp: ramps[look.hair]!, gear: look.gear, outfit });
+    composeAvatar(png(frame.body), png(frame.hair), out, {
+      skin: skins[look.skin]!,
+      hairRamp: ramps[look.hair]!,
+      gear: look.gear,
+      outfit,
+      hand: frame.hand ? png(frame.hand) : null,
+      packWeapon: frame.weapon ? png(frame.weapon) : null,
+      fx: frame.fx ? png(frame.fx) : null,
+    });
     blit(sheet, out, 8 + col * CW, 8 + row * CH, S);
   });
 });

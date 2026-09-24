@@ -13,6 +13,12 @@ export type Gender = 'male' | 'female';
 export interface AvatarAnimFrame {
   body: string;
   hair: string;
+  /** Slash frames only: the fist over the grip (grey, recoloured like the body). */
+  hand?: string;
+  /** Slash frames only: the pack sword, which replaces the procedural weapon. */
+  weapon?: string;
+  /** Slash frames only: the trail, drawn behind the body. */
+  fx?: string;
 }
 
 export interface AvatarStyle {
@@ -24,7 +30,18 @@ export interface AvatarStyle {
     walk_front: AvatarAnimFrame[];
     walk_back: AvatarAnimFrame[];
     idle: AvatarAnimFrame[];
+    slash?: AvatarAnimFrame[];
   };
+}
+
+/** manifest.actions.<name>: how a one-shot action plays. */
+export interface AvatarAction {
+  frames: number;
+  frame_ms: number[];
+  hit_frame: number;
+  labels?: string[];
+  weapon?: string;
+  note?: string;
 }
 
 export interface AvatarManifest {
@@ -49,7 +66,9 @@ export interface AvatarManifest {
   hair_color_ramps: Record<string, string[]>;
   styles: AvatarStyle[];
   /** Hand-drawn outfit layers: one PNG per body frame under outfit/<id>/. */
-  outfits?: { note: string; ids: string[] };
+  outfits?: { id: string; label_th: string; label_en: string; gender: string; recolor: boolean; frames: string[] }[];
+  outfit_rule?: string;
+  actions?: Record<string, AvatarAction>;
 }
 
 export const AVATAR_CELL_W = 48;
@@ -102,13 +121,12 @@ export async function loadAvatarPack(baseUrl = '/assets/avatar'): Promise<Avatar
   const urls = new Set<string>();
   for (const b of data.body.frames) {
     urls.add(`${baseUrl}/body/${b}`);
-    for (const id of data.outfits?.ids ?? []) urls.add(`${baseUrl}/outfit/${id}/${b}`);
+    for (const o of data.outfits ?? []) urls.add(`${baseUrl}/outfit/${o.id}/${b}`);
   }
   for (const style of data.styles) {
     for (const anim of Object.values(style.anims)) {
-      for (const f of anim) {
-        urls.add(`${baseUrl}/${f.body}`);
-        urls.add(`${baseUrl}/${f.hair}`);
+      for (const f of anim ?? []) {
+        for (const layer of [f.body, f.hair, f.hand, f.weapon, f.fx]) if (layer) urls.add(`${baseUrl}/${layer}`);
       }
     }
   }
@@ -144,10 +162,7 @@ export function getDefaultStyleForGender(gender: Gender): string {
  * Each style has its own list because the idle poses reuse different body frames.
  */
 export function idleFrameCount(gender: Gender, hairStyleId: string): number {
-  if (!manifest) return 0;
-  const style = manifest.styles.find((s) => s.id === hairStyleId)
-    ?? manifest.styles.find((s) => s.id === getDefaultStyleForGender(gender));
-  return style?.anims.idle?.length ?? 0;
+  return animFrameCount(gender, hairStyleId, 'idle');
 }
 
 export function getSkinTones(): { shadow: string; base: string }[] {
@@ -204,8 +219,9 @@ export function compositeAvatar(
   hairColorIdx: number,
   gear: GearLook = {},
   baseUrl = '/assets/avatar',
+  action?: { hand?: string; weapon?: string; fx?: string },
 ): HTMLCanvasElement {
-  const cacheKey = `${bodyPath}|${hairPath}|${skinIdx}|${hairColorIdx}|${gearKey(gear)}`;
+  const cacheKey = `${bodyPath}|${hairPath}|${skinIdx}|${hairColorIdx}|${gearKey(gear)}|${action?.weapon ?? ''}`;
   const existing = canvasCache.get(cacheKey);
   if (existing) return existing;
 
@@ -228,13 +244,29 @@ export function compositeAvatar(
     hairRamp,
     gear,
     outfit,
+    hand: action?.hand ? rawPixels(`${baseUrl}/${action.hand}`) : null,
+    packWeapon: action?.weapon ? rawPixels(`${baseUrl}/${action.weapon}`) : null,
+    fx: action?.fx ? rawPixels(`${baseUrl}/${action.fx}`) : null,
   });
   ctx.putImageData(out, 0, 0);
   canvasCache.set(cacheKey, canvas);
   return canvas;
 }
 
-export type AvatarAnim = 'walk_front' | 'walk_back' | 'idle';
+export type AvatarAnim = 'walk_front' | 'walk_back' | 'idle' | 'slash';
+
+/** Timing of a one-shot action from the manifest (slash: wind-up / strike / follow-through). */
+export function avatarAction(name: string): AvatarAction | null {
+  return manifest?.actions?.[name] ?? null;
+}
+
+/** How many frames a style has for an animation (0 = pack not loaded / style has no such anim). */
+export function animFrameCount(gender: Gender, hairStyleId: string, anim: AvatarAnim): number {
+  if (!manifest) return 0;
+  const style = manifest.styles.find((s) => s.id === hairStyleId)
+    ?? manifest.styles.find((s) => s.id === getDefaultStyleForGender(gender));
+  return style?.anims[anim]?.length ?? 0;
+}
 
 /**
  * Render a complete avatar frame for an appearance and animation state.
@@ -264,6 +296,8 @@ export function renderAvatarFrame(
 
   const frames = style.anims[anim] ?? style.anims.walk_front;
   const frame = frames[frameIdx % frames.length]!;
+  // Slash frames carry their own sword, fist and trail layers.
+  const action = frame.weapon || frame.hand || frame.fx ? { hand: frame.hand, weapon: frame.weapon, fx: frame.fx } : undefined;
 
-  return compositeAvatar(frame.body, frame.hair, skinIdx, hairColorIdx, { ...gear, gender });
+  return compositeAvatar(frame.body, frame.hair, skinIdx, hairColorIdx, { ...gear, gender }, '/assets/avatar', action);
 }

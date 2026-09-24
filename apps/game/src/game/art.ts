@@ -617,15 +617,17 @@ export const AURA_COLORS: Record<string, string> = {
 };
 
 /**
- * One rendered frame of a paperdoll. `idle` picks the standing animation (avatar pack only —
- * the procedural 16×24 hero has no idle art and keeps its standing frame).
+ * One rendered frame of a paperdoll. `pose` picks the standing or sword-slash animation (avatar
+ * pack only — the procedural 16×24 hero has no such art and keeps its walking frame).
  */
-export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0, idle = false): HTMLCanvasElement {
+export type HeroPose = 'walk' | 'idle' | 'slash';
+
+export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0, pose: HeroPose = 'walk'): HTMLCanvasElement {
   const ap = p.appearance ?? DEFAULT_APPEARANCE;
 
   if (USE_AVATAR_PACK && isAvatarPackLoaded()) {
     const gender = ap.gender ?? 'male';
-    const anim: AvatarAnim = idle ? 'idle' : facing === 'up' ? 'walk_back' : 'walk_front';
+    const anim: AvatarAnim = pose === 'walk' ? (facing === 'up' ? 'walk_back' : 'walk_front') : pose;
     const gear = { helmet: p.helmet, chest: p.chest, weapon: p.weapon, outfit: ap.outfit };
     const body = renderAvatarFrame(gender, ap.hairStyle, ap.skin, ap.hairColor, anim, frame, gear);
     if (!p.aura) return body;

@@ -103,7 +103,7 @@ export class RemotePlayers {
     r.idleFrames = idleFrameCount(doll.appearance?.gender ?? 'male', doll.appearance?.hairStyle ?? '');
     for (let i = 0; i < r.idleFrames; i++) {
       const key = `${base}_idle_${i}`;
-      if (!this.scene.textures.exists(key)) this.scene.textures.addCanvas(key, heroCanvas(doll, 'down', i, true));
+      if (!this.scene.textures.exists(key)) this.scene.textures.addCanvas(key, heroCanvas(doll, 'down', i, 'idle'));
     }
   }
 

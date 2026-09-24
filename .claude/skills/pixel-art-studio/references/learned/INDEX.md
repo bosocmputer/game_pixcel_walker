@@ -10,3 +10,4 @@ One line per study card. Newest last. Format:
 | 003 | 003-dramatic-chibi-swordsman.md | user-provided swordsman screenshot | 3/4 heroic chibi, black-plum outline, jewel-tone clusters, cyan-white weapon highlight | — |
 | 004 | 004-tactical-chibi-layered-cloth.md | user-provided tactical RPG reference | 3/4 tactical chibi, layered cloth, warm seam trim, oversized near hand/boot, painterly clusters | — |
 | 005 | 005-tall-tactical-job-sprites.md | user-provided fantasy job lineup | 4–5 heads tall, 48–64px heroic field sprites, layered armor/robes, readable 3/4 anatomy | — |
+| 006 | 006-chibi-turning-melee-combo.md | user-provided SoC melee frames | keyed body-led melee action, stable feet, anticipation/contact/follow-through/recovery | — |

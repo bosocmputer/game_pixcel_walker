@@ -223,7 +223,7 @@ export class WorldScene extends Phaser.Scene {
     this.idleFrames = idleFrameCount(ap.gender ?? 'male', ap.hairStyle);
     for (let i = 0; i < this.idleFrames; i++) {
       const key = this.idleKey(i);
-      if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, 'down', i, true));
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, 'down', i, 'idle'));
     }
     this.registry.set('heroKey', this.heroKey('down', 0));
     this.player?.setTexture(this.heroKey());

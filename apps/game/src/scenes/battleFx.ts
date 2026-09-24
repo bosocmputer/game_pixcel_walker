@@ -64,6 +64,36 @@ export function playFx(scene: Phaser.Scene, key: string, at: FxAnchor, px: numbe
   });
 }
 
+/** A directional slash at the attacker's weapon, separate from the impact effect on its target. */
+export function meleeSwing(scene: Phaser.Scene, at: FxAnchor, px: number, direction: 1 | -1) {
+  if (!scene.anims.exists('fx_slash')) return;
+  const x = at.x + direction * at.h * 0.18;
+  const y = at.y - at.h * 0.6;
+  const spr = scene.add
+    .sprite(x, y, 'fx_slash')
+    .setScale(px * 1.3)
+    .setFlipX(direction < 0)
+    .setAngle(direction * -18)
+    .setDepth(28);
+  spr.play('fx_slash');
+  spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => spr.destroy());
+
+  // The sprite-sheet arc is intentionally delicate; these short gold trails make the actual
+  // weapon swing readable over bright monsters and at faster battle speeds.
+  const span = Math.max(18, at.h * 0.28);
+  const trails = scene.add.graphics().setDepth(29);
+  trails.lineStyle(Math.max(2, px * 0.8), 0xffec99, 1);
+  for (const offset of [-0.22, 0, 0.22]) {
+    trails.lineBetween(
+      x - direction * span * 0.7,
+      y + span * (0.5 + offset),
+      x + direction * span * 0.7,
+      y - span * (0.5 - offset),
+    );
+  }
+  scene.tweens.add({ targets: trails, alpha: 0, duration: 190, ease: 'Quad.easeOut', onComplete: () => trails.destroy() });
+}
+
 /** A projectile flying from caster to target; resolves after `ms`. */
 export function shootProjectile(scene: Phaser.Scene, kind: string, from: FxAnchor, to: FxAnchor, px: number, ms: number) {
   if (!scene.anims.exists(`p_${kind}`)) return;

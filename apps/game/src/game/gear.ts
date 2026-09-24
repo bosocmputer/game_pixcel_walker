@@ -593,19 +593,32 @@ export function gearKey(g: GearLook): string {
  * @param out  destination (same size) — receives skin → clothes → hair → helmet → held items
  * @param opts.outfit full-colour pack layer for this frame; when given it replaces the painted
  *                    legwear/boots/chest instead of being drawn on top of them.
+ * @param opts.fx/packWeapon/hand action layers (slash): the trail goes behind everything, then the
+ *                    pack sword and the fist over the grip replace the procedural weapon.
  */
 export function composeAvatar(
   body: Pixels,
   hair: Pixels | null,
   out: Pixels,
-  opts: { skin: { shadow: string; base: string }; hairRamp: string[]; gear: GearLook; outfit?: Pixels | null },
+  opts: {
+    skin: { shadow: string; base: string };
+    hairRamp: string[];
+    gear: GearLook;
+    outfit?: Pixels | null;
+    hand?: Pixels | null;
+    packWeapon?: Pixels | null;
+    fx?: Pixels | null;
+  },
 ) {
   const cls = classify(body);
   const a = analyzeBody(body, cls);
   const p = new Painter(out, cls);
   out.data.fill(0);
-  // 0. Staffs are carried beside the body — draw them first so the body stays in front.
-  const behind = WEAPONS[opts.gear.weapon ?? '']?.kind === 'staff';
+  // 0. Action layers (slash): the trail sits behind the body; the pack sword replaces the drawn one.
+  const acting = !!(opts.packWeapon || opts.hand);
+  if (opts.fx) blitLayer(p, opts.fx);
+  // Staffs are carried beside the body — draw them first so the body stays in front.
+  const behind = !acting && WEAPONS[opts.gear.weapon ?? '']?.kind === 'staff';
   if (behind) paintWeapon(p, a, opts.gear.weapon, 'shaft');
   // 1. Skin
   const sh = hex(opts.skin.shadow), ba = hex(opts.skin.base);
@@ -621,14 +634,7 @@ export function composeAvatar(
   //    everything else is painted from the body's own pixels.
   const packOutfit = packOutfitId(opts.gear.chest) ? opts.outfit : null;
   if (packOutfit) {
-    for (let i = 0; i < Math.min(packOutfit.width * packOutfit.height, out.width * out.height); i++) {
-      if (packOutfit.data[i * 4 + 3]! < 128) continue;
-      p.set(i % packOutfit.width, Math.floor(i / packOutfit.width), [
-        packOutfit.data[i * 4]!,
-        packOutfit.data[i * 4 + 1]!,
-        packOutfit.data[i * 4 + 2]!,
-      ]);
-    }
+    blitLayer(p, packOutfit);
   } else {
     paintLegwear(p, a, opts.gear);
     paintBoots(p, a, opts.gear);
@@ -648,5 +654,26 @@ export function composeAvatar(
   }
   // 4. Headgear over the hair, then held items on top.
   paintHelmet(p, a, opts.gear, hairTop);
-  paintWeapon(p, a, opts.gear.weapon, behind ? 'head' : undefined);
+  if (acting) {
+    // The pack's own sword and the fist that grips it (skin-toned like the body).
+    if (opts.packWeapon) blitLayer(p, opts.packWeapon);
+    if (opts.hand) blitLayer(p, opts.hand, { shadow: sh, base: ba });
+  } else {
+    paintWeapon(p, a, opts.gear.weapon, behind ? 'head' : undefined);
+  }
+}
+
+/**
+ * Stamps a ready-made pack layer (outfit, slash trail, sword, fist) over what is already drawn.
+ * With `skin`, the layer is a grey map like the body and its two skin greys are recoloured.
+ */
+function blitLayer(p: Painter, layer: Pixels, skin?: { shadow: RGB; base: RGB }) {
+  for (let i = 0; i < layer.width * layer.height; i++) {
+    if (layer.data[i * 4 + 3]! < 128) continue;
+    const r = layer.data[i * 4]!, g = layer.data[i * 4 + 1]!, b = layer.data[i * 4 + 2]!;
+    const c: RGB = skin && r === 0x47 && g === 0x47 && b === 0x47 ? skin.shadow
+      : skin && r === 0x8a && g === 0x8a && b === 0x8a ? skin.base
+      : [r, g, b];
+    p.set(i % layer.width, Math.floor(i / layer.width), c);
+  }
 }

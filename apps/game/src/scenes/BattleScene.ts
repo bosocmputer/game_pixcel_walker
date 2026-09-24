@@ -34,19 +34,21 @@ import {
 import { heroCanvas, monsterCanvas, type HairStyle, type Paperdoll } from '../game/art';
 import { hasPixelSprite } from '../game/sprites';
 import {
+  animFrameCount,
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
   isAvatarPackLoaded,
   USE_AVATAR_PACK,
 } from '../game/avatar';
 import { bus, toast, type BattleRequest } from '../game/bus';
+import { paperdollOf } from '../game/paperdoll';
 import { applyBattleOutcome, bossIdFor, changeClass, worldBossHp, type BattleOutcome } from '../game/rules';
 import { playerSetup } from '../game/party';
 import { store } from '../state/store';
 import { el, esc } from '../ui/dom';
 import { autoHunt } from '../game/autohunt';
 import { music, sfx } from '../game/audio';
-import { createFxAnims, hitFx, playFx, preloadFx, shootProjectile, skillLook, statusFx, type FxAnchor, type SkillLook } from './battleFx';
+import { createFxAnims, hitFx, meleeSwing, playFx, preloadFx, shootProjectile, skillLook, statusFx, type FxAnchor, type SkillLook } from './battleFx';
 
 /** World boss attack window, in rounds. */
 const WORLD_BOSS_ROUNDS = 20;
@@ -61,6 +63,9 @@ interface UnitView {
   home: { x: number; y: number };
   /** Screen pixels per effect pixel (bosses get bigger effects). */
   fxPx: number;
+  /** Texture the unit rests on, and its hand-drawn slash frames (avatar-pack heroes only). */
+  idleKey: string;
+  slashKeys: string[];
 }
 
 const STATUS_TH: Record<string, string> = {
@@ -232,13 +237,15 @@ export class BattleScene extends Phaser.Scene {
 
   private addView(u: CombatUnit, scale: number): UnitView {
     let key: string;
+    let doll: Paperdoll | null = null;
     const ally = this.req.run?.entrants.find((e) => e.setup.id === u.id && u.id !== this.meId);
     if (ally) {
       const l = ally.look;
-      const doll: Paperdoll = { ...l, appearance: { ...l.appearance, hairStyle: l.appearance.hairStyle as HairStyle } };
+      doll = { ...l, appearance: { ...l.appearance, hairStyle: l.appearance.hairStyle as HairStyle } };
       key = `hero_${JSON.stringify(doll)}_side_0`;
       if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, 'side', 0));
     } else if (u.side === 'A') {
+      doll = paperdollOf(store.s);
       const down = (this.scene.get('World').registry.get('heroKey') as string) ?? 'hero';
       key = down.replace(/_down_0$/, '_side_0');
       if (!this.textures.exists(key)) key = down;
@@ -262,7 +269,25 @@ export class BattleScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(11);
     const bars = this.add.graphics().setDepth(11);
-    const v = { sprite, label, bars, home: { x: 0, y: 0 }, fxPx: Math.max(2, scale - 1) + (u.isBoss ? 1 : 0) };
+    // Hand-drawn slash frames (wind-up / strike / follow-through) for avatar-pack heroes.
+    const slashKeys: string[] = [];
+    if (doll && isPack) {
+      const frames = animFrameCount(doll.appearance?.gender ?? 'male', doll.appearance?.hairStyle ?? '', 'slash');
+      for (let i = 0; i < frames; i++) {
+        const slashKey = `hero_${JSON.stringify(doll)}_slash_${i}`;
+        if (!this.textures.exists(slashKey)) this.textures.addCanvas(slashKey, heroCanvas(doll, 'side', i, 'slash'));
+        slashKeys.push(slashKey);
+      }
+    }
+    const v = {
+      sprite,
+      label,
+      bars,
+      home: { x: 0, y: 0 },
+      fxPx: Math.max(2, scale - 1) + (u.isBoss ? 1 : 0),
+      idleKey: key,
+      slashKeys,
+    };
     this.views.set(u.id, v);
     return v;
   }
@@ -379,7 +404,83 @@ export class BattleScene extends Phaser.Scene {
     if (a) playFx(this, key, a, a.px, { delay, ...opts });
   }
 
-  /** Animates one event; returns extra delay (ms) before the following events (projectile flight). */
+  /**
+   * Brings a melee unit to the locked target just long enough for the hit, then returns it home.
+   * This is presentation-only: target selection and combat resolution remain in the shared engine.
+   */
+  private lungeAtTarget(attacker: UnitView, target: UnitView, side: 'A' | 'B', delay: number): number {
+    const from = { ...attacker.home };
+    const direction = side === 'A' ? 1 : -1;
+    const stopShort = Math.max(28, Math.min(48, (attacker.sprite.displayWidth + target.sprite.displayWidth) * 0.32));
+    const landing = { x: target.home.x - direction * stopShort, y: target.home.y };
+    const lift = Math.min(32, Math.max(16, 18 + Math.abs(landing.y - from.y) * 0.25));
+    const approachMs = 250 / this.speed;
+    const strikePauseMs = 120 / this.speed;
+    const returnMs = 280 / this.speed;
+    const outbound = { progress: 0 };
+    const inbound = { progress: 0 };
+    const baseAngle = attacker.sprite.angle;
+    const baseScaleY = attacker.sprite.scaleY;
+    /** Avatar-pack heroes swing the drawn sword instead of the effect-only swipe. */
+    const slashing = attacker.slashKeys.length >= 3;
+
+    this.tweens.add({
+      targets: outbound,
+      progress: 1,
+      delay,
+      duration: approachMs,
+      ease: 'Quad.easeOut',
+      onStart: () => {
+        attacker.sprite.setDepth(20);
+        // Wind up the sword on the way in; the strike frame lands with the hit.
+        if (slashing) attacker.sprite.setTexture(attacker.slashKeys[0]!);
+      },
+      onUpdate: () => {
+        const p = outbound.progress;
+        attacker.sprite.setPosition(
+          Phaser.Math.Linear(from.x, landing.x, p),
+          Phaser.Math.Linear(from.y, landing.y, p) - Math.sin(Math.PI * p) * lift,
+        );
+      },
+      onComplete: () => {
+        if (slashing) attacker.sprite.setTexture(attacker.slashKeys[1]!);
+        // The drawn slash brings its own trail; only the procedural hero needs the effect.
+        if (!slashing) meleeSwing(this, { x: landing.x, y: landing.y, h: attacker.sprite.displayHeight }, attacker.fxPx, direction);
+        this.tweens.add({
+          targets: attacker.sprite,
+          angle: baseAngle + direction * (slashing ? 6 : 14),
+          scaleY: baseScaleY * (slashing ? 0.96 : 0.9),
+          duration: 32 / this.speed,
+          hold: 56 / this.speed,
+          yoyo: true,
+        });
+      },
+    });
+    this.tweens.add({
+      targets: inbound,
+      progress: 1,
+      delay: delay + approachMs + strikePauseMs,
+      duration: returnMs,
+      ease: 'Quad.easeIn',
+      onStart: () => {
+        if (slashing) attacker.sprite.setTexture(attacker.slashKeys[2]!);
+      },
+      onUpdate: () => {
+        const p = inbound.progress;
+        attacker.sprite.setPosition(
+          Phaser.Math.Linear(landing.x, from.x, p),
+          Phaser.Math.Linear(landing.y, from.y, p) - Math.sin(Math.PI * p) * (lift * 0.65),
+        );
+      },
+      onComplete: () => {
+        attacker.sprite.setPosition(from.x, from.y).setAngle(baseAngle).setScale(attacker.sprite.scaleX, baseScaleY).setDepth(10);
+        if (slashing) attacker.sprite.setTexture(attacker.idleKey);
+      },
+    });
+    return approachMs;
+  }
+
+  /** Animates one event; returns extra delay (ms) before the following events reach their target. */
   private animate(e: CombatEvent, delay: number): number {
     let lead = 0;
     switch (e.type) {
@@ -391,14 +492,15 @@ export class BattleScene extends Phaser.Scene {
         const v = this.views.get(e.unit);
         const u = this.d.combat.units.find((x) => x.id === e.unit);
         if (!v || !u) break;
-        const dir = u.side === 'A' ? 1 : -1;
         const offensive = e.targets.some((t) => t !== e.unit && this.d.combat.units.find((x) => x.id === t)?.side !== u.side);
-        if (offensive) this.tweens.add({ targets: v.sprite, x: v.home.x + dir * 36, yoyo: true, duration: 120 / this.speed });
         const skill = SKILLS[e.skill];
-        if (e.mp) this.popup(e.unit, `−${e.mp} MP`, '#64b5f6', false, 0, 18);
+        if (e.mp) this.popup(e.unit, `−${e.mp} MP`, '#64b5f6', false, delay, 18);
         const bossUlt = u.monsterId ? MONSTERS[u.monsterId]?.boss?.skills.find((s) => s.id === e.skill) : undefined;
         const look = skillLook(e.skill);
         this.looks.set(e.unit, look);
+        const targetId = e.targets.find((t) => t !== e.unit && this.d.combat.units.find((x) => x.id === t)?.side !== u.side);
+        const target = targetId ? this.views.get(targetId) : undefined;
+        if (offensive && look.melee && !bossUlt && target) lead = this.lungeAtTarget(v, target, u.side, delay);
         if (look.cast) {
           this.fx(look.cast, e.unit, delay, { ground: true, scale: u.isBoss ? 1.2 : 1 });
           this.time.delayedCall(delay, () => sfx('cast'));
@@ -420,7 +522,7 @@ export class BattleScene extends Phaser.Scene {
         } else if (skill) {
           const tag = e.reactive === 'ASSIST' ? '⚡ ' : e.reactive === 'COUNTER' ? '↩ ' : e.reactive ? '✦ ' : '';
           // Skill names float above the sprite so they don't collide with damage/heal numbers.
-          this.popup(e.unit, `${tag}${skill.nameTh}`, '#ffa726', false, 0, -v.sprite.displayHeight * 0.45);
+          this.popup(e.unit, `${tag}${skill.nameTh}`, '#ffa726', false, delay, -v.sprite.displayHeight * 0.45);
         }
         break;
       }

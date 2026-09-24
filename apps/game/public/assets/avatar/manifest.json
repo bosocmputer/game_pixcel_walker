@@ -11,17 +11,13 @@
   },
   "facing": "All frames face RIGHT. walk_front = walking toward the camera (down-right), walk_back = walking away (up-right). Mirror horizontally for left.",
   "draw_order": [
+    "fx (slash only, behind)",
     "body",
     "outfit",
-    "hair"
+    "hair",
+    "weapon (slash only)",
+    "hand (slash only, over the grip)"
   ],
-  "outfits": {
-    "note": "Full-colour RGBA outfit layers (shirt + trousers + shoes + gloves + collar, unisex). Never recolour them; the tone map for dyeing comes later. One PNG per body frame: outfit/<id>/<same file name as frame.body>.",
-    "ids": [
-      "A01_starter_leather",
-      "A02_light_armor"
-    ]
-  },
   "body": {
     "frames": [
       "move_0.png",
@@ -32,6 +28,9 @@
       "move_5.png",
       "move_6.png",
       "move_7.png",
+      "slash_0.png",
+      "slash_1.png",
+      "slash_2.png",
       "wait_0.png",
       "wait_1.png",
       "wait_10.png",
@@ -178,6 +177,29 @@
             "body": "body/wait_6.png",
             "hair": "hair/male/M01_short_messy/wait_5.png"
           }
+        ],
+        "slash": [
+          {
+            "body": "body/slash_0.png",
+            "hair": "hair/male/M01_short_messy/slash_0.png",
+            "hand": "hand/slash_0.png",
+            "weapon": "weapon/W01_short_sword/slash_0.png",
+            "fx": "fx/slash/slash_0.png"
+          },
+          {
+            "body": "body/slash_1.png",
+            "hair": "hair/male/M01_short_messy/slash_1.png",
+            "hand": "hand/slash_1.png",
+            "weapon": "weapon/W01_short_sword/slash_1.png",
+            "fx": "fx/slash/slash_1.png"
+          },
+          {
+            "body": "body/slash_2.png",
+            "hair": "hair/male/M01_short_messy/slash_2.png",
+            "hand": "hand/slash_2.png",
+            "weapon": "weapon/W01_short_sword/slash_2.png",
+            "fx": "fx/slash/slash_2.png"
+          }
         ]
       }
     },
@@ -264,6 +286,29 @@
             "body": "body/wait_12.png",
             "hair": "hair/male/M02_shaggy_bangs/wait_9.png"
           }
+        ],
+        "slash": [
+          {
+            "body": "body/slash_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/slash_0.png",
+            "hand": "hand/slash_0.png",
+            "weapon": "weapon/W01_short_sword/slash_0.png",
+            "fx": "fx/slash/slash_0.png"
+          },
+          {
+            "body": "body/slash_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/slash_1.png",
+            "hand": "hand/slash_1.png",
+            "weapon": "weapon/W01_short_sword/slash_1.png",
+            "fx": "fx/slash/slash_1.png"
+          },
+          {
+            "body": "body/slash_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/slash_2.png",
+            "hand": "hand/slash_2.png",
+            "weapon": "weapon/W01_short_sword/slash_2.png",
+            "fx": "fx/slash/slash_2.png"
+          }
         ]
       }
     },
@@ -333,6 +378,29 @@
           {
             "body": "body/wait_12.png",
             "hair": "hair/male/M03_short_neat/wait_5.png"
+          }
+        ],
+        "slash": [
+          {
+            "body": "body/slash_0.png",
+            "hair": "hair/male/M03_short_neat/slash_0.png",
+            "hand": "hand/slash_0.png",
+            "weapon": "weapon/W01_short_sword/slash_0.png",
+            "fx": "fx/slash/slash_0.png"
+          },
+          {
+            "body": "body/slash_1.png",
+            "hair": "hair/male/M03_short_neat/slash_1.png",
+            "hand": "hand/slash_1.png",
+            "weapon": "weapon/W01_short_sword/slash_1.png",
+            "fx": "fx/slash/slash_1.png"
+          },
+          {
+            "body": "body/slash_2.png",
+            "hair": "hair/male/M03_short_neat/slash_2.png",
+            "hand": "hand/slash_2.png",
+            "weapon": "weapon/W01_short_sword/slash_2.png",
+            "fx": "fx/slash/slash_2.png"
           }
         ]
       }
@@ -404,6 +472,29 @@
             "body": "body/wait_12.png",
             "hair": "hair/female/F01_low_ponytail/wait_5.png"
           }
+        ],
+        "slash": [
+          {
+            "body": "body/slash_0.png",
+            "hair": "hair/female/F01_low_ponytail/slash_0.png",
+            "hand": "hand/slash_0.png",
+            "weapon": "weapon/W01_short_sword/slash_0.png",
+            "fx": "fx/slash/slash_0.png"
+          },
+          {
+            "body": "body/slash_1.png",
+            "hair": "hair/female/F01_low_ponytail/slash_1.png",
+            "hand": "hand/slash_1.png",
+            "weapon": "weapon/W01_short_sword/slash_1.png",
+            "fx": "fx/slash/slash_1.png"
+          },
+          {
+            "body": "body/slash_2.png",
+            "hair": "hair/female/F01_low_ponytail/slash_2.png",
+            "hand": "hand/slash_2.png",
+            "weapon": "weapon/W01_short_sword/slash_2.png",
+            "fx": "fx/slash/slash_2.png"
+          }
         ]
       }
     },
@@ -473,6 +564,29 @@
           {
             "body": "body/wait_12.png",
             "hair": "hair/female/F02_bun/wait_5.png"
+          }
+        ],
+        "slash": [
+          {
+            "body": "body/slash_0.png",
+            "hair": "hair/female/F02_bun/slash_0.png",
+            "hand": "hand/slash_0.png",
+            "weapon": "weapon/W01_short_sword/slash_0.png",
+            "fx": "fx/slash/slash_0.png"
+          },
+          {
+            "body": "body/slash_1.png",
+            "hair": "hair/female/F02_bun/slash_1.png",
+            "hand": "hand/slash_1.png",
+            "weapon": "weapon/W01_short_sword/slash_1.png",
+            "fx": "fx/slash/slash_1.png"
+          },
+          {
+            "body": "body/slash_2.png",
+            "hair": "hair/female/F02_bun/slash_2.png",
+            "hand": "hand/slash_2.png",
+            "weapon": "weapon/W01_short_sword/slash_2.png",
+            "fx": "fx/slash/slash_2.png"
           }
         ]
       }
@@ -544,8 +658,118 @@
             "body": "body/wait_12.png",
             "hair": "hair/female/F03_wavy_shoulder/wait_5.png"
           }
+        ],
+        "slash": [
+          {
+            "body": "body/slash_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/slash_0.png",
+            "hand": "hand/slash_0.png",
+            "weapon": "weapon/W01_short_sword/slash_0.png",
+            "fx": "fx/slash/slash_0.png"
+          },
+          {
+            "body": "body/slash_1.png",
+            "hair": "hair/female/F03_wavy_shoulder/slash_1.png",
+            "hand": "hand/slash_1.png",
+            "weapon": "weapon/W01_short_sword/slash_1.png",
+            "fx": "fx/slash/slash_1.png"
+          },
+          {
+            "body": "body/slash_2.png",
+            "hair": "hair/female/F03_wavy_shoulder/slash_2.png",
+            "hand": "hand/slash_2.png",
+            "weapon": "weapon/W01_short_sword/slash_2.png",
+            "fx": "fx/slash/slash_2.png"
+          }
         ]
       }
     }
-  ]
+  ],
+  "outfits": [
+    {
+      "id": "A01_starter_leather",
+      "label_th": "ชุดหนังเริ่มต้น",
+      "label_en": "Starter leather",
+      "gender": "unisex",
+      "recolor": false,
+      "frames": [
+        "move_0",
+        "move_1",
+        "move_2",
+        "move_3",
+        "move_4",
+        "move_5",
+        "move_6",
+        "move_7",
+        "slash_0",
+        "slash_1",
+        "slash_2",
+        "wait_0",
+        "wait_1",
+        "wait_10",
+        "wait_11",
+        "wait_12",
+        "wait_2",
+        "wait_3",
+        "wait_4",
+        "wait_5",
+        "wait_6",
+        "wait_7",
+        "wait_8",
+        "wait_9"
+      ]
+    },
+    {
+      "id": "A02_light_armor",
+      "label_th": "ชุดเกราะเบา",
+      "label_en": "Light armor",
+      "gender": "unisex",
+      "recolor": false,
+      "frames": [
+        "move_0",
+        "move_1",
+        "move_2",
+        "move_3",
+        "move_4",
+        "move_5",
+        "move_6",
+        "move_7",
+        "slash_0",
+        "slash_1",
+        "slash_2",
+        "wait_0",
+        "wait_1",
+        "wait_10",
+        "wait_11",
+        "wait_12",
+        "wait_2",
+        "wait_3",
+        "wait_4",
+        "wait_5",
+        "wait_6",
+        "wait_7",
+        "wait_8",
+        "wait_9"
+      ]
+    }
+  ],
+  "outfit_rule": "outfit file = outfit/<outfit id>/<file name of frame.body>, e.g. body/wait_8.png -> outfit/A02_light_armor/wait_8.png. Full colour RGBA, do not recolour. Unisex. The outfit includes shirt, trousers, boots, bracers and the neck piece.",
+  "actions": {
+    "slash": {
+      "frames": 3,
+      "frame_ms": [
+        260,
+        90,
+        300
+      ],
+      "hit_frame": 1,
+      "labels": [
+        "wind-up",
+        "strike",
+        "follow-through"
+      ],
+      "weapon": "W01_short_sword",
+      "note": "styles[i].anims.slash gives body + hair + hand + weapon + fx per frame. After the last frame go back to idle. Mirror the whole stack for left, like walking."
+    }
+  }
 }

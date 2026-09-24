@@ -27,3 +27,16 @@ export function gateRank(kind: LandmarkKind): Rank | null {
   const m = boss ? MONSTERS[boss] : undefined;
   return m ? rankOf(m.level) : null;
 }
+
+/**
+ * Which layer of the world a gate opens into (docs/STORY.md §2) — decides how its rift looks on
+ * the map. World bosses get the biggest golden rift.
+ */
+export type GateLayer = 'PIXEL' | 'MYTH' | 'WORLD';
+export function gateLayer(kind: LandmarkKind): GateLayer | null {
+  const boss = LANDMARK_BOSS[kind];
+  const m = boss ? MONSTERS[boss] : undefined;
+  if (!m) return null;
+  if (m.boss?.worldBoss) return 'WORLD';
+  return kind === 'TEMPLE' || kind === 'MUSEUM' ? 'MYTH' : 'PIXEL';
+}

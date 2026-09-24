@@ -102,7 +102,7 @@ npm run dev
 | `python pixel-art/home/build.py` | วาดห้องในบ้าน + เฟอร์นิเจอร์ (และขอบเรืองแสงตอนแตะ) → `apps/game/public/assets/home/` ดูผลที่ `pixel-art/home/preview.png` |
 | `python pixel-art/fx/build.py` | วาดเอฟเฟกต์สกิล/กระสุนในฉากต่อสู้ → `apps/game/public/assets/fx/` ดูผลที่ `pixel-art/fx/preview.png` |
 | `python pixel-art/monsters/build.py` | วาดมอนสเตอร์/บอสทั้งหมด → `apps/game/public/assets/monsters/` ดูผลที่ `pixel-art/monsters/preview.png` |
-| `python pixel-art/landmarks/build.py` | วาดหมุดแลนด์มาร์ก (วัด ห้าง ร้าน ปั๊ม สวน บ้าน) → `apps/game/public/assets/landmarks/` |
+| `python pixel-art/landmarks/build.py` | วาดหมุดแผนที่: รอยแยกประตูทุกแรงก์ (ชั้นพิกเซล/ตำนาน/บอสโลก แบบเปิด 4 เฟรม + แบบผนึก), จุดบริการ, ศาสนสถาน, บ้าน → `apps/game/public/assets/landmarks/` |
 | `python pixel-art/skill-icons/build.py` | วาดไอคอนสกิลใหม่ทั้งชุด → `apps/game/public/assets/skills/` ดูผลที่ `pixel-art/skill-icons/preview.png` |
 | `python pixel-art/ui-kit/build.py` | วาดชุด UI 16-bit ใหม่ (กรอบหน้าต่าง ปุ่ม ช่อง ไอคอนเมนู) → `apps/game/public/assets/ui/` ดูผลที่ `pixel-art/ui-kit/preview.png` |
 | `python pixel-art/item-icons/build.py` | วาดไอคอนไอเทม + ของดรอปใหม่ทั้งชุด → `apps/game/public/assets/items/` (ต้องมี Pillow) ดูผลที่ `pixel-art/item-icons/preview.png` |

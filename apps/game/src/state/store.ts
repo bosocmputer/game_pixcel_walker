@@ -130,6 +130,12 @@ class Store {
       if (this.data) {
         this.data.worldBosses ??= {};
         this.data.loadout ??= [];
+        // Novice's old fourteen-skill tree was replaced. Reset decks containing retired skills
+        // so existing characters receive the current class default instead of a partial deck.
+        const legalSkills = new Set(classSkillPool(this.data.classId).filter((id) => SKILLS[id]));
+        const hadRetiredSkill = this.data.loadout.some((id) => !legalSkills.has(id));
+        this.data.loadout = this.data.loadout.filter((id) => legalSkills.has(id));
+        if (hadRetiredSkill) this.data.loadout = [];
         this.data.killedSpawns ??= {};
         this.data.appearance ??= { ...DEFAULT_APPEARANCE };
         this.data.appearance.gender ??= 'male';

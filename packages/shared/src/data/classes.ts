@@ -35,8 +35,7 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       modifiers: {},
     },
     skills: [
-      'quick_strike', 'power_smash', 'stone_throw', 'sweep_kick', 'dirty_trick', 'fire_spark', 'aqua_splash',
-      'war_cry', 'focus', 'first_aid', 'guard_stance', 'counter_jab', 'lucky_dodge', 'second_wind',
+      'power_smash', 'stone_throw', 'focus', 'counter_jab',
     ],
   },
   KNIGHT: {
@@ -122,24 +121,8 @@ export interface DeckPreset {
 export const DECK_PRESETS: Partial<Record<ClassId, DeckPreset[]>> = {
   NOVICE: [
     {
-      id: 'balanced', nameTh: '⚖️ สายสมดุล', description: 'ตีต่อเนื่อง ฟื้นตัวเองได้ เหมาะกับมือใหม่',
-      deck: ['quick_strike', 'power_smash', 'first_aid', 'guard_stance', 'counter_jab', 'second_wind'],
-    },
-    {
-      id: 'berserker', nameTh: '⚔️ สายบุกหนัก', description: 'บัฟ ATK + Critical แล้วทุบแรง ๆ จบไว แต่บาง',
-      deck: ['war_cry', 'focus', 'power_smash', 'quick_strike', 'sweep_kick', 'second_wind'],
-    },
-    {
-      id: 'ironwall', nameTh: '🛡️ สายอึดสวนกลับ', description: 'ทนนาน สวนกลับ ฟื้น HP บ่อย เหมาะตีบอส',
-      deck: ['guard_stance', 'first_aid', 'counter_jab', 'lucky_dodge', 'second_wind', 'quick_strike'],
-    },
-    {
-      id: 'elemental', nameTh: '🔥 สายธาตุ', description: 'ใช้ไฟ/น้ำ + สถานะ เหมาะถ้าอัป INT',
-      deck: ['fire_spark', 'aqua_splash', 'dirty_trick', 'first_aid', 'guard_stance', 'second_wind'],
-    },
-    {
-      id: 'crowd', nameTh: '🌀 สายรุมหลายตัว', description: 'กวาดศัตรูหลายตัวพร้อมกัน เหมาะดันเจี้ยน',
-      deck: ['sweep_kick', 'stone_throw', 'dirty_trick', 'quick_strike', 'guard_stance', 'counter_jab'],
+      id: 'starter', nameTh: '⚔️ ชุดเริ่มต้น', description: 'โจมตีหนัก ปาหิน เสริมพลังโจมตี และกระแทกสวน',
+      deck: ['power_smash', 'stone_throw', 'focus', 'counter_jab'],
     },
   ],
 };

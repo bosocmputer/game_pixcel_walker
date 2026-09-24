@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { DECK_SIZE, assignDeckSlot, clearDeckSlot } from '../index';
 
 describe('skill deck slots', () => {
-  const deck = ['quick_strike', 'first_aid', 'lucky_dodge'];
+  const deck = ['power_smash', 'stone_throw', 'counter_jab'];
 
   it('replaces the skill in a filled slot', () => {
-    expect(assignDeckSlot(deck, 1, 'focus')).toEqual(['quick_strike', 'focus', 'lucky_dodge']);
+    expect(assignDeckSlot(deck, 1, 'focus')).toEqual(['power_smash', 'focus', 'counter_jab']);
   });
 
   it('swaps when the skill is already in the deck', () => {
-    expect(assignDeckSlot(deck, 0, 'lucky_dodge')).toEqual(['lucky_dodge', 'first_aid', 'quick_strike']);
+    expect(assignDeckSlot(deck, 0, 'counter_jab')).toEqual(['counter_jab', 'stone_throw', 'power_smash']);
   });
 
   it('appends into an empty slot, up to the deck size', () => {
@@ -20,10 +20,10 @@ describe('skill deck slots', () => {
   });
 
   it('never duplicates a skill', () => {
-    expect(assignDeckSlot(deck, 4, 'first_aid')).toEqual(deck);
+    expect(assignDeckSlot(deck, 4, 'stone_throw')).toEqual(deck);
   });
 
   it('clears a slot and closes the gap', () => {
-    expect(clearDeckSlot(deck, 0)).toEqual(['first_aid', 'lucky_dodge']);
+    expect(clearDeckSlot(deck, 0)).toEqual(['stone_throw', 'counter_jab']);
   });
 });

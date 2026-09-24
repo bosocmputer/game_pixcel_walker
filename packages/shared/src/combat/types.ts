@@ -46,7 +46,10 @@ export interface ActiveStatus {
 
 export interface Buff {
   stat: keyof CombatStats;
-  pct: number;
+  /** Additive modifier applied after percentage modifiers (e.g. Focus: ATK +1). */
+  flat?: number;
+  /** Percentage modifier: 0.25 means +25%. */
+  pct?: number;
   turns: number;
 }
 
@@ -82,7 +85,7 @@ export type Effect =
     }
   | { kind: 'HEAL'; scaling: Partial<Record<keyof CombatStats, number>>; flat?: number }
   | { kind: 'STATUS'; status: StatusId; turns: number; chance?: number; potency?: number; self?: boolean }
-  | { kind: 'BUFF'; stat: keyof CombatStats; pct: number; turns: number; self?: boolean }
+  | { kind: 'BUFF'; stat: keyof CombatStats; pct?: number; flat?: number; turns: number; self?: boolean }
   | { kind: 'SHIELD'; pctMaxHp: number; turns: number }
   | { kind: 'CLEANSE' };
 
@@ -219,7 +222,7 @@ export type CombatEvent =
   | { type: 'STATUS'; target: string; status: StatusId; turns: number }
   | { type: 'TICK'; target: string; status: StatusId; amount: number }
   | { type: 'SHIELD'; target: string; amount: number }
-  | { type: 'BUFF'; target: string; stat: keyof CombatStats; pct: number }
+  | { type: 'BUFF'; target: string; stat: keyof CombatStats; pct?: number; flat?: number }
   | { type: 'COVER'; unit: string; protected: string }
   | { type: 'SUMMON'; unit: string; by: string }
   | { type: 'WAVE'; wave: number; total: number; modifier: string | null }

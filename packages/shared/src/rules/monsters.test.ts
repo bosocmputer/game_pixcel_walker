@@ -31,9 +31,9 @@ function unit(id: string, level: number, classId: ClassId, alloc: Partial<Stats>
   const back = classId === 'SORCERER' || classId === 'CLERIC' || classId === 'RANGER';
   return { id, name: id, row: back ? 'BACK' : 'FRONT', sprite: 'h', level, classId, deck, autoPotion: true, items: { ...kit }, stats: statsFromDerived(d, { dex: stats.dex, luk: stats.luk, vit: stats.vit }) };
 }
-const knight = (lv: number) => unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, ['quick_strike', 'first_aid', 'shield_bash', 'taunt', 'guardian', 'iron_wall']);
-const sorcerer = (lv: number) => unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, ['fireball', 'chain_lightning', 'frost_nova', 'mana_shield', 'focus', 'first_aid']);
-const cleric = (lv: number) => unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, ['holy_heal', 'blessing_of_light', 'smite', 'divine_grace', 'first_aid', 'quick_strike']);
+const knight = (lv: number) => unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, ['power_smash', 'focus', 'shield_bash', 'taunt', 'guardian', 'iron_wall']);
+const sorcerer = (lv: number) => unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, ['power_smash', 'focus', 'fireball', 'chain_lightning', 'frost_nova', 'mana_shield']);
+const cleric = (lv: number) => unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, ['power_smash', 'focus', 'holy_heal', 'blessing_of_light', 'smite', 'divine_grace']);
 
 function bossRate(party: UnitSetup[], bossId: string, runs = 120): number {
   let wins = 0;

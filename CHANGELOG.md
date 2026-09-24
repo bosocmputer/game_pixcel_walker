@@ -20,6 +20,20 @@
 
 ---
 
+## 2026-09-24 — ปรับผังสกิล Novice เหลือ 4 สกิล (Codex)
+**เพิ่ม**
+- บัฟต่อสู้แบบค่าตายตัว (`flat`) สำหรับ **Focus**: ATK +1 ชั่วคราว — เอนจินคำนวณร่วมกับบัฟเปอร์เซ็นต์อย่าง deterministic และฉากต่อสู้แสดง `ATK +1` ชัดเจน
+- การโจมตีธรรมดาแสดงคำว่า **“โจมตี”** เหนือตัวละครแล้ว; ก่อนหน้านี้มีใน event log แต่ไม่มีชื่อเด้งบนจอ จึงดูเหมือนสกิลออกถี่เกินจริง
+- เทสต์ยืนยันว่า flat buff เพิ่ม ATK ได้ตรงค่า และตรวจว่า skill pool ของ Novice มีเพียง 4 สกิล
+**แก้ไข / เปลี่ยน**
+- **Novice มี 4 สกิลเท่านั้น**: Rush (180% ATK) · Throw Stone (110% ATK, โจมตีแถวหลัง) · Focus (ATK +1 ชั่วคราว) · Counter Tackle (ถูกตีโดน 15% สวน 60% ATK) · โจมตีธรรมดาเป็น fallback ของเอนจิน ไม่ใช่สกิลใน deck
+- ตัด skill pool / preset เดิม 14 สกิลและ 5 preset ออก เหลือชุดเริ่มต้น 4 สกิล; ทุกอาชีพขั้นถัดไปยังหยิบ 4 สกิล Novice ร่วมกับสกิลอาชีพได้
+- โหลดเซฟเก่าที่มีสกิล Novice ที่ถูกถอดแล้วจะรีเซ็ต deck เป็นค่าเริ่มต้นที่ถูกต้อง แทนการเหลือ deck ไม่ครบ
+- ปรับสมดุล Counter Tackle และ Throw Stone หลังจำลอง: Lv.10 Novice ผ่าน Goblin King ~31% · Ghost Alley solo Lv.5 ~77% · Lv.20 Knight ผ่าน Octane ~28%
+**ไฟล์หลักที่แตะ:** `packages/shared/src/data/{skills,classes}.ts`, `packages/shared/src/combat/{types,engine}.ts`, `apps/game/src/{scenes/BattleScene,state/store}.ts`, `docs/{MASTER_SPEC,COMBAT_SPEC,ROADMAP}.md`
+**ทดสอบ:** npm test (104 ผ่าน) · typecheck ผ่าน · จำลอง 1,000 ไฟต์ / 60,000 เทิร์น: Novice ตีธรรมดา 58.9% · Throw Stone 17.6% · Rush 13.4% · Focus 10.1% (ก่อนคิด Counter Tackle)
+**ค้าง / ข้อควรรู้:** Rush, Throw Stone และ Counter Tackle ใช้ id/ไอคอนเดิม (`power_smash`, `stone_throw`, `counter_jab`) ชั่วคราวเพื่อให้ภาพและเซฟเข้ากันได้; ถ้าต้องการภาพเฉพาะของชื่อใหม่ ให้เพิ่ม source ใน `pixel-art/skill-icons/build.py` แล้วสร้าง PNG ใหม่
+
 ## 2026-09-24 — ชุดตัวละครวาดมือ 2 ชุด แทนชุดเดิม 4 แบบ (Nong + Claude)
 **เพิ่ม**
 - **ชุดจาก avatar pack ของทีม 48bit**: `A01_starter_leather` (ชุดหนัง) และ `A02_light_armor` (ชุดเกราะเบา) ชุดละ 21 เฟรม

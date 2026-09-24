@@ -43,7 +43,7 @@ describe('co-op field fights', () => {
   it('a trio beats scaled field monsters faster than a solo player beats unscaled ones', () => {
     const stats = totalStats({ str: 10, agi: 0, vit: 10, int: 0, dex: 0, luk: 0 });
     const d = computeDerived({ level: 5, classId: 'NOVICE', mutation: null, stats, gear: [{ flat: { atk: 3, def: 2 } }] });
-    const hero = (id: string): UnitSetup => ({ id, name: id, row: 'FRONT', sprite: 'h', level: 5, classId: 'NOVICE', deck: ['quick_strike', 'first_aid'], autoPotion: true, items: {}, stats: statsFromDerived(d, { dex: 0, luk: 0, vit: 10 }) });
+    const hero = (id: string): UnitSetup => ({ id, name: id, row: 'FRONT', sprite: 'h', level: 5, classId: 'NOVICE', deck: ['power_smash', 'stone_throw'], autoPotion: true, items: {}, stats: statsFromDerived(d, { dex: 0, luk: 0, vit: 10 }) });
     const rounds = (n: number) => {
       let total = 0;
       for (let seed = 1; seed <= 60; seed++) {

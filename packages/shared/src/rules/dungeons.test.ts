@@ -22,7 +22,7 @@ import {
 const zero: Stats = { str: 0, agi: 0, vit: 0, int: 0, dex: 0, luk: 0 };
 const starterGear: Modifiers[] = [{ flat: { def: 2 } }, { flat: { atk: 3 } }];
 const midGear: Modifiers[] = [{ flat: { atk: 45, str: 5 } }, { flat: { def: 12 } }, { flat: { agi: 8 } }];
-const NOVICE_DECK = ['quick_strike', 'first_aid', 'lucky_dodge'];
+const NOVICE_DECK = ['power_smash', 'stone_throw', 'focus', 'counter_jab'];
 
 function unit(id: string, level: number, classId: ClassId, alloc: Partial<Stats>, gear: Modifiers[], deck = NOVICE_DECK, items?: Record<string, number>): UnitSetup {
   const stats = totalStats({ ...zero, ...alloc });
@@ -71,7 +71,7 @@ describe('party dungeon mechanics', () => {
   it('remembers a member knocked out in an earlier wave', () => {
     const weak = unit('weak', 1, 'NOVICE', {}, [], NOVICE_DECK, {});
     weak.hp = 1;
-    const strong = unit('strong', 30, 'KNIGHT', { str: 40, vit: 40 }, midGear, ['quick_strike', 'first_aid']);
+    const strong = unit('strong', 30, 'KNIGHT', { str: 40, vit: 40 }, midGear, ['power_smash', 'stone_throw']);
     let found = false;
     for (let seed = 1; seed <= 40 && !found; seed++) {
       const d = createDungeon({ party: [strong, weak], waves: DUNGEON_BY_ID.ghost_alley!.waves, seed });
@@ -106,9 +106,9 @@ describe('party dungeon mechanics', () => {
 describe('dungeon balance', () => {
   const novice = (id: string, lv: number) => unit(id, lv, 'NOVICE', { str: lv * 2, vit: lv * 2 }, starterGear, NOVICE_DECK, { red_potion: 3 });
   const kit = { red_potion: 5, blue_elixir: 3 };
-  const knight = (lv: number) => unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, midGear, ['quick_strike', 'first_aid', 'shield_bash', 'taunt', 'guardian', 'iron_wall'], kit);
-  const sorcerer = (lv: number) => unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, midGear, ['fireball', 'chain_lightning', 'frost_nova', 'mana_shield', 'focus', 'first_aid'], kit);
-  const cleric = (lv: number) => unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, midGear, ['holy_heal', 'blessing_of_light', 'smite', 'divine_grace', 'first_aid', 'quick_strike'], kit);
+  const knight = (lv: number) => unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, midGear, ['power_smash', 'focus', 'shield_bash', 'taunt', 'guardian', 'iron_wall'], kit);
+  const sorcerer = (lv: number) => unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, midGear, ['power_smash', 'focus', 'fireball', 'chain_lightning', 'frost_nova', 'mana_shield'], kit);
+  const cleric = (lv: number) => unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, midGear, ['power_smash', 'focus', 'holy_heal', 'blessing_of_light', 'smite', 'divine_grace'], kit);
 
   it('Ghost Alley: a challenge solo at Lv.5, easy as a party', () => {
     const solo = clearRate([novice('a', 5)], 'ghost_alley');

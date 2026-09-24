@@ -192,8 +192,13 @@ const push = (c: Combat, e: CombatEvent) => c.events.push(e);
 
 export function stat(u: CombatUnit, key: keyof CombatStats): number {
   let pct = 0;
-  for (const b of u.buffs) if (b.stat === key) pct += b.pct;
-  let v = u.base[key] * (1 + pct);
+  let flat = 0;
+  for (const b of u.buffs) {
+    if (b.stat !== key) continue;
+    pct += b.pct ?? 0;
+    flat += b.flat ?? 0;
+  }
+  let v = u.base[key] * (1 + pct) + flat;
   if (key === 'speed') {
     const slow = u.statuses.find((s) => s.id === 'SLOW');
     if (slow) v *= 1 - slow.potency;
@@ -604,8 +609,8 @@ function applySupport(c: Combat, u: CombatUnit, t: CombatUnit, e: Effect) {
       break;
     }
     case 'BUFF':
-      t.buffs.push({ stat: e.stat, pct: e.pct, turns: e.turns });
-      push(c, { type: 'BUFF', target: t.id, stat: e.stat, pct: e.pct });
+      t.buffs.push({ stat: e.stat, pct: e.pct, flat: e.flat, turns: e.turns });
+      push(c, { type: 'BUFF', target: t.id, stat: e.stat, pct: e.pct, flat: e.flat });
       break;
     case 'SHIELD': {
       const amount = Math.round(t.base.maxHp * e.pctMaxHp);

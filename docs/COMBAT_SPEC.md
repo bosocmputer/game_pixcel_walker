@@ -218,7 +218,7 @@ diff it on replay. Nothing in the UI influences the outcome.
 ```json
 {
   "unit": { "id": "me", "classId": "KNIGHT", "row": "FRONT", "rateBonus": { "FIRE": 10 } },
-  "deck": ["shield_bash", "taunt", "guardian", "iron_wall", "quick_strike", "first_aid"],
+  "deck": ["shield_bash", "taunt", "guardian", "iron_wall", "power_smash", "stone_throw"],
   "skills": {
     "shield_bash": { "kind": "ACTIVE", "element": "NEUTRAL", "rate": 30, "cooldown": 2, "mp": 10, "priority": 0,
       "target": "ENEMY",
@@ -243,20 +243,21 @@ diff it on replay. Nothing in the UI influences the outcome.
 
 ---
 
-## 5b. Novice skill pool & preset decks
+## 5b. Novice skill pool & starter deck
 
-Novices pick 6 of 14 skills (`CLASSES.NOVICE.skills`); every class keeps the Novice pool plus its own 4
-(`classSkillPool`). Five presets in `DECK_PRESETS.NOVICE` are starting points players can tweak:
+Novice has four skills only (`CLASSES.NOVICE.skills`); the basic attack remains an implicit fallback,
+not a deck skill. Every advanced class retains this small Novice pool alongside its own four skills
+(`classSkillPool`). The starter deck contains every Novice skill:
 
-| Preset | Deck | Lv.10 Goblin dungeon win rate |
+| Type | Skill | Effect |
 |---|---|---|
-| ⚖️ สายสมดุล (default) | quick_strike, power_smash, first_aid, guard_stance, counter_jab, second_wind | ~71% |
-| 🌀 สายรุมหลายตัว | sweep_kick, stone_throw, dirty_trick, quick_strike, guard_stance, counter_jab | ~53% |
-| 🛡️ สายอึดสวนกลับ | guard_stance, first_aid, counter_jab, lucky_dodge, second_wind, quick_strike | ~44% |
-| ⚔️ สายบุกหนัก | war_cry, focus, power_smash, quick_strike, sweep_kick, second_wind | ~35% |
-| 🔥 สายธาตุ (INT build) | fire_spark, aqua_splash, dirty_trick, first_aid, guard_stance, second_wind | ~31% |
+| Attack | Rush | Heavy single-target attack (180% ATK) |
+| Attack | Throw Stone | Ranged attack that prefers the back row (110% ATK) |
+| Buff | Focus | Temporarily grants ATK +1 |
+| Reactive | Counter Tackle | On being hit, has a chance to tackle back (60% ATK) |
 
-Guarded by `balance.test.ts` (every preset > 20%, spread < 50 points).
+The four internal IDs remain `power_smash`, `stone_throw`, `focus`, and `counter_jab` so the existing
+icons and compatible saved loadouts can continue to work.
 
 ## 6. Decisions vs. the brief
 

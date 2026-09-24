@@ -417,7 +417,7 @@ export class BattleScene extends Phaser.Scene {
           this.cameras.main.shake(250, 0.01);
           this.showBanner(`${u.name}\n${bossUlt.nameTh}!`, '#ff6b6b');
           sfx('ultimate');
-        } else if (skill && skill.id !== 'basic_attack') {
+        } else if (skill) {
           const tag = e.reactive === 'ASSIST' ? '⚡ ' : e.reactive === 'COUNTER' ? '↩ ' : e.reactive ? '✦ ' : '';
           // Skill names float above the sprite so they don't collide with damage/heal numbers.
           this.popup(e.unit, `${tag}${skill.nameTh}`, '#ffa726', false, 0, -v.sprite.displayHeight * 0.45);
@@ -472,8 +472,11 @@ export class BattleScene extends Phaser.Scene {
         this.time.delayedCall(delay, () => sfx('shield'));
         break;
       case 'BUFF': {
-        const up = e.pct >= 0;
-        this.popup(e.target, `${String(e.stat).toUpperCase()} ${up ? '▲' : '▼'}`, up ? '#a5d6a7' : '#ef9a9a');
+        const amount = e.flat !== undefined
+          ? `${e.flat >= 0 ? '+' : ''}${e.flat}`
+          : `${Math.round((e.pct ?? 0) * 100)}%`;
+        const up = (e.flat ?? e.pct ?? 0) >= 0;
+        this.popup(e.target, `${String(e.stat).toUpperCase()} ${amount}`, up ? '#a5d6a7' : '#ef9a9a');
         this.fx(up ? 'buff' : 'debuff', e.target, delay, { ground: up });
         this.time.delayedCall(delay, () => sfx(up ? 'buff' : 'debuff'));
         break;

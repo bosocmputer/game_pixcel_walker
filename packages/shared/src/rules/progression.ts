@@ -3,6 +3,12 @@ import { CLASS_CHANGE_LEVEL } from '../data/classes';
 import { MUTATIONS, MUTATION_MIN_LEVEL, MUTATION_THRESHOLD } from '../data/mutations';
 
 export const LEVEL_CAP = 50;
+/**
+ * Global multiplier on the EXP monsters hand out (`rollLoot`). The level curve itself is unchanged,
+ * so this is the one number to turn when levelling feels too slow or too fast. At ×10 a level takes
+ * roughly 2–3 kills instead of 20–30; drop it toward 1 as the game gets its real content.
+ */
+export const EXP_RATE = 10;
 export const BASE_STAT = 5;
 export const STAT_POINTS_PER_LEVEL = 5;
 export const STEPS_PER_STAT_POINT = 5000;

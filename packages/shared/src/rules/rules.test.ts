@@ -3,11 +3,15 @@ import {
   baseStats,
   bossHpScale,
   computeDerived,
+  createRng,
   deathGoldLoss,
   detectMutation,
+  EXP_RATE,
   expToNext,
   gainExp,
   marketPrice,
+  MONSTERS,
+  rollLoot,
   summarizeWalk,
   totalStats,
   walkExp,
@@ -29,6 +33,16 @@ describe('progression', () => {
     expect(r.level).toBe(3);
     expect(r.exp).toBe(10);
     expect(r.statPointsGained).toBe(10);
+  });
+
+  it('pays monster EXP at the global rate, so a level is a handful of kills', () => {
+    const rng = createRng(7);
+    expect(rollLoot('pixel_slime', rng).exp).toBe(MONSTERS.pixel_slime!.exp * EXP_RATE);
+    // The whole point of the rate: an early level must not take dozens of slimes.
+    const killsForLevel2 = expToNext(1) / rollLoot('pixel_slime', rng).exp;
+    expect(killsForLevel2).toBeLessThanOrEqual(3);
+    // Gold and drops are untouched — only EXP is boosted.
+    expect(rollLoot('pixel_slime', rng).gold).toBeLessThanOrEqual(MONSTERS.pixel_slime!.gold[1]);
   });
 
   it('gives Novice +10% walking EXP only below Lv.10', () => {

@@ -1,4 +1,5 @@
 import { MONSTERS, type Terrain } from '../data/monsters';
+import { EXP_RATE } from './progression';
 import { chance, pick, randInt, type Rng } from './rng';
 
 export interface Loot {
@@ -20,7 +21,7 @@ export function rollLoot(monsterId: string, rng: Rng, dropRate = 1): Loot {
       items[d.itemId] = (items[d.itemId] ?? 0) + qty;
     }
   }
-  return { exp: m.exp, gold: randInt(rng, m.gold[0], m.gold[1]), items };
+  return { exp: Math.round(m.exp * EXP_RATE), gold: randInt(rng, m.gold[0], m.gold[1]), items };
 }
 
 /**

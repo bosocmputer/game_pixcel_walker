@@ -34,6 +34,15 @@
 **ทดสอบ:** npm test (104 ผ่าน) · typecheck ผ่าน · จำลอง 1,000 ไฟต์ / 60,000 เทิร์น: Novice ตีธรรมดา 58.9% · Throw Stone 17.6% · Rush 13.4% · Focus 10.1% (ก่อนคิด Counter Tackle)
 **ค้าง / ข้อควรรู้:** Rush, Throw Stone และ Counter Tackle ใช้ id/ไอคอนเดิม (`power_smash`, `stone_throw`, `counter_jab`) ชั่วคราวเพื่อให้ภาพและเซฟเข้ากันได้; ถ้าต้องการภาพเฉพาะของชื่อใหม่ ให้เพิ่ม source ใน `pixel-art/skill-icons/build.py` แล้วสร้าง PNG ใหม่
 
+## 2026-09-24 — รวมงานชุด/ท่ายืน/ท่าฟัน/skill tree เข้า main (Nong + Claude)
+**แก้ไข / เปลี่ยน**
+- รวม `codex/novice-skill-tree` เข้า `main` แบบ fast-forward (main ไม่มีงานใหม่ระหว่างนั้น ไม่มี conflict) — เจ้าของโปรเจกต์สั่งรวมตรง ไม่เปิด PR
+  ได้ทั้งหมด 4 commit: ชุดวาดมือ 2 ชุด · ท่ายืน · Simplify Novice skill tree (อีก session) · ท่าฟันดาบ
+- branch ที่ push ขึ้น GitHub แล้ว: `feature/outfit-pack` (ชุด + ท่ายืน) และ `codex/novice-skill-tree` (ครบทุกงาน) — ลบได้เมื่อไม่ใช้แล้ว
+**ทดสอบ:** บน main หลังรวม: npm test (104 ผ่าน) · typecheck ผ่าน · build ผ่าน
+**ค้าง / ข้อควรรู้:** repo เป็น public และมีภาพ placeholder จากเกม SoC (body/ผม รวมเฟรมท่าฟัน) อยู่บน origin —
+HANDOFF ของฝั่ง 48bit ห้ามไว้ ถ้าจะให้ตรงกฎต้องเปลี่ยน repo เป็น private จนกว่าจะวาดตัวหุ่นของเราเอง
+
 ## 2026-09-24 — ท่าฟันดาบในฉากต่อสู้ + อัปเดต avatar pack รอบใหม่ (Nong + Claude)
 > commit นี้**รวมงานของ session ก่อนหน้าที่ยังไม่ได้ commit ทิ้งไว้ในเครื่อง**มาด้วย (แยกไม่ได้เพราะท่าฟันเขียนต่อจากมันโดยตรง):
 > `lungeAtTarget()` พุ่งเข้าหาเป้าหมายในฉากต่อสู้ · `meleeSwing()` เอฟเฟกต์ฟันเส้นทองใน `battleFx.ts` ·

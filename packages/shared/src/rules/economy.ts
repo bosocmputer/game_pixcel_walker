@@ -10,6 +10,14 @@ export function deathGoldLoss(carriedGold: number): number {
 }
 
 /**
+ * Durability of a worn item after a battle (MASTER_SPEC §9): gear only wears out when the player
+ * dies, and then all of it breaks. Winning or fleeing leaves it exactly as it was.
+ */
+export function durabilityAfterBattle(durability: number, result: 'WIN' | 'LOSE' | 'FLED'): number {
+  return result === 'LOSE' ? 0 : durability;
+}
+
+/**
  * Market Price Index (source PDF §7.2), clamped to 50%–300% of base value.
  * Recomputed hourly from demand (buy requests) and supply (listings).
  */

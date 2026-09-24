@@ -6,6 +6,7 @@ import {
   createRng,
   deathGoldLoss,
   detectMutation,
+  durabilityAfterBattle,
   EXP_RATE,
   expToNext,
   gainExp,
@@ -131,6 +132,15 @@ describe('walk validation', () => {
 describe('economy', () => {
   it('death costs 20% of carried gold only', () => {
     expect(deathGoldLoss(1000)).toBe(200);
+  });
+  it('gear only loses durability on death — winning or fleeing keeps it intact', () => {
+    expect(durabilityAfterBattle(37, 'WIN')).toBe(37);
+    expect(durabilityAfterBattle(37, 'FLED')).toBe(37);
+    expect(durabilityAfterBattle(37, 'LOSE')).toBe(0);
+    // A hundred wins in a row must not wear anything down.
+    let d = 50;
+    for (let i = 0; i < 100; i++) d = durabilityAfterBattle(d, 'WIN');
+    expect(d).toBe(50);
   });
   it('market price clamps to 50%..300%', () => {
     expect(marketPrice(100, 0, 1000)).toBe(50);

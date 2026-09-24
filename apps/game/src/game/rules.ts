@@ -8,6 +8,7 @@ import {
   CLASS_CHANGE_LEVEL,
   canChangeClass,
   deathGoldLoss,
+  durabilityAfterBattle,
   gainExp,
   haversine,
   dailyBonusReady,
@@ -398,9 +399,6 @@ export function applyBattleOutcome(opts: {
     s.mp = Math.max(0, Math.round(opts.mp));
     s.bag = Object.fromEntries(Object.entries(opts.itemsLeft).filter(([, n]) => n > 0));
 
-    // Every fight wears equipped gear by 1.
-    for (const eq of Object.values(s.equipment)) if (eq && eq.durability > 0) eq.durability -= 1;
-
     if (opts.worldBoss && opts.landmark) {
       const prev = s.worldBosses[opts.landmark.id];
       const start = prev && prev.hp === opts.worldBoss.remainingHp + opts.worldBoss.damage ? prev.spawnedAt : Date.now();
@@ -456,11 +454,13 @@ export function applyBattleOutcome(opts: {
       }
     }
 
+    // Gear only wears out on death (winning or fleeing leaves it untouched).
+    for (const eq of Object.values(s.equipment)) if (eq) eq.durability = durabilityAfterBattle(eq.durability, outcome.result);
+
     if (outcome.result === 'LOSE') {
-      // Death penalty (MASTER_SPEC §9): all gear breaks, lose 20% of carried gold, no EXP loss.
+      // Death penalty (MASTER_SPEC §9): all gear breaks (above), lose 20% of carried gold, no EXP loss.
       outcome.goldLost = deathGoldLoss(s.gold);
       s.gold -= outcome.goldLost;
-      for (const eq of Object.values(s.equipment)) if (eq) eq.durability = 0;
       s.stats.deaths++;
       s.hp = Math.round(derivedOf(s).maxHp * 0.3);
     }

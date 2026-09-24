@@ -10,7 +10,10 @@ import { heroCanvas, type Facing, type HairStyle, type Paperdoll } from '../game
 import {
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
+  idleFrameCount,
   isAvatarPackLoaded,
+  IDLE_DELAY_MS,
+  IDLE_MS,
   USE_AVATAR_PACK,
 } from '../game/avatar';
 import { depthScale, project, zoomScale } from '../game/map';
@@ -30,6 +33,8 @@ interface Remote {
   facing: Facing;
   flip: boolean;
   walkTime: number;
+  standTime: number;
+  idleFrames: number;
 }
 
 export class RemotePlayers {
@@ -51,7 +56,7 @@ export class RemotePlayers {
           .setOrigin(0.5, 1)
           .setDepth(9.6);
         const busy = this.scene.add.text(0, 0, '⚔️', { fontSize: '16px' }).setOrigin(0.5, 1).setDepth(9.7).setVisible(false);
-        r = { data: p, current: { lat: p.lat, lng: p.lng }, target: { lat: p.lat, lng: p.lng }, sprite, label, busy, shadow, base: '', facing: 'down', flip: false, walkTime: 0 };
+        r = { data: p, current: { lat: p.lat, lng: p.lng }, target: { lat: p.lat, lng: p.lng }, sprite, label, busy, shadow, base: '', facing: 'down', flip: false, walkTime: 0, standTime: 0, idleFrames: 0 };
         this.remotes.set(p.id, r);
       }
       r.data = p;
@@ -95,6 +100,11 @@ export class RemotePlayers {
         if (!this.scene.textures.exists(key)) this.scene.textures.addCanvas(key, heroCanvas(doll, f, i));
       }
     }
+    r.idleFrames = idleFrameCount(doll.appearance?.gender ?? 'male', doll.appearance?.hairStyle ?? '');
+    for (let i = 0; i < r.idleFrames; i++) {
+      const key = `${base}_idle_${i}`;
+      if (!this.scene.textures.exists(key)) this.scene.textures.addCanvas(key, heroCanvas(doll, 'down', i, true));
+    }
   }
 
   update(delta: number, heroScale: number) {
@@ -120,12 +130,17 @@ export class RemotePlayers {
           if (isPack && Math.abs(dx) > 0.3) r.flip = dx < 0;
         }
         r.walkTime += delta;
-      } else r.walkTime = 0;
+        r.standTime = 0;
+      } else {
+        r.walkTime = 0;
+        r.standTime += delta;
+      }
+      const standing = !moving && r.idleFrames > 0 && r.standTime > IDLE_DELAY_MS;
       const frame = moving ? (isPack ? Math.floor(r.walkTime / 160) % 4 : WALK_FRAMES[Math.floor(r.walkTime / 160) % 4]!) : 0;
       const onScreen = p.x > -60 && p.y > -60 && p.x < this.scene.scale.width + 60 && p.y < h + 60;
       const s = heroScale * zs * depthScale(p.y, h);
       r.sprite
-        .setTexture(`${r.base}_${r.facing}_${frame}`)
+        .setTexture(standing ? `${r.base}_idle_${Math.floor((r.standTime - IDLE_DELAY_MS) / IDLE_MS) % r.idleFrames}` : `${r.base}_${r.facing}_${frame}`)
         .setFlipX(isPack ? r.flip : (r.facing === 'side' && r.flip))
         .setPosition(p.x, p.y)
         .setScale(s)

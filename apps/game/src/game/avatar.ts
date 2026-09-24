@@ -59,6 +59,9 @@ export const AVATAR_ANCHOR_Y = 58;
 export const AVATAR_ORIGIN_X = AVATAR_ANCHOR_X / AVATAR_CELL_W; // 0.5
 export const AVATAR_ORIGIN_Y = AVATAR_ANCHOR_Y / AVATAR_CELL_H; // 0.90625
 export const AVATAR_WORLD_SCALE = 1.6;
+/** Standing animation: starts after this long without a step, then one frame every IDLE_MS. */
+export const IDLE_DELAY_MS = 300;
+export const IDLE_MS = 350;
 
 
 let manifest: AvatarManifest | null = null;
@@ -134,6 +137,17 @@ export function getStylesForGender(gender: Gender): AvatarStyle[] {
 export function getDefaultStyleForGender(gender: Gender): string {
   const styles = getStylesForGender(gender);
   return styles[0]?.id ?? (gender === 'female' ? 'F01_low_ponytail' : 'M01_short_messy');
+}
+
+/**
+ * How many frames the standing animation of a hairstyle has (0 = pack not loaded / no idle art).
+ * Each style has its own list because the idle poses reuse different body frames.
+ */
+export function idleFrameCount(gender: Gender, hairStyleId: string): number {
+  if (!manifest) return 0;
+  const style = manifest.styles.find((s) => s.id === hairStyleId)
+    ?? manifest.styles.find((s) => s.id === getDefaultStyleForGender(gender));
+  return style?.anims.idle?.length ?? 0;
 }
 
 export function getSkinTones(): { shadow: string; base: string }[] {

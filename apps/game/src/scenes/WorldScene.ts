@@ -6,7 +6,7 @@
 import Phaser from 'phaser';
 import { PIXEL_FONT } from '../ui/pixel';
 import { FIGHT_RANGE_M, MONSTERS, gateLayer, gateRank, haversine, type Landmark, type Spawn } from '@pw/shared';
-import { heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
+import { DEFAULT_APPEARANCE, heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
 import { centerOn, depthScale, getMap, pixelsPerMeter, project, resetNorth, zoomBy, zoomScale } from '../game/map';
@@ -23,7 +23,10 @@ import {
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
   AVATAR_WORLD_SCALE,
+  idleFrameCount,
   isAvatarPackLoaded,
+  IDLE_DELAY_MS,
+  IDLE_MS,
   USE_AVATAR_PACK,
 } from '../game/avatar';
 
@@ -49,6 +52,8 @@ export class WorldScene extends Phaser.Scene {
   private facing: Facing = 'down';
   private flip = false;
   private walkTime = 0;
+  private standTime = 0;
+  private idleFrames = 0;
   private landmarkSprites = new Map<string, Phaser.GameObjects.Container>();
   private monsterSprites = new Map<string, Phaser.GameObjects.Container>();
   private lastSpawnScan = 0;
@@ -192,10 +197,15 @@ export class WorldScene extends Phaser.Scene {
   }
 
   // -------------------------------------------------------------------------------------------
-  // Hero (paperdoll × facing × walk frame)
+  // Hero (paperdoll × facing × walk frame, plus the standing animation)
 
   private heroKey(facing: Facing = this.facing, frame = 0) {
     return `${this.heroBase}_${facing}_${frame}`;
+  }
+
+  /** Standing animation frame (front-facing; the pack has no side/back idle art). */
+  private idleKey(frame: number) {
+    return `${this.heroBase}_idle_${frame}`;
   }
 
   private refreshHero(s: SaveData) {
@@ -208,6 +218,12 @@ export class WorldScene extends Phaser.Scene {
         const key = this.heroKey(f, i);
         if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, f, i));
       }
+    }
+    const ap = doll.appearance ?? DEFAULT_APPEARANCE;
+    this.idleFrames = idleFrameCount(ap.gender ?? 'male', ap.hairStyle);
+    for (let i = 0; i < this.idleFrames; i++) {
+      const key = this.idleKey(i);
+      if (!this.textures.exists(key)) this.textures.addCanvas(key, heroCanvas(doll, 'down', i, true));
     }
     this.registry.set('heroKey', this.heroKey('down', 0));
     this.player?.setTexture(this.heroKey());
@@ -247,14 +263,18 @@ export class WorldScene extends Phaser.Scene {
         if (isPack && Math.abs(dx) > 0.3) this.flip = dx < 0;
       }
       this.walkTime += delta;
+      this.standTime = 0;
     } else {
       this.walkTime = 0;
+      this.standTime += delta;
     }
+    // Standing still for a moment plays the idle animation (breathing); a step cuts back to walking.
+    const standing = !moving && this.idleFrames > 0 && this.standTime > IDLE_DELAY_MS;
     const frame = moving ? (isPack ? Math.floor(this.walkTime / 160) % 4 : WALK_FRAMES[Math.floor(this.walkTime / 160) % 4]!) : 0;
     const zs = zoomScale();
     const origin = getHeroOrigin();
     this.player
-      .setTexture(this.heroKey(this.facing, frame))
+      .setTexture(standing ? this.idleKey(Math.floor((this.standTime - IDLE_DELAY_MS) / IDLE_MS) % this.idleFrames) : this.heroKey(this.facing, frame))
       .setOrigin(origin.x, origin.y)
       .setFlipX(isPack ? this.flip : (this.facing === 'side' && this.flip))
       .setPosition(here.x, here.y)

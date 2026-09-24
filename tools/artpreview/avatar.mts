@@ -1,7 +1,7 @@
 /**
  * Renders avatar-pack frames with equipment layers to avatar.png (4× zoom) — review gear pixel art
  * without a browser.   npx tsx tools/artpreview/avatar.mts
- * Rows = outfits, columns = walk_front 0–3 · walk_back 0–3 · idle 0.
+ * Rows = outfits, columns = walk_front 0–3 · walk_back 0–3 · idle 0–3 (the standing animation).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,7 +36,7 @@ const S = 4;
 const cols: [string, number][] = [
   ['walk_front', 0], ['walk_front', 1], ['walk_front', 2], ['walk_front', 3],
   ['walk_back', 0], ['walk_back', 1], ['walk_back', 2], ['walk_back', 3],
-  ['idle', 0],
+  ['idle', 0], ['idle', 1], ['idle', 2], ['idle', 3],
 ];
 const CW = 48 * S + 8, CH = 64 * S + 8;
 const sheet = blank(cols.length * CW + 8, looks.length * CH + 8, [214, 222, 206]);

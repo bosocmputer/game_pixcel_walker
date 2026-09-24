@@ -30,7 +30,7 @@ export const SHOPS: Record<string, ShopDef> = {
     nameTh: 'ชั้นวางของในบ้าน',
     keeperTh: 'ของใช้จำเป็น',
     buys: false,
-    stock: ['red_potion', 'blue_elixir', 'cotton_shirt', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'lucky_cord', 'farmer_straw_hat'],
+    stock: ['red_potion', 'blue_elixir', 'leather_garb', 'training_sword', 'apprentice_staff', 'cloth_bandana', 'lucky_cord', 'farmer_straw_hat'],
   },
   general: {
     id: 'general',
@@ -38,7 +38,7 @@ export const SHOPS: Record<string, ShopDef> = {
     keeperTh: 'ป้าจันทร์',
     landmark: 'CONVENIENCE',
     buys: true,
-    stock: ['red_potion', 'blue_elixir', 'whetstone', 'farmer_straw_hat', 'bamboo_spear', 'jasmine_garland', 'indigo_farmer_shirt', 'lucky_cord'],
+    stock: ['red_potion', 'blue_elixir', 'whetstone', 'farmer_straw_hat', 'bamboo_spear', 'jasmine_garland', 'light_armor', 'lucky_cord'],
   },
   outfitter: {
     id: 'outfitter',
@@ -46,7 +46,7 @@ export const SHOPS: Record<string, ShopDef> = {
     keeperTh: 'คุณแก้วตา',
     landmark: 'MALL',
     buys: true,
-    stock: ['cotton_shirt', 'indigo_farmer_shirt', 'rattan_armor', 'cloth_bandana', 'iron_helm', 'bronze_helm', 'jasmine_garland', 'runner_charm', 'elephant_amulet'],
+    stock: ['leather_garb', 'light_armor', 'cloth_bandana', 'iron_helm', 'bronze_helm', 'jasmine_garland', 'runner_charm', 'elephant_amulet'],
   },
   market: {
     id: 'market',

@@ -150,44 +150,26 @@ def staff(head):
 # --------------------------------------------------------------------------------------------
 # Armour & clothes
 
-def cotton_shirt():
+def leather_garb():
+    """Starter outfit: a laced leather jerkin over a plain tunic (A01_starter_leather)."""
     s = canvas()
-    r = ramp("#e6d7b6", 5, hue_shift=14)
+    r = ramp("#8a5a32", 5, hue_shift=14)
     body = [(6, 4), (9, 3), (14, 3), (17, 4), (22, 9), (19, 12), (17, 10), (17, 21), (6, 21), (6, 10), (4, 12), (1, 9)]
     s.polygon(body, r[2])
     s.polygon([(7, 5), (9, 4), (11, 4), (9, 8), (7, 9), (7, 20), (6, 20), (6, 9)], r[3], only="opaque")  # lit left
     s.polygon([(15, 5), (16, 11), (16, 20), (13, 20)], r[1], only="opaque")  # shade right
     s.line(19, 11, 21, 9, r[1], only="opaque")
-    # V neck
+    # V neck with leather lacing
     s.polygon([(10, 3), (13, 3), (12, 7), (11, 7)], r[0])
-    s.px(11, 6, "#caa27a"); s.px(12, 6, "#caa27a")
-    # hem & stitches
+    for y in range(5, 12, 2):
+        s.px(10, y, "#e8d8a8", only="opaque"); s.px(13, y, "#e8d8a8", only="opaque")
+    # belt & hem stitching
+    belt = ramp("#4e3218", 4, hue_shift=12)
+    s.rect(6, 15, 17, 16, belt[2], only="opaque"); s.line(6, 15, 17, 15, belt[3], only="opaque")
+    s.px(11, 15, "#d8b46a"); s.px(12, 16, "#d8b46a")
     s.line(6, 20, 17, 20, r[1], only="opaque")
     for x in range(7, 17, 2):
         s.px(x, 18, r[1], only="opaque")
-    return finish(s)
-
-
-def fuel_plate():
-    s = canvas()
-    red = ramp("#c63a2e", 5, hue_shift=18)
-    gold = ramp("#f2c230", 4, hue_shift=20)
-    s.polygon([(4, 5), (9, 3), (14, 3), (19, 5), (20, 11), (18, 13), (18, 20), (5, 20), (5, 13), (3, 11)], red[2])
-    s.polygon([(5, 6), (9, 4), (11, 4), (8, 10), (6, 12), (6, 19), (5, 19), (5, 12)], red[3], only="opaque")
-    s.polygon([(16, 6), (19, 6), (19, 11), (17, 12), (17, 19), (14, 19)], red[1], only="opaque")
-    # pauldrons
-    s.ellipse(2, 4, 7, 9, gold[2]); s.ellipse(16, 4, 21, 9, gold[1])
-    s.px(3, 5, gold[3]); s.px(4, 5, gold[3]); s.px(17, 5, gold[2])
-    # neck ring + belt
-    s.line(9, 4, 14, 4, gold[1]); s.line(10, 5, 13, 5, red[0])
-    s.line(5, 17, 18, 17, gold[1]); s.px(11, 17, gold[3]); s.px(12, 17, gold[3])
-    # fuel-drop emblem
-    for x, y in ((11, 8), (11, 9), (12, 9), (10, 10), (11, 10), (12, 10), (10, 11), (11, 11), (12, 11), (11, 12)):
-        s.px(x, y, gold[2])
-    s.px(10, 10, gold[3]); s.px(12, 11, gold[0])
-    # rivets
-    for x, y in ((7, 14), (16, 14), (7, 19), (16, 19)):
-        s.px(x, y, gold[3])
     return finish(s)
 
 
@@ -417,31 +399,27 @@ def shirt_shape(s, r):
     s.polygon([(15, 5), (16, 11), (16, 20), (13, 20)], r[1], only="opaque")
 
 
-def indigo_farmer_shirt():
+def light_armor():
+    """Steel breastplate strapped over the leather garb (A02_light_armor)."""
     s = canvas()
-    r = ramp("#2a3a88", 5, hue_shift=16)
-    shirt_shape(s, r)
-    s.line(1, 9, 4, 12, r[3], only="opaque"); s.line(19, 12, 22, 9, r[1], only="opaque")   # long sleeves
-    s.polygon([(10, 3), (13, 3), (12, 5), (11, 5)], r[0])                                   # round neck
-    for y in range(6, 15, 3):
-        s.px(12, y, "#e8e4f0")                                                              # buttons
-    red = ramp("#c8423a", 4, hue_shift=18)
-    s.rect(6, 15, 17, 16, red[2]); s.line(6, 15, 17, 15, red[3])                           # sash
-    s.line(16, 17, 18, 20, red[1]); s.line(15, 17, 16, 20, red[2])
-    return finish(s)
-
-
-def rattan_armor():
-    s = canvas()
-    r = ramp("#c8a060", 5, hue_shift=16)
-    s.polygon([(4, 5), (9, 3), (14, 3), (19, 5), (20, 11), (18, 13), (18, 20), (5, 20), (5, 13), (3, 11)], r[2])
-    for y in range(5, 20, 2):                                                               # woven rows
-        for x in range(4, 20):
-            if (x + y // 2) % 3 == 0:
-                s.px(x, y, r[1], only="opaque")
-    s.polygon([(5, 6), (9, 4), (10, 4), (7, 10), (6, 12), (6, 19), (5, 19)], r[3], only="opaque")
-    s.ellipse(2, 4, 7, 9, r[3]); s.ellipse(16, 4, 21, 9, r[1])                              # shoulder guards
-    s.line(9, 4, 14, 4, "#6a4424"); s.line(5, 17, 18, 17, "#6a4424")
+    steel = ramp("#8d97a6", 5, hue_shift=16)
+    hide = ramp("#7a4e28", 4, hue_shift=12)
+    # leather under-layer peeking out at the sleeves and hem
+    s.polygon([(4, 5), (9, 3), (14, 3), (19, 5), (22, 10), (19, 13), (18, 21), (5, 21), (4, 13), (1, 10)], hide[2])
+    s.line(1, 10, 4, 13, hide[3], only="opaque"); s.line(19, 13, 22, 10, hide[1], only="opaque")
+    # steel plate
+    s.polygon([(5, 6), (9, 4), (14, 4), (18, 6), (18, 12), (17, 18), (6, 18), (5, 12)], steel[2])
+    s.polygon([(6, 7), (9, 5), (11, 5), (8, 11), (7, 13), (7, 17), (6, 17)], steel[3], only="opaque")
+    s.polygon([(15, 7), (17, 7), (17, 12), (16, 17), (13, 17)], steel[1], only="opaque")
+    s.line(11, 6, 11, 17, steel[3], only="opaque")   # centre ridge
+    s.line(12, 6, 12, 17, steel[1], only="opaque")
+    # pauldrons + rivets + belt
+    s.ellipse(2, 4, 7, 9, steel[2]); s.ellipse(16, 4, 21, 9, steel[1])
+    s.px(3, 5, steel[3]); s.px(4, 5, steel[3]); s.px(17, 5, steel[2])
+    for x, y in ((7, 8), (16, 8), (7, 16), (16, 16)):
+        s.px(x, y, steel[3], only="opaque")
+    s.line(5, 19, 18, 19, hide[1], only="opaque")
+    s.px(11, 19, "#d8b46a"); s.px(12, 19, "#d8b46a")
     return finish(s)
 
 
@@ -817,7 +795,7 @@ def relic_fragment():
 
 
 ICONS = {
-    "cotton_shirt": cotton_shirt,
+    "leather_garb": leather_garb,
     "training_sword": training_sword,
     "apprentice_staff": lambda: staff("knob"),
     "cloth_bandana": cloth_bandana,
@@ -825,7 +803,7 @@ ICONS = {
     "convenience_club": convenience_club,
     "starlight_staff": lambda: staff("star"),
     "iron_helm": iron_helm,
-    "fuel_plate": fuel_plate,
+    "light_armor": light_armor,
     "lucky_cord": lucky_cord,
     "runner_charm": runner_charm,
     "aegis_pendant": aegis_pendant,
@@ -838,8 +816,6 @@ ICONS = {
     "lanna_dagger": lanna_dagger,
     "naga_staff": naga_staff,
     "moat_guard_sword": moat_guard_sword,
-    "indigo_farmer_shirt": indigo_farmer_shirt,
-    "rattan_armor": rattan_armor,
     "farmer_straw_hat": farmer_straw_hat,
     "bronze_helm": bronze_helm,
     "jasmine_garland": jasmine_garland,

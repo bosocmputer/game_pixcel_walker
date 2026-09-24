@@ -22,9 +22,24 @@ export interface GearLook {
   helmet?: string;
   chest?: string;
   weapon?: string;
-  /** OUTFIT_COLORS index — dyes cloth tops. */
+  /** OUTFIT_COLORS index — legacy shirt dye, only used by the procedural fallback outfits. */
   outfit?: number;
   gender?: 'male' | 'female';
+}
+
+/**
+ * Chest sprites that ship as hand-drawn layers in the avatar pack (`assets/avatar/outfit/<id>/`)
+ * instead of being painted from the body's pixels. The pack art already includes trousers, shoes,
+ * gloves and collar, so those layers are skipped when one is worn. Chest keys missing here fall
+ * back to the procedural clothes below, which is also what the 16×24 avatar uses.
+ */
+export const PACK_OUTFITS: Record<string, string> = {
+  chest_leather_01: 'A01_starter_leather',
+  chest_armor_01: 'A02_light_armor',
+};
+
+export function packOutfitId(chest?: string): string | null {
+  return (chest && PACK_OUTFITS[chest]) ?? null;
 }
 
 type RGB = [number, number, number];
@@ -249,44 +264,25 @@ interface ClothDef {
   feet?: string;
 }
 
+/** Fallback looks for the two outfits, used when the avatar pack is off (16×24 hero). */
 const CHEST: Record<string, ClothDef> = {
-  chest_cotton_01: {
-    ramp: (l) => ramp(OUTFIT_DYES[l.outfit ?? 0] ?? OUTFIT_DYES[0]!),
+  chest_leather_01: {
+    ramp: () => ramp('#8a5a32'),
     sleeves: 'short',
     hem: 2,
     collar: 'v',
-    belt: '#7a5a34',
+    belt: '#4e3218',
     feet: 'boots_sandal_01',
   },
-  plate_fuel_01: {
-    ramp: () => ramp('#c63a2e', 0.7, 0.32, 0.35),
+  chest_armor_01: {
+    ramp: () => ramp('#8d97a6', 0.72, 0.3, 0.4),
     sleeves: 'long',
     hem: 1,
     collar: 'round',
-    belt: '#3a3f48',
-    trim: '#f2c230',
-    rivets: '#f7e27a',
-    emblem: 'drop',
+    belt: '#4a3a24',
+    rivets: '#dfe6ee',
     pauldrons: true,
     feet: 'boots_greave_01',
-  },
-  chest_mohom_01: {
-    ramp: () => ramp('#2a3a88', 0.72, 0.3, 0.4),
-    sleeves: 'long',
-    hem: 2,
-    collar: 'round',
-    belt: '#c8423a',
-    feet: 'boots_sandal_01',
-  },
-  chest_rattan_01: {
-    ramp: () => ramp('#c8a060'),
-    sleeves: 'short',
-    hem: 1,
-    collar: 'round',
-    belt: '#6a4424',
-    rivets: '#8a5a2e',
-    pauldrons: true,
-    feet: 'boots_sandal_01',
   },
 };
 
@@ -587,19 +583,22 @@ export const GEAR_SPRITES = new Set([...Object.keys(CHEST), ...Object.keys(HELMS
 
 /** Stable cache key for a gear look. */
 export function gearKey(g: GearLook): string {
-  return [g.gender ?? '', g.helmet ?? '', g.chest ?? '', g.chest === 'chest_cotton_01' ? (g.outfit ?? 0) : '', g.weapon ?? ''].join('|');
+  const dyed = g.chest && !PACK_OUTFITS[g.chest] ? (g.outfit ?? 0) : '';
+  return [g.gender ?? '', g.helmet ?? '', g.chest ?? '', dyed, g.weapon ?? ''].join('|');
 }
 
 /**
  * Composite one avatar frame.
  * @param body raw grey mannequin frame; @param hair raw hair tone map (same cell)
  * @param out  destination (same size) — receives skin → clothes → hair → helmet → held items
+ * @param opts.outfit full-colour pack layer for this frame; when given it replaces the painted
+ *                    legwear/boots/chest instead of being drawn on top of them.
  */
 export function composeAvatar(
   body: Pixels,
   hair: Pixels | null,
   out: Pixels,
-  opts: { skin: { shadow: string; base: string }; hairRamp: string[]; gear: GearLook },
+  opts: { skin: { shadow: string; base: string }; hairRamp: string[]; gear: GearLook; outfit?: Pixels | null },
 ) {
   const cls = classify(body);
   const a = analyzeBody(body, cls);
@@ -618,10 +617,23 @@ export function composeAvatar(
     else if (c === BASE) p.set(x, y, ba);
     else p.set(x, y, [body.data[i * 4]!, body.data[i * 4 + 1]!, body.data[i * 4 + 2]!]);
   }
-  // 2. Clothes under the hair
-  paintLegwear(p, a, opts.gear);
-  paintBoots(p, a, opts.gear);
-  paintChest(p, a, opts.gear);
+  // 2. Clothes under the hair: a pack outfit is drawn as-is (it already covers legs and feet),
+  //    everything else is painted from the body's own pixels.
+  const packOutfit = packOutfitId(opts.gear.chest) ? opts.outfit : null;
+  if (packOutfit) {
+    for (let i = 0; i < Math.min(packOutfit.width * packOutfit.height, out.width * out.height); i++) {
+      if (packOutfit.data[i * 4 + 3]! < 128) continue;
+      p.set(i % packOutfit.width, Math.floor(i / packOutfit.width), [
+        packOutfit.data[i * 4]!,
+        packOutfit.data[i * 4 + 1]!,
+        packOutfit.data[i * 4 + 2]!,
+      ]);
+    }
+  } else {
+    paintLegwear(p, a, opts.gear);
+    paintBoots(p, a, opts.gear);
+    paintChest(p, a, opts.gear);
+  }
   // 3. Hair (tone map: level = round(grey / 40), ramp[min(level, 5)])
   let hairTop = a.top;
   if (hair) {

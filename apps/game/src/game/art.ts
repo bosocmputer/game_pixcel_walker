@@ -559,8 +559,8 @@ export function monsterCanvas(sprite: string): HTMLCanvasElement {
 
 /** Paperdoll colors per equipped item sprite key. */
 const GEAR_COLORS: Record<string, string> = {
-  chest_cotton_01: '#e8dcc0',
-  plate_fuel_01: '#f0c028',
+  chest_leather_01: '#8a5a32',
+  chest_armor_01: '#8d97a6',
   plate_dragon_01: '#c83030',
   helm_iron_02: '#a0a8b4',
   weapon_wood_01: '#a8743c',
@@ -636,15 +636,15 @@ export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0): HT
   }
 
   const skin = SKIN_TONES[ap.skin] ?? SKIN_TONES[0]!;
-  const outfit = OUTFIT_COLORS[ap.outfit] ?? OUTFIT_COLORS[0]!;
+  const cloth = (p.chest && GEAR_COLORS[p.chest]) ?? OUTFIT_COLORS[0]!;
   const naked = !p.chest;
   const pal: Palette = {
     h: p.helmet ? GEAR_COLORS[p.helmet] ?? '#a0a8b4' : HAIR_COLORS[ap.hairColor] ?? HAIR_COLORS[0]!,
     s: skin,
     e: '#1c1c28',
-    // The starter cotton shirt is dyed in the player's chosen outfit colour.
-    c: naked ? skin : p.chest === 'chest_cotton_01' ? outfit : GEAR_COLORS[p.chest!] ?? outfit,
-    a: naked ? skin : p.chest === 'chest_cotton_01' ? mul(hexRgb(outfit), 0.8).map((v) => v.toString(16).padStart(2, '0')).reduce((a, v) => a + v, '#') : outfit,
+    // Outfits have fixed colours (the pack art cannot be dyed); shading is derived from the base.
+    c: naked ? skin : cloth,
+    a: naked ? skin : mul(hexRgb(cloth), 0.8).map((v) => v.toString(16).padStart(2, '0')).reduce((a, v) => a + v, '#'),
     g: naked ? skin : '#5a3a22',
     p: naked ? '#ffffff' : '#2b3a67',
     b: '#6a4424',

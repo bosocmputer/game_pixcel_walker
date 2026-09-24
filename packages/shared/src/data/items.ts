@@ -61,18 +61,18 @@ export interface MaterialDef {
 }
 
 export const EQUIPMENT: Record<string, EquipmentDef> = {
-  cotton_shirt: {
-    id: 'cotton_shirt',
-    name: 'Raw Cotton Shirt',
-    nameTh: 'เสื้อผ้าฝ้ายดิบ',
+  leather_garb: {
+    id: 'leather_garb',
+    name: 'Starter Leather Garb',
+    nameTh: 'ชุดหนังนักเดินทาง',
     slot: 'chest',
     rarity: 'COMMON',
-    sprite: 'chest_cotton_01',
-    modifiers: { flat: { def: 2 } },
+    sprite: 'chest_leather_01',
+    modifiers: { flat: { def: 5, maxHp: 20 } },
     maxDurability: 50,
     price: 150,
     level: 1,
-    lore: 'ทอจากฝ้ายดิบริมแม่ปิง หยาบแต่ทน เป็นเสื้อตัวแรกของนักเดินทางแทบทุกคน',
+    lore: 'ชุดหนังฟอกของช่างหนังในกาดเก่า เย็บเองทั้งตัวตั้งแต่เสื้อยันรองเท้า สมาคมแจกให้ Walker ทุกคนที่เพิ่งตื่นรู้',
   },
   training_sword: {
     id: 'training_sword',
@@ -167,20 +167,6 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     price: 300,
     level: 5,
     lore: 'หมวกเหล็กของทหารยามประตูเมืองสมัยก่อน รอยบุบทุกรอยมีเรื่องเล่า',
-  },
-  fuel_plate: {
-    id: 'fuel_plate',
-    name: 'Gas Station Fuel Plate',
-    nameTh: 'เกราะหัวจ่ายน้ำมัน',
-    slot: 'chest',
-    rarity: 'EPIC',
-    sprite: 'plate_fuel_01',
-    modifiers: { flat: { def: 65, vit: 12 } },
-    effect: 'เมื่อถูกโจมตี มีโอกาสระเบิดไฟใส่ศัตรูรอบตัว',
-    maxDurability: 200,
-    price: 3500,
-    level: 22,
-    lore: 'เกราะที่ตีจากถังของหุ่นยนต์หัวจ่ายน้ำมันผู้บ้าคลั่ง ยังได้กลิ่นน้ำมันจาง ๆ',
   },
   lucky_cord: {
     id: 'lucky_cord',
@@ -288,31 +274,18 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     level: 18,
     lore: 'ดาบของทหารยามประจำแจ่งมุมกำแพงเมือง ส่งต่อกันมาหลายรุ่น ด้ามถูกพันเชือกใหม่ทุกครั้งที่เปลี่ยนมือ',
   },
-  indigo_farmer_shirt: {
-    id: 'indigo_farmer_shirt',
-    name: 'Indigo Farmer Shirt',
-    nameTh: 'เสื้อม่อฮ่อม',
+  light_armor: {
+    id: 'light_armor',
+    name: 'Light Armor',
+    nameTh: 'ชุดเกราะเบา',
     slot: 'chest',
     rarity: 'UNCOMMON',
-    sprite: 'chest_mohom_01',
-    modifiers: { flat: { def: 8, maxHp: 40, agi: 2 } },
-    maxDurability: 80,
-    price: 420,
+    sprite: 'chest_armor_01',
+    modifiers: { flat: { def: 18, maxHp: 60, vit: 3 } },
+    maxDurability: 120,
+    price: 450,
     level: 5,
-    lore: 'เสื้อย้อมครามแบบคนเหนือ ยิ่งซักยิ่งนุ่ม ใส่ทำนาทั้งวันก็ไม่ร้อน ผ้าคาดเอวแดงผูกไว้กันหลงทาง',
-  },
-  rattan_armor: {
-    id: 'rattan_armor',
-    name: 'Woven Rattan Armor',
-    nameTh: 'เกราะหวายสาน',
-    slot: 'chest',
-    rarity: 'RARE',
-    sprite: 'chest_rattan_01',
-    modifiers: { flat: { def: 26, vit: 4, maxHp: 60 } },
-    maxDurability: 150,
-    price: 1400,
-    level: 12,
-    lore: 'เกราะหวายสานแน่นหลายชั้นแบบทหารเมืองโบราณ เบากว่าเหล็กครึ่งหนึ่งแต่รับคมดาบได้ดีไม่แพ้กัน',
+    lore: 'เกราะแผ่นบางรัดทับเสื้อหนัง ตีจากเศษเหล็กที่ร่วงจากรอยแยก ช่างประจำสมาคมบอกว่าใส่วิ่งหนีได้ ไม่หนักจนขยับไม่ออก',
   },
   farmer_straw_hat: {
     id: 'farmer_straw_hat',
@@ -473,18 +446,23 @@ export const MATERIALS: Record<string, MaterialDef> = {
 export const STARTER_BUDGET = 500;
 export const STARTER_GEAR: { slot: EquipSlot; items: string[] }[] = [
   { slot: 'helmet', items: ['cloth_bandana'] },
-  { slot: 'chest', items: ['cotton_shirt'] },
+  { slot: 'chest', items: ['leather_garb'] },
   { slot: 'weapon', items: ['training_sword', 'apprentice_staff'] },
   { slot: 'accessory', items: ['lucky_cord'] },
 ];
 /**
- * Items removed when the slots were cut to four (2026-09-23). Old saves: id → replacement id,
- * or null = refunded as Gold at the old shop price.
+ * Items removed when the slots were cut to four (2026-09-23) and when the chest slot was cut to the
+ * two pack outfits (2026-09-24). Old saves: id → replacement id, or null = refunded as Gold at the
+ * old shop price. Removed chest gear becomes the light armor plus the price difference in Gold.
  */
 export const LEGACY_ITEMS: Record<string, { to: string | null; refund: number }> = {
   runner_sneakers: { to: 'runner_charm', refund: 0 },
   aegis_shield: { to: 'aegis_pendant', refund: 0 },
   straw_sandals: { to: null, refund: 50 },
+  cotton_shirt: { to: 'leather_garb', refund: 0 },
+  indigo_farmer_shirt: { to: 'light_armor', refund: 0 },
+  rattan_armor: { to: 'light_armor', refund: 950 },
+  fuel_plate: { to: 'light_armor', refund: 3050 },
 };
 
 /** Optional potion pack bought with the starter budget. */

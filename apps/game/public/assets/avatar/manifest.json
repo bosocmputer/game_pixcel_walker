@@ -12,8 +12,16 @@
   "facing": "All frames face RIGHT. walk_front = walking toward the camera (down-right), walk_back = walking away (up-right). Mirror horizontally for left.",
   "draw_order": [
     "body",
+    "outfit",
     "hair"
   ],
+  "outfits": {
+    "note": "Full-colour RGBA outfit layers (shirt + trousers + shoes + gloves + collar, unisex). Never recolour them; the tone map for dyeing comes later. One PNG per body frame: outfit/<id>/<same file name as frame.body>.",
+    "ids": [
+      "A01_starter_leather",
+      "A02_light_armor"
+    ]
+  },
   "body": {
     "frames": [
       "move_0.png",
@@ -31,6 +39,8 @@
       "wait_12.png",
       "wait_2.png",
       "wait_3.png",
+      "wait_4.png",
+      "wait_5.png",
       "wait_6.png",
       "wait_7.png",
       "wait_8.png",

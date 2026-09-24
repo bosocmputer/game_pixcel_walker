@@ -39,7 +39,7 @@ for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
   const gx = x0 + tx, gy = y0 + ty;
   drawTile(mctx as any, atlas, tile(gx, gy), (gx * 7 + gy * 13) % 4, (dx: number, dy: number) => tile(gx + dx, gy + dy), tx * TILE_PX, ty * TILE_PX);
 }
-const hero = heroCanvas({ classId: 'KNIGHT', chest: 'chest_cotton_01', weapon: 'weapon_broadsword_01', helmet: 'helm_iron_02', boots: 'boots_runner_01' });
+const hero = heroCanvas({ classId: 'KNIGHT', chest: 'chest_leather_01', weapon: 'weapon_broadsword_01', helmet: 'helm_iron_02', boots: 'boots_runner_01' });
 mctx.drawImage(hero as any, (W / 2) * TILE_PX - 9, (H / 2) * TILE_PX - 22);
 
 const mobs = ['mob_slime', 'mob_rat', 'mob_dog', 'mob_carp', 'mob_leaf', 'mob_songthaew', 'mob_bat', 'mob_lizard', 'mob_wraith', 'mob_sapling', 'boss_goblin_king', 'boss_octane', 'boss_treant'];
@@ -52,8 +52,8 @@ o.drawImage(map, 0, 0, map.width * S, map.height * S);
 let x = 8;
 const heroes = [
   heroCanvas({ classId: 'NOVICE' }),
-  heroCanvas({ classId: 'NOVICE', chest: 'chest_cotton_01', weapon: 'weapon_wood_01' }),
-  heroCanvas({ classId: 'SORCERER', chest: 'chest_cotton_01', weapon: 'weapon_staff_star_01', aura: 'aura_pure_int' }),
+  heroCanvas({ classId: 'NOVICE', chest: 'chest_leather_01', weapon: 'weapon_wood_01' }),
+  heroCanvas({ classId: 'SORCERER', chest: 'chest_leather_01', weapon: 'weapon_staff_star_01', aura: 'aura_pure_int' }),
   hero,
 ];
 for (const h of heroes) { o.drawImage(h as any, x, H * TILE_PX * S + 8, h.width * 4, h.height * 4); x += h.width * 4 + 8; }

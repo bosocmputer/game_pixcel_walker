@@ -65,7 +65,11 @@ export function migrateLegacyGear(save: {
     if (valid) continue;
     delete save.equipment[slot];
     const c = convert(it);
-    if (c) moved.push(c);
+    if (!c) continue;
+    // A replacement for the same slot stays worn (retired outfits → the new one), anything else
+    // — gear from a slot that no longer exists — goes back to the bag.
+    if ((EQUIP_SLOTS as string[]).includes(slot) && EQUIPMENT[c.itemId]?.slot === slot) save.equipment[slot] = c;
+    else moved.push(c);
   }
   save.gearBag = [...save.gearBag.map(convert).filter((x): x is { itemId: string; durability: number } => !!x), ...moved];
   return refund;

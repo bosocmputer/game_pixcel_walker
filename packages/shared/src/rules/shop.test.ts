@@ -54,15 +54,17 @@ describe('items', () => {
     expect(meetsLevel('elephant_amulet', 19)).toBe(false);
     expect(meetsLevel('elephant_amulet', 20)).toBe(true);
     expect(meetsLevel('red_potion', 1)).toBe(true);
-    expect(meetsLevel('cotton_shirt', 1)).toBe(true);
+    expect(meetsLevel('leather_garb', 1)).toBe(true);
+    expect(meetsLevel('light_armor', 4)).toBe(false);
+    expect(meetsLevel('light_armor', 5)).toBe(true);
   });
 });
 
 describe('selling', () => {
   it('pays full value for junk, 30% for gear, half that when broken', () => {
     expect(sellPrice('slime_goo')).toBe(MATERIALS.slime_goo!.price);
-    expect(sellPrice('rattan_armor', 150)).toBe(Math.floor(1400 * SELL_RATE_GEAR));
-    expect(sellPrice('rattan_armor', 0)).toBe(Math.floor(1400 * SELL_RATE_GEAR * 0.5));
+    expect(sellPrice('light_armor', 120)).toBe(Math.floor(450 * SELL_RATE_GEAR));
+    expect(sellPrice('light_armor', 0)).toBe(Math.floor(450 * SELL_RATE_GEAR * 0.5));
     expect(sellPrice('red_potion')).toBeGreaterThanOrEqual(1);
     expect(sellPrice('red_potion')).toBeLessThan(CONSUMABLES.red_potion!.price);
     expect(sellPrice('nope')).toBe(0);

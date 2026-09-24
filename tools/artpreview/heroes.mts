@@ -19,7 +19,7 @@ looks.forEach((appearance, row) => {
   let x = 10;
   for (const f of facings) {
     for (let frame = 0; frame < 3; frame++) {
-      const c = heroCanvas({ classId: 'NOVICE', appearance, chest: 'chest_cotton_01', weapon: 'weapon_wood_01' }, f, frame);
+      const c = heroCanvas({ classId: 'NOVICE', appearance, chest: 'chest_leather_01', weapon: 'weapon_wood_01' }, f, frame);
       o.drawImage(c as any, x, 10 + row * 30 * S, c.width * S, c.height * S);
       x += 20 * S;
     }

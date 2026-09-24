@@ -19,7 +19,7 @@ import {
   type StarterLoadout,
   type Stats,
 } from '@pw/shared';
-import { DEFAULT_APPEARANCE, HAIR_COLORS, HAIR_STYLES, OUTFIT_COLORS, SKIN_TONES, type Appearance, type Gender, type Paperdoll } from '../game/art';
+import { DEFAULT_APPEARANCE, HAIR_COLORS, HAIR_STYLES, SKIN_TONES, type Appearance, type Gender, type Paperdoll } from '../game/art';
 import { getDefaultStyleForGender, getHairSwatchColors, getSkinSwatchColors, getStylesForGender, isAvatarPackLoaded, USE_AVATAR_PACK } from '../game/avatar';
 import { el, esc } from './dom';
 import { uiIcon } from './pixel';
@@ -60,7 +60,6 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
       </div>
       <div class="opt-row"><span>สีผม</span><div class="swatches" data-sw="hairColor"></div></div>
       <div class="opt-row"><span>สีผิว</span><div class="swatches" data-sw="skin"></div></div>
-      <div class="opt-row outfit-row"><span>สีเสื้อ</span><div class="swatches" data-sw="outfit"></div></div>
       <button class="btn" data-random>${uiIcon('star', true)}สุ่มหน้าตา</button>
     </div>
     <div class="starter">
@@ -141,15 +140,12 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
       }),
     );
     view.querySelector('[data-gold]')!.textContent = String(starterGold(loadout));
-    // The shirt dye only matters when wearing a cloth top.
-    view.querySelector('.outfit-row')!.classList.toggle('off', loadout.gear.chest !== 'cotton_shirt');
   };
 
   // --- Appearance ----------------------------------------------------------------------------
+  // Outfits are hand-drawn art now, so there is no shirt dye to pick — only hair and skin.
   const palettes = (): Record<string, string[]> =>
-    pack()
-      ? { hairColor: getHairSwatchColors(), skin: getSkinSwatchColors(), outfit: OUTFIT_COLORS }
-      : { hairColor: HAIR_COLORS, skin: SKIN_TONES, outfit: OUTFIT_COLORS };
+    pack() ? { hairColor: getHairSwatchColors(), skin: getSkinSwatchColors() } : { hairColor: HAIR_COLORS, skin: SKIN_TONES };
 
   const renderLooks = () => {
     const gender = ap.gender ?? 'male';
@@ -216,7 +212,6 @@ export function showCreator(root: HTMLElement, onDone: (name: string, ap: Appear
       ap.hairColor = r(HAIR_COLORS.length);
       ap.skin = r(SKIN_TONES.length);
     }
-    ap.outfit = r(OUTFIT_COLORS.length);
     renderLooks();
   });
 

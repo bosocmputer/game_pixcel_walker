@@ -25,11 +25,11 @@ describe('starter loadout (character creator)', () => {
 
   it('skipping an item refunds exactly its shop price', () => {
     const noShirt = { ...STARTER_FULL, gear: { ...STARTER_FULL.gear, chest: null } };
-    expect(starterGold(noShirt) - starterGold(STARTER_FULL)).toBe(EQUIPMENT.cotton_shirt!.price);
+    expect(starterGold(noShirt) - starterGold(STARTER_FULL)).toBe(EQUIPMENT.leather_garb!.price);
   });
 
   it('only offers each item in its own slot and rejects anything else', () => {
-    const cheat = { gear: { weapon: 'starlight_staff', chest: 'fuel_plate', helmet: 'cotton_shirt' }, potions: false };
+    const cheat = { gear: { weapon: 'starlight_staff', chest: 'light_armor', helmet: 'leather_garb' }, potions: false };
     expect(sanitizeStarter(cheat).gear).toEqual({});
     expect(starterCost(cheat)).toBe(0);
     for (const { slot, items } of STARTER_GEAR) for (const id of items) expect(EQUIPMENT[id]?.slot, id).toBe(slot);
@@ -69,8 +69,35 @@ describe('four equipment slots', () => {
     };
     const refund = migrateLegacyGear(save);
     expect(refund).toBe(50);
+    // The retired starter shirt is replaced in place, so the player is not undressed by an update.
     expect(Object.keys(save.equipment)).toEqual(['chest']);
+    expect(save.equipment.chest).toEqual({ itemId: 'leather_garb', durability: EQUIPMENT.leather_garb!.maxDurability });
     expect(save.gearBag.map((g) => g.itemId)).toEqual(['iron_helm', 'runner_charm', 'aegis_pendant']);
     expect(migrateLegacyGear(save)).toBe(0); // idempotent
+  });
+});
+
+describe('chest slot: two outfits only (2026-09-24)', () => {
+  it('has exactly the leather garb (Lv.1) and the light armor (Lv.5)', () => {
+    const chest = Object.values(EQUIPMENT).filter((e) => e.slot === 'chest');
+    expect(chest.map((e) => e.id).sort()).toEqual(['leather_garb', 'light_armor']);
+    expect(EQUIPMENT.leather_garb!.level).toBe(1);
+    expect(EQUIPMENT.light_armor!.level).toBe(5);
+    // The armor must be the clear upgrade, or there is no reason to save up for it.
+    expect(EQUIPMENT.light_armor!.modifiers.flat!.def!).toBeGreaterThan(EQUIPMENT.leather_garb!.modifiers.flat!.def!);
+  });
+
+  it('the starter outfit is the one wearable at level 1', () => {
+    const starter = STARTER_GEAR.find((g) => g.slot === 'chest')!;
+    expect(starter.items).toEqual(['leather_garb']);
+    for (const id of starter.items) expect(EQUIPMENT[id]!.level ?? 1).toBe(1);
+  });
+
+  it('retired outfits convert to the light armor', () => {
+    for (const id of ['cotton_shirt', 'indigo_farmer_shirt', 'rattan_armor', 'fuel_plate']) {
+      const legacy = LEGACY_ITEMS[id];
+      expect(legacy, id).toBeDefined();
+      expect(EQUIPMENT[legacy!.to!]!.slot).toBe('chest');
+    }
   });
 });

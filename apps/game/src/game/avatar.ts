@@ -4,7 +4,7 @@
  * Stacks body, equipment and hair layers (pixel work in `gear.ts`), recolors skin and hair tones
  * according to HANDOFF.md, and caches rendered frames as offscreen canvases.
  */
-import { composeAvatar, gearKey, type GearLook } from './gear';
+import { composeAvatar, gearKey, packOutfitId, type GearLook } from './gear';
 
 export const USE_AVATAR_PACK = true;
 
@@ -48,6 +48,8 @@ export interface AvatarManifest {
   hair_tone_encoding: string;
   hair_color_ramps: Record<string, string[]>;
   styles: AvatarStyle[];
+  /** Hand-drawn outfit layers: one PNG per body frame under outfit/<id>/. */
+  outfits?: { note: string; ids: string[] };
 }
 
 export const AVATAR_CELL_W = 48;
@@ -97,6 +99,7 @@ export async function loadAvatarPack(baseUrl = '/assets/avatar'): Promise<Avatar
   const urls = new Set<string>();
   for (const b of data.body.frames) {
     urls.add(`${baseUrl}/body/${b}`);
+    for (const id of data.outfits?.ids ?? []) urls.add(`${baseUrl}/outfit/${id}/${b}`);
   }
   for (const style of data.styles) {
     for (const anim of Object.values(style.anims)) {
@@ -202,11 +205,15 @@ export function compositeAvatar(
   const skinTones = getSkinTones();
   const rampKeys = getHairRampKeys();
   const hairRamp = getHairColorRamps()[rampKeys[hairColorIdx] ?? rampKeys[0] ?? 'black'] ?? ['#000000'];
+  // Outfit frames are named after the body frame they cover (HANDOFF.md), never after the anim index.
+  const outfitId = packOutfitId(gear.chest);
+  const outfit = outfitId ? rawPixels(`${baseUrl}/outfit/${outfitId}/${bodyPath.split('/').pop()}`) : null;
   const out = ctx.createImageData(AVATAR_CELL_W, AVATAR_CELL_H);
   composeAvatar(body, rawPixels(`${baseUrl}/${hairPath}`), out, {
     skin: skinTones[skinIdx] ?? skinTones[0]!,
     hairRamp,
     gear,
+    outfit,
   });
   ctx.putImageData(out, 0, 0);
   canvasCache.set(cacheKey, canvas);

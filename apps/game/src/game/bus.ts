@@ -30,6 +30,12 @@ export interface BusEvents {
   'run:end': { runId: string };
   /** A chat line arrived from the server (before mute filtering). */
   'chat:recv': ChatLine;
+  /** The admin-placed map pins changed (server or offline cache). */
+  pins: { pins: Landmark[] };
+  /** Server answer to an admin key. */
+  admin: { ok: boolean };
+  /** Admin mode or pin placement changed (UI refresh). */
+  'admin:changed': { isAdmin: boolean };
   /** A chat line to show (ours or someone else's): log + speech bubble. */
   'chat': ChatLine & { mine: boolean };
 }

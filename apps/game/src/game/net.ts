@@ -4,7 +4,7 @@
  * Also carries parties and dungeon runs (see apps/server).
  * Add `?player=2` to the URL to run a second, distinct player in another tab for testing.
  */
-import { PARTY_RANGE_M, PRESENCE_PATH, haversine, type ChatChannel, type ClientMsg, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type RunTarget, type ServerMsg } from '@pw/shared';
+import { PARTY_RANGE_M, PRESENCE_PATH, haversine, type ChatChannel, type ClientMsg, type PinDraft, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type RunTarget, type ServerMsg } from '@pw/shared';
 import { bus, toast } from './bus';
 import { paperdollOf } from './paperdoll';
 import { playerSetup } from './party';
@@ -80,6 +80,18 @@ class Net {
 
   sendChat(text: string, channel: ChatChannel) {
     this.send({ t: 'chat', text, channel });
+  }
+
+  adminLogin(key: string) {
+    this.send({ t: 'admin:login', key });
+  }
+
+  addPin(key: string, pin: PinDraft) {
+    this.send({ t: 'pin:add', key, pin });
+  }
+
+  removePin(key: string, id: string) {
+    this.send({ t: 'pin:del', key, id });
   }
 
   kick(id: string) {
@@ -203,6 +215,12 @@ class Net {
         break;
       case 'chat':
         bus.emit('chat:recv', { from: msg.from, name: msg.name, text: msg.text, channel: msg.channel, at: msg.at });
+        break;
+      case 'pins':
+        bus.emit('pins', { pins: msg.pins });
+        break;
+      case 'admin':
+        bus.emit('admin', { ok: msg.ok });
         break;
       case 'run:prepare': {
         this.pendingRun = { id: msg.runId, target: msg.target };

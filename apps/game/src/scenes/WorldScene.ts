@@ -16,6 +16,7 @@ import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
+import { admin } from '../game/admin';
 import { ChatBubbles } from './chatBubbles';
 import { PIN_FILES, RIFT_FRAMES, hasPixelSprite, pixelImage } from '../game/sprites';
 import { net } from '../game/net';
@@ -120,6 +121,7 @@ export class WorldScene extends Phaser.Scene {
       bus.on('home:enter', () => this.enterHome()),
       bus.on('players', ({ players }) => this.remotes.sync(players)),
       bus.on('chat', (line) => this.bubbles.show(line.mine ? 'me' : line.from, line.text, line.channel)),
+      bus.on('pins', () => this.refreshNear()),
       bus.on('zoom', ({ delta }) => (delta === 0 ? resetNorth() : zoomBy(delta * 0.5))),
     );
     this.events.once('shutdown', () => this.unsubs.forEach((u) => u()));
@@ -130,7 +132,9 @@ export class WorldScene extends Phaser.Scene {
 
     // The Phaser canvas lets pointer events through to the map, so taps come from MapLibre.
     const map = getMap();
-    const onTap = (e: { point: { x: number; y: number } }) => this.onTap(e.point.x, e.point.y);
+    // Admin placing a pin: the tap chooses its spot instead of starting a fight.
+    const onTap = (e: { point: { x: number; y: number }; lngLat: { lat: number; lng: number } }) =>
+      admin.placing ? admin.placeAt(e.lngLat.lat, e.lngLat.lng) : this.onTap(e.point.x, e.point.y);
     map?.on('click', onTap);
     // Sim mode test tool: right-click (desktop) / long-press (Android) teleports there.
     const onWarp = (e: { lngLat: { lat: number; lng: number }; preventDefault?: () => void }) => {
@@ -192,7 +196,14 @@ export class WorldScene extends Phaser.Scene {
       this.lastDataChunk = dataKey;
       ensureAround(t.x, t.y, 1);
     }
-    const near = nearbyLandmarks(lat, lng, BOSS_RADIUS_M);
+    this.refreshNear();
+  }
+
+  /** Tells the HUD which landmarks are in reach (on moves and when the admin pins change). */
+  private refreshNear() {
+    const at = this.target ?? this.current;
+    if (!at) return;
+    const near = nearbyLandmarks(at.lat, at.lng, BOSS_RADIUS_M);
     const ids = near.map((l) => l.id).join(',');
     if (ids !== this.lastNearIds) {
       this.lastNearIds = ids;

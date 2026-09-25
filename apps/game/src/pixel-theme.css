@@ -500,3 +500,27 @@ body.in-home .hud .chat-box { display: none; }
 .chat-form input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 6px 8px; color: #1c1a28; background: #f6f0e1; border: 2px solid #000; border-radius: 0; }
 .chat-form .btn { padding: 4px 10px; }
 .chat-help { margin: 4px 0 0; font-size: 10px; color: #b8c0d8 !important; }
+
+/* Admin pins (ui/adminWindow.ts) */
+.zoom .admin-btn { height: 58px; }
+.zoom .admin-btn small { font-family: 'Silkscreen', monospace; font-size: 10px; margin-top: -4px; }
+.zoom .admin-btn.hidden, .ad-bar.hidden { display: none; }
+.ad-bar {
+  position: absolute; left: 50%; top: calc(max(8px, env(safe-area-inset-top)) + 84px); transform: translateX(-50%); z-index: 6;
+  display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 32px); padding: 4px 8px; color: #fff; font-size: 13px; text-shadow: 1px 1px 0 #000;
+  border: 8px solid transparent; border-image: url(/assets/ui/btn-blue.png) 4 fill / 8px stretch; pointer-events: auto;
+}
+.ad-bar .btn { padding: 2px 10px; }
+.ad-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; }
+.ad-kind { display: grid; justify-items: center; gap: 2px; padding: 4px 2px; }
+.ad-kind b { font-size: 12px; line-height: 1.2; }
+.ad-art { display: inline-block; flex: none; width: 28px; height: 38px; background: center bottom / contain no-repeat; image-rendering: pixelated; }
+.ad-art.rift { background-size: 400% 100%; background-position: 0 0; }
+.ad-info { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
+.ad-label { display: grid; gap: 4px; font-weight: 700; }
+.ad-label input, .ad-login input { font: inherit; font-size: 14px; padding: 6px 8px; color: #1c1a28; background: #f6f0e1; border: 2px solid #000; border-radius: 0; min-width: 0; }
+.ad-login input { width: 140px; }
+.ad-actions { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.ad-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.ad-row .btn { padding: 2px 10px; }
+body.in-home .hud .ad-bar { display: none; }

@@ -25,3 +25,4 @@ export * from './rules/rank';
 export * from './rules/daily';
 export * from './net/protocol';
 export * from './net/chat';
+export * from './net/pins';

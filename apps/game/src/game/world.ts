@@ -17,7 +17,14 @@ const TILEJSON = 'https://tiles.openfreemap.org/planet';
 const LARGE_PARK_M2 = 15000;
 
 /**
- * Map POIs that become landmarks (docs/STORY.md §4) — generic, brand-free labels that work in any
+ * Landmarks are placed by an admin now (net/pins.ts, MASTER_SPEC §10) — the map no longer turns
+ * real POIs into gates/shops by itself. Flip this to bring the automatic POI landmarks back
+ * (they are merged with the admin pins).
+ */
+const AUTO_POI_PINS = false;
+
+/**
+ * Map POIs that become landmarks when AUTO_POI_PINS is on (docs/STORY.md §4) — generic, brand-free labels that work in any
  * country. Class/subclass values come from the OpenMapTiles `poi` layer that OpenFreeMap serves;
  * `npx tsx tools/osm/probe-pois.mts` counts what exists around a few cities.
  */
@@ -79,6 +86,8 @@ const pending = new Map<string, Promise<void>>();
 const failed = new Map<string, number>();
 const listeners = new Set<(cx: number, cy: number) => void>();
 const landmarkIndex = new Map<string, Landmark>();
+/** Admin-placed pins from the presence server. */
+let pinList: Landmark[] = [];
 let tileUrl: string | null = null;
 let inflight = 0;
 const queue: (() => void)[] = [];
@@ -177,11 +186,16 @@ export function loadingCount(): number {
   return pending.size;
 }
 
+/** Replaces the admin-placed pins (from the server or the offline cache). */
+export function setPins(pins: Landmark[]) {
+  pinList = pins;
+}
+
 export function landmarksAround(lat: number, lng: number, radiusM: number): Landmark[] {
   const here = { lat, lng };
   const d = radiusM / 100000;
   const out: Landmark[] = [];
-  for (const l of landmarkIndex.values()) {
+  for (const l of [...landmarkIndex.values(), ...pinList]) {
     if (Math.abs(l.lat - lat) > d * 1.2 || Math.abs(l.lng - lng) > d * 1.3) continue;
     if (haversine(here, l) <= radiusM) out.push(l);
   }
@@ -229,7 +243,7 @@ function loadChunk(cx: number, cy: number): Promise<void> {
     const tile = new VectorTile(new Protobuf(new Uint8Array(await res.arrayBuffer())));
     const chunk = rasterize(tile, cx, cy);
     chunks.set(key, chunk);
-    for (const l of chunk.landmarks) landmarkIndex.set(l.id, l);
+    if (AUTO_POI_PINS) for (const l of chunk.landmarks) landmarkIndex.set(l.id, l);
   })
     .then(() => {
       for (const fn of listeners) fn(cx, cy);

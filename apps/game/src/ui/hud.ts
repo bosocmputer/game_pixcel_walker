@@ -72,6 +72,7 @@ import { openShopState, shopWindowHtml, wireShopWindow } from './shopWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 import { mountChat } from './chat';
+import { adminSettingsHtml, adminWindowHtml, mountAdminHud, wireAdminSettings, wireAdminWindow } from './adminWindow';
 import { SYS, playerRank, questWindowHtml, questsClaimable, rankChip, systemNotice } from './systemUi';
 
 
@@ -118,7 +119,7 @@ export function mountHud() {
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
     <div class="sim-tools hidden"><button class="sim-speed" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button><button class="sim-home" data-simhome title="วาร์ปกลับจุดเริ่ม (คูเมืองเชียงใหม่)">${uiIcon('pin')}</button></div>
-    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">${uiIcon('plus')}</button><button data-zoom="-1" aria-label="ซูมออก">${uiIcon('minus')}</button><button data-zoom="0" aria-label="หันทิศเหนือ">${uiIcon('compass')}</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">${uiIcon('auto')}<small>AUTO</small></button></div>
+    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">${uiIcon('plus')}</button><button data-zoom="-1" aria-label="ซูมออก">${uiIcon('minus')}</button><button data-zoom="0" aria-label="หันทิศเหนือ">${uiIcon('compass')}</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">${uiIcon('auto')}<small>AUTO</small></button><button class="admin-btn hidden" data-admin aria-label="หมุดแผนที่ (แอดมิน)">${uiIcon('pin')}<small>PIN</small></button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">${uiIcon('char')}<span>ตัวละคร</span></button>
       <button class="menu-btn" data-open="bag">${uiIcon('bag')}<span>กระเป๋า</span></button>
@@ -131,6 +132,13 @@ export function mountHud() {
   </div>`);
   root().appendChild(hud);
   mountChat(hud);
+  mountAdminHud(hud);
+  // Admin pin list / login state changes redraw the open admin or settings window.
+  const redrawAdmin = () => {
+    if (panelName === 'admin' || panelName === 'settings') renderPanel();
+  };
+  bus.on('pins', redrawAdmin);
+  bus.on('admin:changed', redrawAdmin);
 
   hud.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('[data-simspeed]')) {
@@ -142,6 +150,7 @@ export function mountHud() {
       return toast('วาร์ปกลับคูเมือง · คลิกขวา/กดค้างบนแผนที่เพื่อวาร์ปไปจุดนั้น');
     }
     if ((e.target as HTMLElement).closest('[data-autohunt]')) return autoHunt.toggle();
+    if ((e.target as HTMLElement).closest('[data-admin]')) return openPanel('admin');
     const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
     if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
@@ -485,6 +494,11 @@ function renderPanel() {
     }
     case 'settings':
       body.innerHTML = settingsPanel();
+      wireAdminSettings(body);
+      break;
+    case 'admin':
+      body.innerHTML = adminWindowHtml();
+      wireAdminWindow(body, renderPanel, () => closePanel());
       break;
   }
   body.scrollTop = scroll;
@@ -659,6 +673,7 @@ function settingsPanel(): string {
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
     <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>
+    ${adminSettingsHtml()}
     <p class="muted">ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL)</p>
     <button class="btn danger" data-act="reset">ลบเซฟและเริ่มใหม่</button>`;
 }

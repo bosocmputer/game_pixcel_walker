@@ -3,6 +3,7 @@
  * second, sends each client the players within PRESENCE_RADIUS_M of it. Also hosts parties and
  * coordinates dungeon runs: it collects each member's setup and hands everyone the same
  * (dungeon, seed, entrants) — clients simulate the identical fight locally.
+ * Map pins are placed by an admin and stored by this server (./pins.ts).
  *
  *   npm run server          (or `npm run dev:all` to start it together with the game)
  */
@@ -32,6 +33,7 @@ import {
   type RunTarget,
   type ServerMsg,
 } from '@pw/shared';
+import { ADMIN_KEY, addPin, isAdminKey, pinSummary, pins, removePin } from './pins';
 
 interface Session {
   ws: WebSocket;
@@ -44,6 +46,8 @@ interface Session {
   busy: boolean;
   lastSeen: number;
   lastChat: number;
+  /** Wrong admin keys tried on this connection (brute-force guard). */
+  adminFails: number;
 }
 
 interface Party {
@@ -85,7 +89,7 @@ const clampStr = (s: unknown, n: number) => String(s ?? '').slice(0, n);
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 wss.on('connection', (ws, req) => {
-  const s: Session = { ws, id: null, name: '', level: 1, look: null, lat: null, lng: null, busy: false, lastSeen: Date.now(), lastChat: 0 };
+  const s: Session = { ws, id: null, name: '', level: 1, look: null, lat: null, lng: null, busy: false, lastSeen: Date.now(), lastChat: 0, adminFails: 0 };
   sessions.add(s);
   console.log(`[+] connection from ${req.socket.remoteAddress} (${sessions.size} open)`);
 
@@ -106,6 +110,7 @@ wss.on('connection', (ws, req) => {
         s.level = Math.max(1, Math.min(99, Number(msg.level) || 1));
         s.look = msg.look;
         send(ws, { t: 'welcome', id: s.id, online: onlineCount() });
+        send(ws, { t: 'pins', pins });
         console.log(`    hello: ${s.name} (${s.id})`);
         // Back from a reload: resend the party this player still belongs to.
         if (partyOf.has(s.id)) broadcastParty(partyOf.get(s.id)!);
@@ -123,6 +128,11 @@ wss.on('connection', (ws, req) => {
         break;
       case 'chat':
         if (s.id) handleChat(s, msg.text, msg.channel);
+        break;
+      case 'admin:login':
+      case 'pin:add':
+      case 'pin:del':
+        if (s.id) handleAdmin(s, msg);
         break;
       default:
         if (s.id) handleParty(s, msg);
@@ -439,6 +449,28 @@ function handleChat(s: Session, raw: unknown, channel: unknown) {
   }
 }
 
+const ADMIN_MAX_FAILS = 5;
+
+function handleAdmin(s: Session, msg: Extract<ClientMsg, { t: 'admin:login' | 'pin:add' | 'pin:del' }>) {
+  if (s.adminFails >= ADMIN_MAX_FAILS) return send(s.ws, { t: 'admin', ok: false });
+  if (!isAdminKey(msg.key)) {
+    s.adminFails++;
+    console.log(`    admin: wrong key from ${s.name} (${s.adminFails}/${ADMIN_MAX_FAILS})`);
+    return send(s.ws, { t: 'admin', ok: false });
+  }
+  if (msg.t === 'admin:login') return send(s.ws, { t: 'admin', ok: true });
+  if (msg.t === 'pin:add') {
+    const r = addPin(msg.pin);
+    if (typeof r === 'string') return notice(s, r, 'bad');
+    console.log(`    admin ${s.name}: + ${r.kind} "${r.label}" (${pinSummary()})`);
+  } else {
+    const r = removePin(msg.id);
+    if (!r) return;
+    console.log(`    admin ${s.name}: - ${r.kind} "${r.label}" (${pinSummary()})`);
+  }
+  for (const o of sessions) if (o.id) send(o.ws, { t: 'pins', pins });
+}
+
 function checkLeash(now: number) {
   for (const p of [...parties.values()]) {
     const located = p.members
@@ -498,3 +530,4 @@ setInterval(() => {
 }, PRESENCE_TICK_MS);
 
 console.log(`Pixel Walker presence server on ws://0.0.0.0:${wss.options.port}`);
+console.log(`Map pins: ${pinSummary()} · admin key: ${ADMIN_KEY}`);

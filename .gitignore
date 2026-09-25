@@ -11,3 +11,4 @@ tools/artpreview/heroes.png
 tools/artpreview/avatar.png
 apps/game/public/maps/
 *.tsbuildinfo
+apps/server/data/

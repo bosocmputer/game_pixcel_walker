@@ -140,15 +140,11 @@ export class BattleScene extends Phaser.Scene {
       maxRounds = test.maxRounds;
     }
 
-    // The test arena never touches real resources: full HP/MP and its own potion kit.
+    // Every fight starts at full HP/MP; the test arena also brings its own potion kit.
     const items: Record<string, number> = test ? { ...TEST_KIT } : {};
     if (!test && s.bag.red_potion) items.red_potion = s.bag.red_potion;
     if (!test && s.bag.blue_elixir) items.blue_elixir = s.bag.blue_elixir;
     const me = playerSetup(s);
-    if (test) {
-      me.hp = me.stats.maxHp;
-      me.mp = me.stats.maxMp;
-    }
     let party: UnitSetup[] = [me];
     let seed = (Math.random() * 2 ** 31) | 0;
     let enemyScale = test ? { hp: test.hpMult, atk: test.atkMult } : undefined;
@@ -728,8 +724,6 @@ export class BattleScene extends Phaser.Scene {
     const outcome = applyBattleOutcome({
       result,
       defeated: this.d.defeated,
-      hp: me?.hp ?? 0,
-      mp: me?.mp ?? 0,
       itemsLeft: { ...store.s.bag, red_potion: potions.red_potion ?? 0, blue_elixir: potions.blue_elixir ?? 0 },
       // Party runs: personal loot — each member rolls their own drops.
       rng: createRng(this.req.run ? memberLootSeed(this.d.seed, this.meId) : this.d.seed ^ 0x9e3779b9),

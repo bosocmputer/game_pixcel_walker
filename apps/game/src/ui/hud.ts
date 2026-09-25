@@ -253,6 +253,11 @@ function renderNear(box: HTMLElement) {
     const shopBtn = shop ? `<button class="btn primary" data-shop="${shop.id}">${uiIcon('bag', true)}${esc(shop.nameTh)}</button>` : '';
     if (l.kind === 'HOSPITAL') {
       const cost = hospitalCost(s.level);
+      const d = derivedOf(s);
+      if (s.hp >= d.maxHp && s.mp >= d.maxMp) {
+        return `<div class="lm-card svc"><div class="lm-title">${uiIcon('heart', true)}${esc(l.label)} <small>จุดรักษาของสมาคม Walker</small></div>
+        <div class="lm-actions"><button class="btn" disabled>HP/MP เต็มอยู่แล้ว</button></div></div>`;
+      }
       return `<div class="lm-card svc"><div class="lm-title">${uiIcon('heart', true)}${esc(l.label)} <small>จุดรักษาของสมาคม Walker</small></div>
         <div class="lm-sub">ฟื้นฟู HP/MP เต็มทันที</div>
         <div class="lm-actions"><button class="btn primary" data-hospital ${s.gold >= cost ? '' : 'disabled'}>รักษา ${uiIcon('coin', true)}${cost}</button></div></div>`;
@@ -261,7 +266,13 @@ function renderNear(box: HTMLElement) {
       const wait = sanctuaryReadyAt(s) - now;
       return `<div class="lm-card svc"><div class="lm-title">${uiIcon('star', true)}${esc(l.label)} <small>เขตศักดิ์สิทธิ์</small></div>
         <div class="lm-sub">รอยแยกเปิดใกล้ที่นี่ไม่ได้ · พักใจฟื้นฟู HP/MP ครึ่งหนึ่ง</div>
-        <div class="lm-actions">${wait > 0 ? `<button class="btn" disabled>พักได้อีกใน ${fmtWait(wait)}</button>` : '<button class="btn primary" data-bless>พักใจ</button>'}</div></div>`;
+        <div class="lm-actions">${
+          s.hp >= derivedOf(s).maxHp && s.mp >= derivedOf(s).maxMp
+            ? '<button class="btn" disabled>HP/MP เต็มอยู่แล้ว</button>'
+            : wait > 0
+              ? `<button class="btn" disabled>พักได้อีกใน ${fmtWait(wait)}</button>`
+              : '<button class="btn primary" data-bless>พักใจ</button>'
+        }</div></div>`;
     }
     const bossId = bossIdFor(l);
     const boss = bossId ? MONSTERS[bossId] : undefined;

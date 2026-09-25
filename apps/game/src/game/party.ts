@@ -14,8 +14,7 @@ export function playerSetup(s: SaveData): UnitSetup {
     classId: s.classId,
     mutation: mutationOf(s),
     stats: statsFromDerived(d, { dex: stats.dex, luk: stats.luk, vit: stats.vit }),
-    hp: s.hp,
-    mp: s.mp,
+    // No hp/mp: every new fight starts at full HP/MP (MASTER_SPEC §9). Floors inside one dungeon run still carry over.
     deck: effectiveLoadout(s),
     autoPotion: true,
   };

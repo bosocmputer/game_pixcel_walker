@@ -176,6 +176,19 @@ describe('training dummy', () => {
   });
 });
 
+describe('fresh start', () => {
+  it('every new fight starts at full HP/MP, even after a fight that drained the hero', () => {
+    const first = runToEnd(createCombat({ partyA: [hero()], partyB: [monsterSetup('soi_dog_spirit', 'e0'), monsterSetup('alley_rat', 'e1')], seed: 5 }));
+    const after = first.units.find((u) => u.id === 'p1')!;
+    expect(after.hp).toBeLessThan(after.base.maxHp);
+    // The client builds the next fight from the save without hp/mp → the engine starts it full.
+    const next = createCombat({ partyA: [hero()], partyB: [monsterSetup('alley_rat', 'e0')], seed: 6 });
+    const p = next.units.find((u) => u.id === 'p1')!;
+    expect(p.hp).toBe(p.base.maxHp);
+    expect(p.mp).toBe(p.base.maxMp);
+  });
+});
+
 describe('dungeon', () => {
   it('persists HP across waves and ends after the boss wave', () => {
     const d = createDungeon({ party: [hero({ level: 16 })], waves: landmarkWaves('goblin_king'), seed: 9, items: { red_potion: 5 }, rollModifiers: false });

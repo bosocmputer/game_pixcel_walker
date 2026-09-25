@@ -163,6 +163,7 @@ diff it on replay. Nothing in the UI influences the outcome.
   skills and may speed up its ultimate cadence (`everyTurns`). Emits `PHASE`.
 - **Enrage** (`enrageRound`): after N rounds → 100% crit, ×10 ATK/MATK. Emits `ENRAGE`.
 - **Dungeon waves** (`combat/dungeon.ts`): landmark bosses run `dungeonWaves` minions then the boss.
+  (Every new fight/run starts at full HP/MP — the client sends setups without hp/mp; see MASTER_SPEC §9.)
   HP, MP, statuses and cooldowns persist between waves; each wave rolls a `WaveModifier`
   (heatwave, monsoon, cursed −30% heal, frenzy, miasma DoT, focus, calm);
   each surviving Cleric rolls 50% to heal the party 15% between waves (`RECOVER`).

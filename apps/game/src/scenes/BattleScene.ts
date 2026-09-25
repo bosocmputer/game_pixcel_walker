@@ -14,6 +14,7 @@ import {
   SKILLS,
   createDungeon,
   dailyTitle,
+  gateLayer,
   gateRank,
   rankOf,
   itemName as sharedItemName,
@@ -51,6 +52,9 @@ import { music, sfx } from '../game/audio';
 import { createFxAnims, hitFx, meleeSwing, playFx, preloadFx, shootProjectile, skillLook, statusFx, type FxAnchor, type SkillLook } from './battleFx';
 import { ComboCounter, ELEMENT_COLOR, coinBurst, damageNumber, shatter } from './battleJuice';
 import { haptic } from '../game/haptics';
+import { buildStage, riftBreak, type StageLayer } from './battleStage';
+import { StatusRow, TurnBar, preloadOverlay } from './battleOverlay';
+import { DEFAULT_POS, walk } from '../game/walk';
 
 /** World boss attack window, in rounds. */
 const WORLD_BOSS_ROUNDS = 20;
@@ -82,6 +86,10 @@ interface UnitView {
   /** HP fraction the white "ghost" bar still shows (drains after the real bar). */
   ghost: number;
   ghostHoldUntil: number;
+  /** Status badges under the bars. */
+  status: StatusRow;
+  /** Draw order at rest (lower on screen = in front). */
+  depth: number;
 }
 
 const STATUS_TH: Record<string, string> = {
@@ -121,6 +129,9 @@ export class BattleScene extends Phaser.Scene {
   private celebrated = false;
   /** Unit that takes the final blow of the whole fight (slow motion on that hit). */
   private finisherId: string | null = null;
+  /** Which world the fight is in (sky, rift-break style). */
+  private stageLayer: StageLayer = 'FIELD';
+  private turnBar!: TurnBar;
 
   constructor() {
     super('Battle');
@@ -128,6 +139,7 @@ export class BattleScene extends Phaser.Scene {
 
   preload() {
     preloadFx(this);
+    preloadOverlay(this);
   }
 
   init(req: BattleRequest) {
@@ -221,12 +233,11 @@ export class BattleScene extends Phaser.Scene {
     });
 
     const { width, height } = this.scale;
-    const g = this.add.graphics();
-    g.fillGradientStyle(0x2b3a67, 0x2b3a67, 0x1b1f2a, 0x1b1f2a, 1).fillRect(0, 0, width, height * 0.5);
-    g.fillStyle(0x3d5a3a, 1).fillRect(0, height * 0.5, width, height * 0.5);
-    for (let i = 0; i < 60; i++) g.fillStyle(0x4a6b45, 1).fillRect(Math.random() * width, height * 0.5 + Math.random() * height * 0.5, 4, 3);
-    // The backdrop stays glued to the screen while the camera punches in / pans for the final blow.
-    g.setScrollFactor(0);
+    // The stage: the player's real street in Mode-7 under a sky that shows which world this is.
+    const landmarkLayer = this.req.landmark ? gateLayer(this.req.landmark.kind) : null;
+    this.stageLayer = landmarkLayer ?? (this.req.run?.target.kind === 'DUNGEON' || this.req.kind === 'DUNGEON' ? 'PIXEL' : 'FIELD');
+    const at = walk.position ?? this.req.landmark ?? DEFAULT_POS;
+    buildStage(this, { lat: at.lat, lng: at.lng, layer: this.stageLayer, kind: landmarkLayer ? this.req.landmark!.kind : undefined });
 
     this.header = this.add.text(width / 2, 12, '', { fontFamily: PIXEL_FONT, fontSize: '15px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5, 0).setDepth(50);
     this.banner = this.add.text(width / 2, height * 0.3, '', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ffd54f', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: width - 40 } }).setOrigin(0.5).setDepth(60).setAlpha(0);
@@ -235,6 +246,8 @@ export class BattleScene extends Phaser.Scene {
 
     this.marker = this.add.triangle(0, 0, 0, 0, 12, 0, 6, 8, 0xffd54f).setStrokeStyle(2, 0x3a1a00).setDepth(45).setVisible(false);
     this.combo = new ComboCounter(this);
+    this.turnBar = new TurnBar(this, 96); // below the 3-line header (title · wave/round · modifier)
+    this.events.once('shutdown', () => this.turnBar.destroy());
     this.events.once('shutdown', () => this.setTimeScale(1));
     this.layout();
     this.panel = el(`<div class="battle-panel"></div>`);
@@ -264,11 +277,16 @@ export class BattleScene extends Phaser.Scene {
         const group = units.filter((u) => u.side === side && u.row === row);
         const colX = side === 'A' ? (row === 'FRONT' ? 0.34 : 0.16) : row === 'FRONT' ? 0.66 : 0.84;
         group.forEach((u, i) => {
-          const y = height * (0.44 + ((i + 0.5) / Math.max(group.length, 1)) * 0.22 - 0.11 + (row === 'BACK' ? -0.02 : 0));
-          const x = width * colX + (i % 2 ? (side === 'A' ? -14 : 14) : 0);
+          // Standing on the Mode-7 floor: the back row further away (higher, smaller), the front row near.
+          const n = Math.max(group.length, 1);
+          const y = height * ((row === 'BACK' ? 0.53 : 0.61) + ((i + 0.5) / n - 0.5) * (n > 2 ? 0.2 : 0.14));
+          // Stagger along the row so labels of stacked units don't overlap.
+          const x = width * colX + (i % 2 ? (side === 'A' ? -1 : 1) : 0) * Math.min(40, width * 0.05) + (n > 2 && i === n - 1 ? (side === 'A' ? 10 : -10) : 0);
           let v = this.views.get(u.id);
           if (!v) v = this.addView(u, u.isBoss ? scale + 2 : scale);
           v.home = { x, y };
+          v.depth = 10 + y / 1000;
+          v.sprite.setDepth(v.depth);
           if (u.hp > 0) v.sprite.setPosition(x, y).setAlpha(1);
           v.shadow.setPosition(x, y).setVisible(u.hp > 0);
           v.label.setPosition(x, y + 4);
@@ -306,6 +324,7 @@ export class BattleScene extends Phaser.Scene {
       // Native-res pixel monsters use the hero's pixel size so both read as one art style.
       finalScale = hasPixelSprite('monsters', u.sprite) ? (isPack ? scale * 0.55 : scale / 2) : isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
     }
+    if (u.row === 'BACK' && !u.isBoss) finalScale *= 0.9;
     const sprite = this.add.image(0, 0, key).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add
       .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: PIXEL_FONT, fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
@@ -340,6 +359,8 @@ export class BattleScene extends Phaser.Scene {
       shown: u.hp / u.base.maxHp,
       ghost: u.hp / u.base.maxHp,
       ghostHoldUntil: 0,
+      status: new StatusRow(this),
+      depth: 10,
     };
     this.views.set(u.id, v);
     return v;
@@ -350,6 +371,7 @@ export class BattleScene extends Phaser.Scene {
       const v = this.views.get(u.id);
       if (!v) continue;
       v.bars.clear();
+      v.status.render(u, v.home.x, v.home.y + 32);
       if ((u.hp <= 0 && v.shown <= 0) || u.passive) continue;
       const w = Math.max(50, v.sprite.displayWidth * 0.9);
       const x = v.home.x - w / 2;
@@ -382,6 +404,7 @@ export class BattleScene extends Phaser.Scene {
         v.label.destroy();
         v.bars.destroy();
         v.shadow.destroy();
+        v.status.destroy();
         this.views.delete(id);
       }
       this.eventIndex = 0;
@@ -398,6 +421,7 @@ export class BattleScene extends Phaser.Scene {
     }
     this.stopDebt = 0;
     const busy = this.animateNew();
+    this.renderTurnBar();
     this.waitUntil = time + (busy ? STEP_MS : 120) / this.speed + this.stopDebt;
     this.updateHeader();
     this.renderPanel();
@@ -515,6 +539,12 @@ export class BattleScene extends Phaser.Scene {
     if (av && av.sprite.alpha > 0.5) {
       this.marker.setVisible(true).setPosition(av.sprite.x, av.sprite.y - av.sprite.displayHeight - 14 + Math.sin(t * 7) * 3);
     } else this.marker.setVisible(false);
+  }
+
+  private renderTurnBar() {
+    const c = this.d.combat;
+    if (this.finished || c.result !== 'ONGOING') return this.turnBar.destroy();
+    this.turnBar.render(c.queue, c.queueIndex, this.activeId, c.units, (id) => this.views.get(id)?.idleKey ?? null);
   }
 
   /** Final blow of the whole fight: slow motion, flash and a push-in on the victim. */
@@ -682,7 +712,7 @@ export class BattleScene extends Phaser.Scene {
         );
       },
       onComplete: () => {
-        attacker.sprite.setPosition(from.x, from.y).setAngle(baseAngle).setScale(attacker.baseX, attacker.baseY).setDepth(10);
+        attacker.sprite.setPosition(from.x, from.y).setAngle(baseAngle).setScale(attacker.baseX, attacker.baseY).setDepth(attacker.depth);
         if (slashing) attacker.sprite.setTexture(attacker.idleKey);
       },
     });
@@ -694,7 +724,10 @@ export class BattleScene extends Phaser.Scene {
     let lead = 0;
     switch (e.type) {
       case 'TURN':
-        this.time.delayedCall(delay, () => (this.activeId = e.unit));
+        this.time.delayedCall(delay, () => {
+          this.activeId = e.unit;
+          this.renderTurnBar();
+        });
         break;
       case 'WAVE':
         this.showBanner(`${e.wave === 1 && this.gateRank ? `[ระบบ] ประตูระดับ ${this.gateRank}\n` : ''}เวฟ ${e.wave}/${e.total}${e.modifier ? `\n${e.modifier}` : ''}`);
@@ -856,7 +889,8 @@ export class BattleScene extends Phaser.Scene {
         sfx('holy');
         break;
       case 'PHASE':
-        this.cameras.main.flash(300, 255, 80, 80);
+        riftBreak(this, this.stageLayer);
+        haptic('ultimate');
         this.showBanner(e.message, '#ff8a80');
         this.fx('cast_fire', e.unit, 0, { ground: true, scale: 1.4 });
         sfx('ultimate');

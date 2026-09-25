@@ -468,10 +468,16 @@ button.hs-card.sel { background: #fff6d0; box-shadow: 0 0 0 2px #f2c230, inset 0
 /* Chat (ui/chat.ts): pill under the top bar, log + input when open */
 .chat-box { position: absolute; left: 8px; top: calc(max(8px, env(safe-area-inset-top)) + 84px); z-index: 4; max-width: min(92vw, 380px); pointer-events: auto; }
 body.in-home .hud .chat-box { display: none; }
+.chat-box .hidden { display: none !important; }
 .chat-pill {
-  display: flex; align-items: center; gap: 6px; max-width: min(46vw, 260px); padding: 2px 8px; color: #fff; font-size: 12px;
-  border: 8px solid transparent; border-image: url(/assets/ui/btn-dark.png) 4 fill / 8px stretch; background: none; text-shadow: 1px 1px 0 #000; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; max-width: min(52vw, 290px); padding: 2px 4px 2px 8px; color: #fff; font-size: 12px;
+  border: 8px solid transparent; border-image: url(/assets/ui/btn-dark.png) 4 fill / 8px stretch; background: none; text-shadow: 1px 1px 0 #000;
 }
+.chat-open { display: flex; align-items: center; gap: 6px; min-width: 0; flex: 1; padding: 0; font: inherit; color: inherit; background: none; border: 0; text-shadow: inherit; cursor: pointer; }
+.chat-mini-btn { flex: none; width: 22px; height: 22px; padding: 0; font: 700 14px/1 'Silkscreen', monospace; color: #fff; background: #3a3f58; border: 2px solid #000; cursor: pointer; }
+.chat-box.mini .chat-pill { padding: 2px 4px; max-width: none; }
+.chat-box.mini .chat-last, .chat-box.mini .chat-mini-btn { display: none; }
+.chat-box.open .chat-mini-btn { display: block; }
 .chat-box.open .chat-pill { border-image-source: url(/assets/ui/btn-blue.png); }
 .chat-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chat-pill .badge { position: static; margin-left: 2px; }

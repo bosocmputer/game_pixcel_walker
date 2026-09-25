@@ -1,6 +1,7 @@
 /**
  * Chat window on the map HUD: a small pill (last line + unread count) that opens a log with
  * "ใกล้ ๆ" / "ปาร์ตี้" channels and an input. Tap a name to mute/unmute that player.
+ * The "–" button shrinks the pill to just the chat icon (remembered per device).
  * Speech bubbles on the map are drawn by scenes/chatBubbles.ts from the same `chat` bus event.
  */
 import { CHAT_MAX_LEN, type ChatChannel } from '@pw/shared';
@@ -11,8 +12,16 @@ import { sfx } from '../game/audio';
 import { el, esc } from './dom';
 import { uiIcon } from './pixel';
 
+const MINI_KEY = 'pw.chatMini';
 let channel: ChatChannel = 'near';
 let open = false;
+let mini = (() => {
+  try {
+    return localStorage.getItem(MINI_KEY) === '1';
+  } catch {
+    return false;
+  }
+})();
 
 function lineHtml(l: (typeof chat.lines)[number]): string {
   const mine = l.from === net.id;
@@ -24,7 +33,10 @@ function lineHtml(l: (typeof chat.lines)[number]): string {
 
 export function mountChat(host: HTMLElement) {
   const box = el(`<div class="chat-box">
-    <button type="button" class="chat-pill" data-chat-toggle>${uiIcon('chat', true)}<span class="chat-last">แชท</span><i class="badge chat-unread hidden"></i></button>
+    <div class="chat-pill">
+      <button type="button" class="chat-open" data-chat-toggle title="แชท">${uiIcon('chat', true)}<span class="chat-last">แชท</span><i class="badge chat-unread hidden"></i></button>
+      <button type="button" class="chat-mini-btn" data-chat-mini title="ย่อแชท" aria-label="ย่อแชท">–</button>
+    </div>
     <div class="chat-panel hidden">
       <div class="win-tabs">
         <button type="button" class="win-tab" data-chch="near">ใกล้ ๆ</button>
@@ -66,6 +78,18 @@ export function mountChat(host: HTMLElement) {
     unread.classList.toggle('hidden', open || !chat.unread);
     unread.textContent = String(chat.unread);
   };
+  const miniBtn = box.querySelector<HTMLButtonElement>('[data-chat-mini]')!;
+  const renderMini = () => {
+    box.classList.toggle('mini', mini && !open);
+    // While open, the same button restores the full pill for a chat that was shrunk.
+    miniBtn.textContent = mini ? '□' : '–';
+    miniBtn.title = miniBtn.ariaLabel = mini ? 'แสดงแชทแบบเต็ม' : 'ย่อแชท';
+    try {
+      localStorage.setItem(MINI_KEY, mini ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  };
   const setOpen = (v: boolean) => {
     open = v;
     panel.classList.toggle('hidden', !open);
@@ -76,10 +100,18 @@ export function mountChat(host: HTMLElement) {
       renderLog();
       input.focus();
     }
+    renderMini();
     renderPill();
   };
 
-  box.querySelector('[data-chat-toggle]')!.addEventListener('click', () => setOpen(!open));
+  box.querySelector('[data-chat-toggle]')!.addEventListener('click', () => {
+    // Tapping the icon of a shrunk chat opens it; it goes back to an icon when closed again.
+    setOpen(!open);
+  });
+  miniBtn.addEventListener('click', () => {
+    mini = !mini;
+    setOpen(false);
+  });
   box.querySelectorAll<HTMLElement>('[data-chch]').forEach((b) =>
     b.addEventListener('click', () => {
       channel = b.dataset.chch as ChatChannel;
@@ -112,5 +144,6 @@ export function mountChat(host: HTMLElement) {
     renderPill();
   });
   bus.on('party', () => renderTabs());
+  renderMini();
   renderPill();
 }

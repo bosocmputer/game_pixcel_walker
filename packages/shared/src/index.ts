@@ -15,6 +15,7 @@ export * from './rules/loot';
 export * from './combat/types';
 export * from './combat/engine';
 export * from './combat/dungeon';
+export * from './combat/awaken';
 export * from './data/map';
 export * from './rules/spawns';
 export * from './rules/party';

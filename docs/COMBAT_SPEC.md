@@ -4,8 +4,10 @@
 > (3v3, dungeon waves, bosses). Code: `packages/shared/src/combat/` · data: `packages/shared/src/data/skills.ts`,
 > `monsters.ts` · client: `apps/game/src/scenes/BattleScene.ts`. Tests: `combat/combat.test.ts`, `rules/balance.test.ts`.
 
-**Hard rule:** the engine is deterministic from `(CombatConfig, seed)` — every roll uses the combat RNG
-(`createRng`). `replayCombat(cfg)` reproduces a fight exactly, which is what a server will use to verify results.
+**Hard rule:** the engine is deterministic from `(CombatConfig, seed, inputs)` — every roll uses the combat RNG
+(`createRng`) and the only player decisions are the recorded `CombatConfig.inputs` (Awakening presses, §3b).
+`replayCombat(cfg)` reproduces a fight exactly, which is what a server will use to verify results.
+Dungeons log inputs per wave (`Dungeon.inputs`, `addInput(d, input)`), and `createDungeon({ …, inputs })` replays them.
 
 ---
 
@@ -149,7 +151,20 @@ matching skill's launch rate (same formula as Layer 1, `oncePerBattle` respected
 The second layer is the **`CombatEvent` log** (`combat.events`): every roll outcome is appended
 (`TURN, SKILL{reactive?}, MISS, DAMAGE{crit,block}, COVER, STATUS, TICK, SHIELD, BUFF, DEATH, PHASE, ENRAGE,
 WAVE, RECOVER, ITEM, SUMMON, END…`). The client consumes it to animate (`BattleScene.animate`) and a server can
-diff it on replay. Nothing in the UI influences the outcome.
+diff it on replay. Nothing in the UI influences the outcome except the recorded inputs below.
+
+### 3b. Player agency (`combat/awaken.ts`, tests `combat/awaken.test.ts`)
+- **Awakening gauge** (players only: side A with a class, not passive): +10 per landed hit dealt, +14 per landed hit
+  taken, cap 100, carried between dungeon waves (`UnitSetup.awaken`). Monsters never have one.
+- **Input** `{ unit, turn, kind: 'AWAKEN', grade }`: applies on the unit's first turn with `turnsTaken >= turn` that isn't
+  skipped by hard CC; read right after the status/CC phase (before potions). Consumed once; ignored if the gauge isn't full.
+- **Awakening Strike**: `AWAKEN` event, then an unavoidable strike on `ENEMY_LOWEST_HP` scaling the unit's higher of
+  ATK/MATK × 3.0 (PERFECT) / 2.4 (GOOD) / 1.8 (MISS) — crit can still roll; gauge → 0.
+  Grade comes from the client timing ring (±90 ms PERFECT, ±220 ms GOOD) — it is client-reported, so the spread is kept small.
+- **Link Attack**: a landed hit by an ally on the same target another ally hit last, in the same round → ×1.15 and a
+  `LINK` event before the `DAMAGE`. `combat.lastHit` tracks the chain; any enemy hit breaks it. Party fights only by nature.
+- Party runs (every member simulates the same fight) don't offer Awakening yet — presses would have to be relayed
+  through the server before the turn resolves. Solo fields/gates/trials/arena and auto-hunt (auto GOOD) do.
 
 ---
 

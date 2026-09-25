@@ -14,6 +14,9 @@ import {
   SKILLS,
   createDungeon,
   dailyTitle,
+  AWAKEN_MAX,
+  addInput,
+  awakenGrade,
   gateLayer,
   gateRank,
   rankOf,
@@ -26,6 +29,7 @@ import {
   partyFieldHpScale,
   runToEnd,
   step,
+  type AwakenGrade,
   type CombatEvent,
   type CombatUnit,
   type Dungeon,
@@ -136,6 +140,13 @@ export class BattleScene extends Phaser.Scene {
   /** Which world the fight is in (sky, rift-break style). */
   private stageLayer: StageLayer = 'FIELD';
   private turnBar!: TurnBar;
+  // Awakening (ROADMAP ⚔️ 4.1)
+  /** Solo fights only for now — every party member simulates the same fight on their own device. */
+  private awakenAllowed = false;
+  /** A press is recorded and waits for our next turn. */
+  private awakenPending = false;
+  /** Timing ring on screen: real-time start (performance.now) + its graphics. */
+  private ring: { start: number; g: Phaser.GameObjects.Graphics; close: () => void; done: boolean } | null = null;
 
   constructor() {
     super('Battle');
@@ -167,6 +178,9 @@ export class BattleScene extends Phaser.Scene {
     this.lanes.clear();
     this.celebrated = false;
     this.finisherId = null;
+    this.awakenAllowed = !req.run;
+    this.awakenPending = false;
+    this.ring = null;
   }
 
   create() {
@@ -404,6 +418,7 @@ export class BattleScene extends Phaser.Scene {
 
   update(time: number) {
     this.tickVisuals();
+    if (this.ring) return this.tickRing();
     if (this.finished || time < this.waitUntil) return;
     const c = this.d.combat;
     if (c.result === 'ONGOING') {
@@ -433,6 +448,11 @@ export class BattleScene extends Phaser.Scene {
     this.stopDebt = 0;
     const busy = this.animateNew();
     this.renderTurnBar();
+    // Auto-hunt can't play the timing ring: it awakens at GOOD as soon as the gauge is full.
+    if (this.req.auto) {
+      const me = this.d.combat.units.find((u) => u.id === this.meId);
+      if (me && this.awakenAllowed && !this.awakenPending && me.hp > 0 && me.awaken >= AWAKEN_MAX) this.queueAwaken('GOOD');
+    }
     this.waitUntil = time + (busy ? STEP_MS : 120) / this.speed + this.stopDebt;
     this.updateHeader();
     this.renderPanel();
@@ -556,6 +576,145 @@ export class BattleScene extends Phaser.Scene {
     } else this.marker.setVisible(false);
   }
 
+  // -------------------------------------------------------------------------------------------
+  // Awakening: gauge row, timing ring, input
+
+  private awakenRow(me: CombatUnit): string {
+    if (!this.awakenAllowed || !me.awakenable) return '';
+    const pct = Math.round((me.awaken / AWAKEN_MAX) * 100);
+    const full = me.awaken >= AWAKEN_MAX;
+    const right = this.awakenPending
+      ? '<small class="aw-wait">ปล่อยในเทิร์นถัดไป…</small>'
+      : full
+        ? '<button class="btn primary aw-btn" data-act="awaken">สกิลพร้อมใช้งาน!</button>'
+        : `<small>${pct}%</small>`;
+    return `<div class="awaken-row ${full ? 'full' : ''}"><span class="aw-label">[ระบบ] ตื่นรู้</span><span class="aw-bar"><i style="width:${pct}%"></i></span>${right}</div>`;
+  }
+
+  /** Time for the ring to close onto the target circle (the PERFECT moment). */
+  private static readonly RING_MS = 900;
+
+  private startRing() {
+    const me = this.d.combat.units.find((u) => u.id === this.meId);
+    if (this.ring || this.finished || this.awakenPending || !me || me.awaken < AWAKEN_MAX) return;
+    const g = this.add.graphics().setDepth(85).setScrollFactor(0);
+    // A full-screen DOM catcher: any tap / Space grades the press (the Phaser canvas lets taps through).
+    const catcher = el(`<div class="awaken-catcher" aria-label="แตะให้ตรงจังหวะ"></div>`);
+    document.getElementById('ui')!.appendChild(catcher);
+    const press = (e: Event) => {
+      e.preventDefault();
+      this.gradeRing(performance.now());
+    };
+    catcher.addEventListener('pointerdown', press);
+    const key = (e: KeyboardEvent) => {
+      if (e.code === 'Space' || e.code === 'Enter') press(e);
+    };
+    window.addEventListener('keydown', key);
+    const close = () => {
+      catcher.remove();
+      window.removeEventListener('keydown', key);
+    };
+    this.events.once('shutdown', close);
+    this.ring = { start: performance.now(), g, close, done: false };
+    this.setTimeScale(0.15);
+    this.showBanner('[ระบบ] แตะเมื่อวงแหวนทับวงทอง!', '#7ff0ff');
+    sfx('notice');
+  }
+
+  /** Draws the shrinking ring each frame (real time, unaffected by the slowed scene clock). */
+  private tickRing() {
+    const r = this.ring!;
+    if (r.done) return;
+    const me = this.views.get(this.meId);
+    const cx = me ? me.home.x : this.scale.width / 2;
+    const cy = me ? me.home.y - me.sprite.displayHeight * 0.5 : this.scale.height / 2;
+    const t = (performance.now() - r.start) / BattleScene.RING_MS;
+    const target = 30;
+    const radius = target * (1 + 2.2 * Math.max(0, 1 - t));
+    r.g.clear();
+    r.g.fillStyle(0x000000, 0.35).fillRect(0, 0, this.scale.width, this.scale.height);
+    r.g.lineStyle(5, 0xffd54f, 1).strokeCircle(cx, cy, target);
+    r.g.lineStyle(2, 0x3a1a00, 1).strokeCircle(cx, cy, target - 4);
+    r.g.lineStyle(4, 0x7ff0ff, 0.95).strokeCircle(cx, cy, radius);
+    if (t > 1 + 300 / BattleScene.RING_MS) this.gradeRing(null);
+  }
+
+  private gradeRing(at: number | null) {
+    const r = this.ring;
+    if (!r || r.done) return;
+    r.done = true;
+    const perfectAt = r.start + BattleScene.RING_MS;
+    const grade = awakenGrade(at === null ? null : at - perfectAt);
+    r.close();
+    this.tweens.add({ targets: r.g, alpha: 0, duration: 60, onComplete: () => r.g.destroy() });
+    this.ring = null;
+    this.setTimeScale(1);
+    const color = grade === 'PERFECT' ? '#ffd54f' : grade === 'GOOD' ? '#7ff0ff' : '#b0bec5';
+    this.showBanner(grade === 'PERFECT' ? 'PERFECT!!' : grade === 'GOOD' ? 'GOOD!' : 'MISS…', color);
+    sfx(grade === 'PERFECT' ? 'crit' : grade === 'GOOD' ? 'buff' : 'miss');
+    if (grade !== 'MISS') haptic(grade === 'PERFECT' ? 'crit' : 'tap');
+    this.queueAwaken(grade);
+  }
+
+  /** Records the press as an engine input for our unit's next turn (replayable). */
+  private queueAwaken(grade: AwakenGrade) {
+    const me = this.d.combat.units.find((u) => u.id === this.meId);
+    if (!me) return;
+    addInput(this.d, { unit: this.meId, turn: me.turnsTaken, kind: 'AWAKEN', grade });
+    this.awakenPending = true;
+    this.lastPanel = '';
+    this.renderPanel();
+  }
+
+  /** Full-width cut-in: the hero, "[ระบบ] การตื่นรู้!" and the grade. Returns its length (ms). */
+  private awakenCutIn(unitId: string, grade: AwakenGrade, delay: number): number {
+    const ms = Math.round(760 / Math.sqrt(this.speed));
+    const v = this.views.get(unitId);
+    this.time.delayedCall(delay, () => {
+      // The ring's grade banner has done its job — the cut-in carries the grade now.
+      this.tweens.killTweensOf(this.banner);
+      this.banner.setAlpha(0);
+      const { width, height } = this.scale;
+      const y = height * 0.36;
+      const band = this.add.rectangle(-width, y, width, 96, 0x0c0818, 0.9).setOrigin(0, 0.5).setDepth(80).setScrollFactor(0);
+      const edge = this.add.rectangle(-width, y - 48, width, 3, 0x7ff0ff).setOrigin(0, 0.5).setDepth(81).setScrollFactor(0);
+      const edge2 = this.add.rectangle(-width, y + 48, width, 3, 0x7ff0ff).setOrigin(0, 0.5).setDepth(81).setScrollFactor(0);
+      const parts: Phaser.GameObjects.GameObject[] = [band, edge, edge2];
+      if (v) {
+        const face = this.add.image(-width * 0.3, y + 44, v.sprite.texture.key, v.animated ? 0 : undefined).setOrigin(0.5, 1).setDepth(82).setScrollFactor(0);
+        face.setScale(Math.min(3.4, 120 / face.height));
+        parts.push(face);
+        this.tweens.add({ targets: face, x: width * 0.26, duration: 160, ease: 'Cubic.easeOut' });
+      }
+      const color = grade === 'PERFECT' ? '#ffd54f' : grade === 'GOOD' ? '#7ff0ff' : '#c8d4ff';
+      const title = this.add
+        .text(width * 1.2, y - 12, '[ระบบ] การตื่นรู้!', { fontFamily: PIXEL_FONT, fontSize: '26px', color: '#ffffff', stroke: '#000', strokeThickness: 6 })
+        .setOrigin(0, 0.5)
+        .setDepth(82)
+        .setScrollFactor(0);
+      const sub = this.add
+        .text(width * 1.2, y + 20, grade, { fontFamily: PIXEL_FONT, fontSize: '18px', color, stroke: '#000', strokeThickness: 5 })
+        .setOrigin(0, 0.5)
+        .setDepth(82)
+        .setScrollFactor(0);
+      parts.push(title, sub);
+      for (let i = 0; i < 7; i++) {
+        const line = this.add.rectangle(width + i * 60, y - 40 + i * 13, 50 + i * 9, 2, 0xffffff, 0.7).setDepth(81).setScrollFactor(0);
+        parts.push(line);
+        this.tweens.add({ targets: line, x: -120, duration: 420, delay: i * 30, repeat: 1 });
+      }
+      this.tweens.add({ targets: [band, edge, edge2], x: 0, duration: 140, ease: 'Cubic.easeOut' });
+      this.tweens.add({ targets: [title, sub], x: width * 0.44, duration: 180, delay: 60, ease: 'Cubic.easeOut' });
+      this.cameras.main.flash(120, 127, 240, 255);
+      sfx('ultimate');
+      haptic('ultimate');
+      this.time.delayedCall(ms - 180, () => {
+        this.tweens.add({ targets: parts, alpha: 0, duration: 170, onComplete: () => parts.forEach((p) => p.destroy()) });
+      });
+    });
+    return ms;
+  }
+
   private renderTurnBar() {
     const c = this.d.combat;
     if (this.finished || c.result !== 'ONGOING') return this.turnBar.destroy();
@@ -633,6 +792,9 @@ export class BattleScene extends Phaser.Scene {
     });
     return visible;
   }
+
+  /** Target of an Awakening Strike whose hit hasn't landed yet (extra-big impact). */
+  private awakenStrikeOn: string | null = null;
 
   /** The DAMAGE event that ends the fight (slow-motion finish), if this step ends it. */
   private finisherEvent: CombatEvent | null = null;
@@ -740,6 +902,41 @@ export class BattleScene extends Phaser.Scene {
   private animate(e: CombatEvent, delay: number): number {
     let lead = 0;
     switch (e.type) {
+      case 'AWAKEN': {
+        this.awakenPending = false;
+        this.lastPanel = '';
+        const v = this.views.get(e.unit);
+        const target = this.views.get(e.target);
+        lead = this.awakenCutIn(e.unit, e.grade, delay);
+        this.stopDebt += lead;
+        this.awakenStrikeOn = e.target;
+        if (v && target) lead += this.lungeAtTarget(v, target, 'A', delay + lead);
+        break;
+      }
+      case 'LINK': {
+        const a = this.views.get(e.from);
+        const b = this.views.get(e.unit);
+        const t = this.views.get(e.target);
+        if (a && b && t) {
+          this.time.delayedCall(delay, () => {
+            const g = this.add.graphics().setDepth(34);
+            const ty = t.home.y - t.sprite.displayHeight * 0.5;
+            // A gold chain from the first attacker through the second to the target.
+            for (const [from, to] of [[a, t], [b, t]] as const) {
+              const fy = from.home.y - from.sprite.displayHeight * 0.5;
+              for (let k = 0; k <= 10; k++) {
+                const x = Phaser.Math.Linear(from.home.x, to.home.x, k / 10);
+                const y = Phaser.Math.Linear(fy, ty, k / 10);
+                g.fillStyle(k % 2 ? 0xffd54f : 0xfff6c8, 1).fillRect(x - 3, y - 3, 6, 6);
+              }
+            }
+            this.tweens.add({ targets: g, alpha: 0, delay: 260, duration: 300, onComplete: () => g.destroy() });
+            damageNumber(this, t.home.x, t.home.y - t.sprite.displayHeight - 8, 'LINK!', { color: '#ffd54f', small: true, speed: Math.sqrt(this.speed) });
+            sfx('buff');
+          });
+        }
+        break;
+      }
       case 'TURN':
         this.time.delayedCall(delay, () => {
           this.activeId = e.unit;
@@ -857,6 +1054,13 @@ export class BattleScene extends Phaser.Scene {
               this.zoomPunch();
               if (e.source === this.meId || e.target === this.meId) haptic('crit');
             } else if (e.target === this.meId) haptic('hit');
+            if (this.awakenStrikeOn === e.target && attacker?.id === this.meId) {
+              this.awakenStrikeOn = null;
+              this.fx('holy', e.target, 0, { scale: 1.4 });
+              this.fx('crit', e.target, 40, { scale: 1.3 });
+              this.cameras.main.shake(260, 0.022);
+              this.zoomPunch(0.1);
+            }
             if (finale) this.finalBlow(e.target);
             else this.freeze(stop);
           });
@@ -1012,6 +1216,7 @@ export class BattleScene extends Phaser.Scene {
         <button class="chip" data-act="skip">⏭ ข้าม</button>
         ${(this.req.kind === 'FIELD' && !this.req.auto && this.partyIds.size < 2) || this.req.kind === 'TEST' ? '<button class="chip" data-act="flee">ออก</button>' : ''}
       </div>
+      ${this.awakenRow(me)}
       <div class="deck-row">${deck.join('') || '<small>ยังไม่มีสกิลในชุด — ใช้โจมตีธรรมดา</small>'}</div>
       <div class="battle-hint">ต่อสู้อัตโนมัติ · ระบบสุ่มใช้สกิลจากชุดตาม % ทุกเทิร์น</div>`;
     if (html === this.lastPanel) return;
@@ -1028,6 +1233,7 @@ export class BattleScene extends Phaser.Scene {
       this.renderPanel();
     });
     this.panel.querySelector('[data-act="skip"]')?.addEventListener('click', () => this.skipToEnd());
+    this.panel.querySelector('[data-act="awaken"]')?.addEventListener('click', () => this.startRing());
     this.panel.querySelector('[data-act="flee"]')?.addEventListener('click', () => this.finish(true));
   }
 
@@ -1054,6 +1260,11 @@ export class BattleScene extends Phaser.Scene {
   private finish(fled: boolean) {
     if (this.finished) return;
     this.finished = true;
+    if (this.ring) {
+      this.ring.close();
+      this.ring.g.destroy();
+      this.ring = null;
+    }
     this.slowmo = false;
     this.setTimeScale(1);
     this.marker.setVisible(false);

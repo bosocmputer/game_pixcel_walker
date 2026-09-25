@@ -36,6 +36,20 @@ export interface CombatStats {
 
 export type StatusId = 'STUN' | 'FREEZE' | 'POISON' | 'BURN' | 'BLEED' | 'SLOW' | 'TAUNTING' | 'ROOT';
 
+/** How well the player timed an Awakening press (combat/awaken.ts). */
+export type AwakenGrade = 'PERFECT' | 'GOOD' | 'MISS';
+
+/**
+ * A player decision fed into the deterministic engine. `turn` = the unit's turnsTaken when the
+ * press was made; it applies on the unit's first turn at or after that (a stunned unit waits).
+ */
+export interface CombatInput {
+  unit: string;
+  turn: number;
+  kind: 'AWAKEN';
+  grade: AwakenGrade;
+}
+
 export interface ActiveStatus {
   id: StatusId;
   /** remaining turns of the affected unit */
@@ -160,6 +174,10 @@ export interface CombatUnit {
   passive: boolean;
   /** Personal potion bag (party play); null = draw from the battle's shared `items`. */
   bag: Record<string, number> | null;
+  /** Awakening gauge 0..AWAKEN_MAX (players only). */
+  awaken: number;
+  /** Player character that can Awaken (side A with a class, not a dummy). */
+  awakenable: boolean;
 }
 
 export interface UnitSetup {
@@ -185,6 +203,7 @@ export interface UnitSetup {
   /** Carried over between dungeon waves. */
   cooldowns?: Record<string, number>;
   statuses?: ActiveStatus[];
+  awaken?: number;
 }
 
 /** Environmental modifier rolled per dungeon floor / wave. */
@@ -207,6 +226,8 @@ export interface CombatConfig {
   /** Safety cap; the battle is a loss for side A after this many rounds. */
   maxRounds?: number;
   canFlee?: boolean;
+  /** Player decisions (Awakening presses) — part of the replay key with the seed. */
+  inputs?: CombatInput[];
 }
 
 export type CombatResult = 'ONGOING' | 'WIN' | 'LOSE';
@@ -229,6 +250,10 @@ export type CombatEvent =
   | { type: 'RECOVER'; unit: string; amount: number }
   | { type: 'ITEM'; unit: string; item: string; amount: number }
   | { type: 'DEATH'; unit: string }
+  /** Awakening Strike begins (the DAMAGE follows). */
+  | { type: 'AWAKEN'; unit: string; grade: AwakenGrade; target: string }
+  /** Back-to-back ally hits on one target: the following DAMAGE is boosted. */
+  | { type: 'LINK'; from: string; unit: string; target: string }
   | { type: 'MIRACLE'; unit: string }
   | { type: 'BLOCK_ULT'; unit: string; skill: string }
   | { type: 'PHASE'; unit: string; phase: number; message: string }

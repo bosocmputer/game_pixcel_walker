@@ -524,3 +524,15 @@ body.in-home .hud .chat-box { display: none; }
 .ad-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .ad-row .btn { padding: 2px 10px; }
 body.in-home .hud .ad-bar { display: none; }
+
+/* Awakening gauge + timing ring catcher (BattleScene, ROADMAP ⚔️ 4.1) */
+.awaken-row { display: flex; align-items: center; gap: 6px; max-width: 560px; margin: -2px auto 6px; font-size: 12px; color: #fff; text-shadow: 1px 1px 0 #000; }
+.aw-label { font-family: 'Silkscreen', 'Chakra Petch', monospace; font-size: 11px; color: #7ff0ff; white-space: nowrap; }
+.aw-bar { position: relative; flex: 1; height: 10px; background: #1c1a28; border: 2px solid #000; }
+.aw-bar i { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(90deg, #4fd8ff, #ffd54f); }
+.awaken-row.full .aw-bar i { animation: aw-glow .5s steps(2) infinite; }
+.aw-btn { padding: 2px 10px; animation: aw-pulse .7s ease-in-out infinite; }
+.aw-wait { color: #7ff0ff; }
+@keyframes aw-glow { 50% { filter: brightness(1.7); } }
+@keyframes aw-pulse { 50% { transform: scale(1.06); } }
+.awaken-catcher { position: fixed; inset: 0; z-index: 90; cursor: pointer; touch-action: none; }

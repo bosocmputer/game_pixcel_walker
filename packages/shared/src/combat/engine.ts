@@ -13,10 +13,13 @@ import { BASIC_ATTACK, SKILLS } from '../data/skills';
 import { CONSUMABLES } from '../data/items';
 import { createRng, type Rng } from '../rules/rng';
 import { mitigate } from '../rules/stats';
+import { AWAKEN_GAIN_DEAL, AWAKEN_GAIN_TAKE, AWAKEN_MAX, AWAKEN_MULT, AWAKEN_SKILL, LINK_MULT } from './awaken';
 import type { Element } from '../types';
 import {
   DECK_SIZE,
+  type AwakenGrade,
   type CombatConfig,
+  type CombatInput,
   type CombatEvent,
   type CombatResult,
   type CombatStats,
@@ -54,6 +57,12 @@ export interface Combat {
   summonCounter: number;
   /** Per-boss ultimate cadence (can change on phase shift). */
   ultEvery: Record<string, number>;
+  /** Player decisions for this battle (append-only; see CombatInput). */
+  inputs: CombatInput[];
+  /** Indices of `inputs` already consumed. */
+  usedInputs: number[];
+  /** Last landed hit this round (Link Attack chain). */
+  lastHit: { attacker: string; target: string; side: 'A' | 'B'; round: number } | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -88,6 +97,8 @@ function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
     autoPotion: !!s.autoPotion,
     passive: !!s.passive,
     bag: s.items ? { ...s.items } : null,
+    awaken: Math.max(0, Math.min(AWAKEN_MAX, s.awaken ?? 0)),
+    awakenable: side === 'A' && !!s.classId && !s.passive,
   };
 }
 
@@ -120,6 +131,9 @@ export function createCombat(cfg: CombatConfig): Combat {
     maxRounds: cfg.maxRounds ?? DEFAULT_MAX_ROUNDS,
     summonCounter: 0,
     ultEvery,
+    inputs: [...(cfg.inputs ?? [])],
+    usedInputs: [],
+    lastHit: null,
   };
 }
 
@@ -343,6 +357,10 @@ function takeTurn(c: Combat, u: CombatUnit) {
     return endTurn(u);
   }
 
+  // Player input: Awakening (only when the gauge is full; a stale press is simply consumed).
+  const input = takeInput(c, u);
+  if (input && u.awakenable && u.awaken >= AWAKEN_MAX && awakenStrike(c, u, input.grade)) return endTurn(u);
+
   // 2. Pre-action: auto potion, then the boss's deterministic ultimate.
   const bag = u.bag ?? c.items;
   if (u.autoPotion && u.hp < u.base.maxHp * AUTO_HP_POTION && (bag['red_potion'] ?? 0) > 0) {
@@ -378,6 +396,28 @@ function takeTurn(c: Combat, u: CombatUnit) {
   }
   useSkill(c, u, chosen);
   endTurn(u);
+}
+
+/** The unit's next unused input whose turn has come (consumed on read). */
+function takeInput(c: Combat, u: CombatUnit): CombatInput | null {
+  for (let i = 0; i < c.inputs.length; i++) {
+    const inp = c.inputs[i]!;
+    if (inp.unit !== u.id || inp.turn > u.turnsTaken || c.usedInputs.includes(i)) continue;
+    c.usedInputs.push(i);
+    return inp;
+  }
+  return null;
+}
+
+/** Awakening Strike: unavoidable hit on the weakest enemy with the unit's best attack stat. */
+function awakenStrike(c: Combat, u: CombatUnit, grade: AwakenGrade): boolean {
+  const t = pickTarget(c, u, 'ENEMY_LOWEST_HP');
+  if (!t) return false;
+  push(c, { type: 'AWAKEN', unit: u.id, grade, target: t.id });
+  const magic = stat(u, 'matk') > stat(u, 'atk');
+  strike(c, u, t, { kind: 'DAMAGE', type: magic ? 'MAGIC' : 'PHYSICAL', scaling: { [magic ? 'matk' : 'atk']: AWAKEN_MULT[grade] } }, AWAKEN_SKILL, 1, false);
+  u.awaken = 0;
+  return true;
 }
 
 function endTurn(u: CombatUnit) {
@@ -583,7 +623,16 @@ function strike(
       damage(c, t, u, reflect);
     }
   }
+  // Link Attack: a different ally landed the previous hit on this same target this round.
+  const lh = c.lastHit;
+  if (u.side === 'A' && lh && lh.side === 'A' && lh.round === c.round && lh.target === t.id && lh.attacker !== u.id) {
+    amount = Math.max(1, Math.round(amount * LINK_MULT));
+    push(c, { type: 'LINK', from: lh.attacker, unit: u.id, target: t.id });
+  }
   push(c, { type: 'DAMAGE', source: u.id, target: t.id, amount, crit, block, element });
+  c.lastHit = { attacker: u.id, target: t.id, side: u.side, round: c.round };
+  if (u.awakenable) u.awaken = Math.min(AWAKEN_MAX, u.awaken + AWAKEN_GAIN_DEAL);
+  if (t.awakenable) t.awaken = Math.min(AWAKEN_MAX, t.awaken + AWAKEN_GAIN_TAKE);
   damage(c, u, t, amount);
   return true;
 }

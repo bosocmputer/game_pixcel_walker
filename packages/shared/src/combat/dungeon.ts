@@ -5,7 +5,10 @@
 import { MONSTERS } from '../data/monsters';
 import { createRng, type Rng } from '../rules/rng';
 import { bossAtkScale, bossHpScale, createCombat, monsterSetup, type Combat } from './engine';
-import type { CombatConfig, CombatUnit, UnitSetup, WaveModifier } from './types';
+import type { CombatConfig, CombatInput, CombatUnit, UnitSetup, WaveModifier } from './types';
+
+/** A player input recorded with the wave it was made in (the dungeon's replay log). */
+export type DungeonInput = CombatInput & { wave: number };
 
 export const WAVE_MODIFIERS: WaveModifier[] = [
   { id: 'calm', nameTh: 'สงบ — ไม่มีผลพิเศษ' },
@@ -54,6 +57,8 @@ export interface Dungeon {
   maxRounds?: number;
   /** Test arena: multiply every enemy's HP/ATK; skip party-size boss scaling. */
   enemyScale?: { hp: number; atk: number };
+  /** Every player input so far (replay key together with the seed). */
+  inputs: DungeonInput[];
   noBossScaling?: boolean;
 }
 
@@ -74,7 +79,14 @@ function waveConfig(d: Dungeon, index: number): CombatConfig {
     const atkScale = (scaled ? bossAtkScale(id, partySize) : 1) * (d.enemyScale?.atk ?? 1);
     return monsterSetup(id, `w${index}e${i}`, { hpScale, atkScale, hp: isBoss && def.boss ? d.bossHp : undefined });
   });
-  return { partyA: d.party, partyB, seed: (d.seed + index * 7919) >>> 0, items: d.items, modifier: d.modifiers[index] ?? null, maxRounds: d.maxRounds };
+  const inputs = d.inputs.filter((i) => i.wave === index).map(({ wave: _w, ...i }) => i);
+  return { partyA: d.party, partyB, seed: (d.seed + index * 7919) >>> 0, items: d.items, modifier: d.modifiers[index] ?? null, maxRounds: d.maxRounds, inputs };
+}
+
+/** Records a player input for the current wave and hands it to the running battle. */
+export function addInput(d: Dungeon, input: CombatInput) {
+  d.inputs.push({ ...input, wave: d.wave });
+  d.combat.inputs.push({ ...input });
 }
 
 export function createDungeon(opts: {
@@ -87,6 +99,8 @@ export function createDungeon(opts: {
   maxRounds?: number;
   enemyScale?: { hp: number; atk: number };
   noBossScaling?: boolean;
+  /** Replay: inputs recorded in an earlier run of this dungeon. */
+  inputs?: DungeonInput[];
 }): Dungeon {
   const rng = createRng(opts.seed ^ 0x5bd1e995);
   const modifiers = opts.waves.map(() => (opts.rollModifiers === false ? null : WAVE_MODIFIERS[Math.floor(rng() * WAVE_MODIFIERS.length)]!));
@@ -106,6 +120,7 @@ export function createDungeon(opts: {
     maxRounds: opts.maxRounds,
     enemyScale: opts.enemyScale,
     noBossScaling: opts.noBossScaling,
+    inputs: (opts.inputs ?? []).map((i) => ({ ...i })),
   };
   d.combat = createCombat(waveConfig(d, 0));
   d.combat.events.unshift({ type: 'WAVE', wave: 1, total: d.waves.length, modifier: modifiers[0]?.nameTh ?? null });
@@ -121,6 +136,7 @@ function persist(setup: UnitSetup, u: CombatUnit): UnitSetup {
     items: u.bag ? { ...u.bag } : setup.items,
     cooldowns: { ...u.cooldowns },
     statuses: u.statuses.filter((s) => s.id !== 'TAUNTING').map((s) => ({ ...s })),
+    awaken: u.awaken,
   };
 }
 

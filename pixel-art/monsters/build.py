@@ -572,6 +572,45 @@ SPRITES = {
 }
 
 
+# ============================================================================================
+# Battle animation (ROADMAP ⚔️ 3.1): puppeted frames made from each finished sprite by moving
+# whole pixel rows (1-2 px, never resampled, so the art stays crisp):
+#   0 idle · 1 breathe (upper body squashes 1 px) · 2 attack (leans forward) · 3 hurt (flinches back)
+
+def _rows(im, fn):
+    """Rebuild `im` moving each row y by fn(y) -> (dx, dy). Moved rows are pasted over still ones."""
+    w, h = im.size
+    out = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    moved = []
+    for y in range(h):
+        dx, dy = fn(y)
+        row = im.crop((0, y, w, y + 1))
+        (moved if (dx or dy) else out.paste(row, (0, y), row)) is None or moved.append((row, dx, y + dy))
+    for row, dx, y in moved:
+        if 0 <= y < h:
+            out.paste(row, (dx, y), row)
+    return out
+
+
+def anim_strip(im):
+    box = im.getbbox()
+    top, bottom = box[1], box[3]
+    body = bottom - top
+    waist = top + int(body * 0.6)          # legs/base below this stay planted
+    lean = lambda y, n: round(n * (waist - y) / max(1, waist - top)) if y < waist else 0
+    frames = [
+        im,
+        _rows(im, lambda y: (0, 1) if y < waist else (0, 0)),
+        _rows(im, lambda y: (lean(y, 2) + 1, 0)),
+        _rows(im, lambda y: (-lean(y, 2) - 1, 1 if y < waist else 0)),
+    ]
+    w, h = im.size
+    strip = Image.new("RGBA", (w * 4, h), (0, 0, 0, 0))
+    for i, fr in enumerate(frames):
+        strip.alpha_composite(fr, (i * w, 0))
+    return strip
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     out = {}
@@ -579,6 +618,7 @@ def main():
         s = fn()
         s.save_png(os.path.join(OUT, f"{name}.png"))
         out[name] = s.composite(1)
+        anim_strip(out[name]).save(os.path.join(OUT, f"{name}_anim.png"))
     Z = 4
     cols = 6
     cw, ch = 72 * Z + 16, 72 * Z + 30
@@ -591,7 +631,17 @@ def main():
         sheet.alpha_composite(big, (x + (72 * Z - big.width) // 2, y + 72 * Z - big.height))
         d.text((x, y + 72 * Z + 4), f"{n} {im.width}x{im.height}", fill=(255, 255, 255, 255))
     sheet.save(os.path.join(HERE, "preview.png"))
-    print("OK", len(out), "sprites")
+    # Animation review: every strip, 3x
+    strips = [Image.open(os.path.join(OUT, f"{n}_anim.png")) for n in out]
+    aw = max(st.width for st in strips) * 3 + 16
+    ah = sum(st.height * 3 + 6 for st in strips) + 8
+    anim = Image.new("RGBA", (aw, ah), (120, 160, 110, 255))
+    y = 4
+    for st in strips:
+        anim.alpha_composite(st.resize((st.width * 3, st.height * 3), Image.NEAREST), (8, y))
+        y += st.height * 3 + 6
+    anim.save(os.path.join(HERE, "anim.png"))
+    print("OK", len(out), "sprites + anim strips")
 
 
 if __name__ == "__main__":

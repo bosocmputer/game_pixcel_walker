@@ -38,6 +38,8 @@ export async function loadPixelSprites(): Promise<void> {
   const monsterKeys = new Set(Object.values(MONSTERS).map((m) => m.sprite));
   await Promise.all([
     ...[...monsterKeys].map((k) => load(`/assets/monsters/${k}.png`)),
+    // Battle animation strips (idle · breathe · attack · hurt), pixel-art/monsters anim_strip()
+    ...[...monsterKeys].map((k) => load(`/assets/monsters/${k}_anim.png`)),
     ...PIN_FILES.map((k) => load(`/assets/landmarks/${k}.png`)),
   ]);
 }

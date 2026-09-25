@@ -47,7 +47,9 @@ export class TurnBar {
       this.items.push(frame);
       const tex = textureOf(id);
       if (tex && this.scene.textures.exists(tex)) {
-        const img = this.scene.add.image(x, cy + size / 2 - 2, tex).setOrigin(0.5, 1).setScrollFactor(0).setDepth(53);
+        // Animation strips (monsters) show their first frame; single images use the whole texture.
+        const first = this.scene.textures.get(tex).frameTotal > 1 ? 0 : undefined;
+        const img = this.scene.add.image(x, cy + size / 2 - 2, tex, first).setOrigin(0.5, 1).setScrollFactor(0).setDepth(53);
         img.setScale((size - 6) / Math.max(img.height, img.width));
         if (u.side === 'B') img.setFlipX(true);
         if (done) img.setAlpha(0.4);

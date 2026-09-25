@@ -33,7 +33,7 @@ import {
   type WaveDef,
 } from '@pw/shared';
 import { heroCanvas, monsterCanvas, type HairStyle, type Paperdoll } from '../game/art';
-import { hasPixelSprite } from '../game/sprites';
+import { hasPixelSprite, pixelImage } from '../game/sprites';
 import {
   animFrameCount,
   AVATAR_ORIGIN_X,
@@ -50,7 +50,7 @@ import { el, esc } from '../ui/dom';
 import { autoHunt } from '../game/autohunt';
 import { music, sfx } from '../game/audio';
 import { createFxAnims, hitFx, meleeSwing, playFx, preloadFx, shootProjectile, skillLook, statusFx, type FxAnchor, type SkillLook } from './battleFx';
-import { ComboCounter, ELEMENT_COLOR, coinBurst, damageNumber, shatter } from './battleJuice';
+import { ComboCounter, ELEMENT_COLOR, coinBurst, damageNumber, flinchTexture, shatter } from './battleJuice';
 import { haptic } from '../game/haptics';
 import { buildStage, riftBreak, type StageLayer } from './battleStage';
 import { StatusRow, TurnBar, preloadOverlay } from './battleOverlay';
@@ -90,6 +90,10 @@ interface UnitView {
   status: StatusRow;
   /** Draw order at rest (lower on screen = in front). */
   depth: number;
+  /** Monster with an animation strip: frames 0 idle · 1 breathe · 2 attack · 3 hurt. */
+  animated: boolean;
+  /** Hero flinch texture (runtime lean-back copy of the idle frame). */
+  hurtKey: string | null;
 }
 
 const STATUS_TH: Record<string, string> = {
@@ -312,7 +316,11 @@ export class BattleScene extends Phaser.Scene {
       if (!this.textures.exists(key)) key = down;
     } else {
       key = `mob_${u.sprite}`;
-      if (!this.textures.exists(key)) this.textures.addCanvas(key, monsterCanvas(u.sprite));
+      const strip = pixelImage('monsters', `${u.sprite}_anim`);
+      if (strip) {
+        key = `mob_anim_${u.sprite}`;
+        if (!this.textures.exists(key)) this.textures.addSpriteSheet(key, strip, { frameWidth: strip.width / 4, frameHeight: strip.height });
+      } else if (!this.textures.exists(key)) this.textures.addCanvas(key, monsterCanvas(u.sprite));
     }
     const isHero = !!ally || u.side === 'A';
     const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
@@ -325,7 +333,8 @@ export class BattleScene extends Phaser.Scene {
       finalScale = hasPixelSprite('monsters', u.sprite) ? (isPack ? scale * 0.55 : scale / 2) : isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
     }
     if (u.row === 'BACK' && !u.isBoss) finalScale *= 0.9;
-    const sprite = this.add.image(0, 0, key).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
+    const animated = key.startsWith('mob_anim_');
+    const sprite = this.add.image(0, 0, key, animated ? 0 : undefined).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
     const label = this.add
       .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: PIXEL_FONT, fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0)
@@ -361,6 +370,8 @@ export class BattleScene extends Phaser.Scene {
       ghostHoldUntil: 0,
       status: new StatusRow(this),
       depth: 10,
+      animated,
+      hurtKey: animated ? null : flinchTexture(this, key, u.side === 'A' ? 1 : -1),
     };
     this.views.set(u.id, v);
     return v;
@@ -527,8 +538,12 @@ export class BattleScene extends Phaser.Scene {
       }
       if (now < v.actUntil || u.hp <= 0) continue;
       const low = pct < 0.25 && !u.passive;
-      const b = Math.sin(t * (low ? 7 : 2.4) + v.phase) * (low ? 0.035 : 0.022);
-      v.sprite.setScale(v.baseX * (1 - b * 0.4), v.baseY * (1 + b));
+      if (v.animated) {
+        v.sprite.setScale(v.baseX, v.baseY).setFrame(Math.floor(now / (low ? 220 : 480) + v.phase) % 2);
+      } else {
+        const b = Math.sin(t * (low ? 7 : 2.4) + v.phase) * (low ? 0.035 : 0.022);
+        v.sprite.setScale(v.baseX * (1 - b * 0.4), v.baseY * (1 + b));
+      }
       if (low) {
         const k = 0.5 + 0.5 * Math.sin(t * 6);
         v.sprite.setTint(Phaser.Display.Color.GetColor(255, Math.round(150 + 80 * k), Math.round(150 + 80 * k)));
@@ -683,6 +698,7 @@ export class BattleScene extends Phaser.Scene {
       },
       onComplete: () => {
         if (slashing) attacker.sprite.setTexture(attacker.slashKeys[1]!);
+        else if (attacker.animated) attacker.sprite.setFrame(2);
         // The drawn slash brings its own trail; only the procedural hero needs the effect.
         if (!slashing) meleeSwing(this, { x: landing.x, y: landing.y, h: attacker.sprite.displayHeight }, attacker.fxPx, direction);
         this.tweens.add({
@@ -714,6 +730,7 @@ export class BattleScene extends Phaser.Scene {
       onComplete: () => {
         attacker.sprite.setPosition(from.x, from.y).setAngle(baseAngle).setScale(attacker.baseX, attacker.baseY).setDepth(attacker.depth);
         if (slashing) attacker.sprite.setTexture(attacker.idleKey);
+        else if (attacker.animated) attacker.sprite.setFrame(0);
       },
     });
     return windupMs + approachMs;
@@ -749,6 +766,21 @@ export class BattleScene extends Phaser.Scene {
         if (look.cast) {
           this.fx(look.cast, e.unit, delay, { ground: true, scale: u.isBoss ? 1.2 : 1 });
           this.time.delayedCall(delay, () => sfx('cast'));
+          if (!look.melee && v.slashKeys.length) {
+            this.time.delayedCall(delay, () => {
+              v.actUntil = Math.max(v.actUntil, this.time.now + 460);
+              v.sprite.setTexture(v.slashKeys[0]!);
+              this.time.delayedCall(440, () => {
+                if (v.sprite.texture.key === v.slashKeys[0]) v.sprite.setTexture(v.idleKey);
+              });
+            });
+          } else if (v.animated) {
+            this.time.delayedCall(delay, () => {
+              v.actUntil = Math.max(v.actUntil, this.time.now + 400);
+              v.sprite.setFrame(2);
+              this.time.delayedCall(380, () => v.sprite.setFrame(0));
+            });
+          }
         }
         if (look.bolt) {
           const from = this.anchor(e.unit);
@@ -802,6 +834,16 @@ export class BattleScene extends Phaser.Scene {
             this.drawBars();
             v.sprite.setTintFill(0xffffff);
             this.time.delayedCall(70, () => v.sprite.clearTint());
+            // Hurt pose: the monster's flinch frame, or the hero's lean-back copy.
+            if (v.animated) {
+              v.sprite.setFrame(3);
+              this.time.delayedCall(240, () => v.sprite.setFrame(0));
+            } else if (v.hurtKey && v.sprite.texture.key === v.idleKey) {
+              v.sprite.setTexture(v.hurtKey);
+              this.time.delayedCall(240, () => {
+                if (v.sprite.texture.key === v.hurtKey) v.sprite.setTexture(v.idleKey);
+              });
+            }
             const src = this.views.get(e.source);
             const dir = src && src.home.x < v.home.x ? 1 : -1;
             this.tweens.add({ targets: v.sprite, x: v.home.x + dir * (e.crit ? 16 : 8), yoyo: true, duration: 80, ease: 'Quad.easeOut' });

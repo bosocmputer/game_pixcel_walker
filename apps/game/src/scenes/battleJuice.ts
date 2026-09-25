@@ -188,3 +188,51 @@ export class ComboCounter {
     this.count = 0;
   }
 }
+
+/**
+ * A "flinch" copy of a texture: rows above the waist lean back by up to 2 art pixels and drop 1
+ * (the same row-moving puppet trick pixel-art/monsters uses — no resampling). Returns the new key.
+ */
+export function flinchTexture(scene: Phaser.Scene, key: string, dir: 1 | -1): string | null {
+  const out = `${key}_flinch`;
+  if (scene.textures.exists(out)) return out;
+  if (!scene.textures.exists(key)) return null;
+  const src = scene.textures.get(key).getSourceImage() as HTMLImageElement | HTMLCanvasElement;
+  const w = src.width;
+  const h = src.height;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d')!;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, 0, 0);
+  const data = ctx.getImageData(0, 0, w, h);
+  let top = h;
+  let bottom = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (data.data[(y * w + x) * 4 + 3]! > 0) {
+        top = Math.min(top, y);
+        bottom = Math.max(bottom, y);
+        break;
+      }
+    }
+  }
+  if (top >= bottom) return null;
+  // Art pixel size inside this texture (avatar-pack canvases may be upscaled).
+  const unit = Math.max(1, Math.round(h / 64));
+  const waist = top + Math.floor((bottom - top) * 0.6);
+  const outCtx = (() => {
+    const o = document.createElement('canvas');
+    o.width = w;
+    o.height = h;
+    return o.getContext('2d')!;
+  })();
+  for (let y = 0; y < h; y++) {
+    const lean = y < waist ? Math.round(2 * ((waist - y) / Math.max(1, waist - top))) + 1 : 0;
+    const dy = y < waist ? unit : 0;
+    outCtx.drawImage(c, 0, y, w, 1, -dir * lean * unit, y + dy, w, 1);
+  }
+  scene.textures.addCanvas(out, outCtx.canvas);
+  return out;
+}

@@ -72,6 +72,7 @@ import { openShopState, shopWindowHtml, wireShopWindow } from './shopWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 import { mountChat } from './chat';
+import { hapticsOn, setHaptics } from '../game/haptics';
 import { adminSettingsHtml, adminWindowHtml, mountAdminHud, wireAdminSettings, wireAdminWindow } from './adminWindow';
 import { SYS, playerRank, questWindowHtml, questsClaimable, rankChip, systemNotice } from './systemUi';
 
@@ -670,6 +671,8 @@ function settingsPanel(): string {
   return `<h2>${uiIcon('settings')}ตั้งค่า</h2>
     <button class="btn primary" data-act="arena">${uiIcon('swords', true)}สนามทดสอบการต่อสู้</button>
     ${audioRows()}
+    <div class="row"><b>การสั่น (มือถือ)</b><span class="spacer"></span>
+      <button class="btn ${hapticsOn() ? 'primary' : ''}" data-act="haptics">${hapticsOn() ? 'เปิด' : 'ปิด'}</button></div>
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
     <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>
@@ -727,6 +730,10 @@ function wirePanel(body: HTMLElement) {
     sfx('coin');
   });
   on('[data-act="enterhome"]', () => enterHome());
+  on('[data-act="haptics"]', () => {
+    setHaptics(!hapticsOn());
+    renderPanel();
+  });
   on('[data-act="rest"]', () => {
     restAtHome();
     toast('พักผ่อนเต็มที่แล้ว', 'good');

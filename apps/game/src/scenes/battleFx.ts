@@ -130,7 +130,6 @@ export function hitFx(scene: Phaser.Scene, at: FxAnchor, px: number, o: { elemen
   if (o.block) playFx(scene, 'shield', at, px, { delay: o.delay, scale: 0.7 });
   scene.time.delayedCall(o.delay, () => {
     sfx(o.crit ? 'crit' : o.block ? 'block' : o.element === 'NEUTRAL' ? (o.melee ? 'slash' : 'hit') : ELEMENT_SFX[o.element]);
-    if (o.crit) scene.cameras.main.shake(120, 0.006);
   });
 }
 

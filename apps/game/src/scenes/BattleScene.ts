@@ -151,6 +151,14 @@ export class BattleScene extends Phaser.Scene {
   private awakenAllowed = false;
   /** A press is recorded and waits for our next turn. */
   private awakenPending = false;
+  /** Phone held upright: less sky, bigger fighters, diagonal formation above the panel. */
+  private portrait = false;
+  private horizonY = 0;
+  /** "Awakening ready" cue under our hero (aura), and whether it was ready last frame. */
+  private aura: Phaser.GameObjects.Graphics | null = null;
+  private wasReady = false;
+  /** Ring length for this press (the first presses are slower, as a tutorial). */
+  private ringMs = 900;
   /** Timing ring on screen: real-time start (performance.now) + its graphics. */
   private ring: { start: number; g: Phaser.GameObjects.Graphics; close: () => void; done: boolean } | null = null;
 
@@ -187,6 +195,8 @@ export class BattleScene extends Phaser.Scene {
     this.awakenAllowed = !req.run;
     this.awakenPending = false;
     this.ring = null;
+    this.aura = null;
+    this.wasReady = false;
   }
 
   create() {
@@ -261,7 +271,14 @@ export class BattleScene extends Phaser.Scene {
     const landmarkLayer = this.req.landmark ? gateLayer(this.req.landmark.kind) : null;
     this.stageLayer = landmarkLayer ?? (this.req.run?.target.kind === 'DUNGEON' || this.req.kind === 'DUNGEON' ? 'PIXEL' : 'FIELD');
     const at = walk.position ?? this.req.landmark ?? DEFAULT_POS;
-    buildStage(this, { lat: at.lat, lng: at.lng, layer: this.stageLayer, kind: landmarkLayer ? this.req.landmark!.kind : undefined });
+    this.portrait = height > width * 1.2;
+    this.horizonY = buildStage(this, {
+      lat: at.lat,
+      lng: at.lng,
+      layer: this.stageLayer,
+      kind: landmarkLayer ? this.req.landmark!.kind : undefined,
+      horizon: this.portrait ? 0.28 : undefined,
+    }).horizonY;
 
     this.header = this.add.text(width / 2, 12, '', { fontFamily: PIXEL_FONT, fontSize: '15px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5, 0).setDepth(50);
     this.banner = this.add.text(width / 2, height * 0.3, '', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ffd54f', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: width - 40 } }).setOrigin(0.5).setDepth(60).setAlpha(0);
@@ -282,6 +299,7 @@ export class BattleScene extends Phaser.Scene {
       document.body.classList.remove('in-battle');
     });
     this.renderPanel();
+    if (this.portrait) this.layout();
 
     createFxAnims(this);
     music(this.d.combat.units.some((u) => u.isBoss) || this.d.waves.some((w) => w.boss) ? 'boss' : 'battle');
@@ -293,6 +311,7 @@ export class BattleScene extends Phaser.Scene {
   // Layout: side view, two rows per side
 
   private layout() {
+    if (this.portrait) return this.layoutPortrait();
     const { width, height } = this.scale;
     const units = this.d.combat.units;
     const scale = Math.max(3, Math.min(5, Math.floor(width / 120)));
@@ -308,6 +327,43 @@ export class BattleScene extends Phaser.Scene {
           const x = width * colX + (i % 2 ? (side === 'A' ? -1 : 1) : 0) * Math.min(40, width * 0.05) + (n > 2 && i === n - 1 ? (side === 'A' ? 10 : -10) : 0);
           let v = this.views.get(u.id);
           if (!v) v = this.addView(u, u.isBoss ? scale + 2 : scale);
+          v.home = { x, y };
+          v.depth = 10 + y / 1000;
+          v.sprite.setDepth(v.depth);
+          if (u.hp > 0) v.sprite.setPosition(x, y).setAlpha(1);
+          v.shadow.setPosition(x, y).setVisible(u.hp > 0);
+          v.label.setPosition(x, y + 4);
+        });
+      }
+    }
+    this.drawBars();
+  }
+
+  /**
+   * Portrait phones: a diagonal formation between the horizon and the DOM panel — enemies upper
+   * right, our party lower left, each row spread vertically (with a side stagger) so names and
+   * bars never overlap in a 375 px wide screen.
+   */
+  private layoutPortrait() {
+    const { width, height } = this.scale;
+    const units = this.d.combat.units;
+    const scale = Math.max(3, Math.min(4, Math.floor(width / 90)));
+    const panelTop = this.panel?.isConnected ? this.panel.getBoundingClientRect().top : height * 0.72;
+    const top = this.horizonY + 64;
+    const bottom = Math.min(height, panelTop) - 56;
+    const span = Math.max(120, bottom - top);
+    const region = { A: [top + span * 0.42, bottom], B: [top, top + span * 0.64] } as const;
+    for (const side of ['A', 'B'] as const) {
+      for (const row of ['FRONT', 'BACK'] as const) {
+        const group = units.filter((u) => u.side === side && u.row === row);
+        const colX = side === 'A' ? (row === 'FRONT' ? 0.3 : 0.12) : row === 'FRONT' ? 0.62 : 0.84;
+        const [y0, y1] = region[side];
+        group.forEach((u, i) => {
+          const n = Math.max(group.length, 1);
+          const y = y0 + ((i + 0.5) / n) * (y1 - y0) - (row === 'BACK' ? 16 : 0);
+          const x = width * colX + (i % 2 ? (side === 'A' ? 1 : -1) * width * 0.07 : 0);
+          let v = this.views.get(u.id);
+          if (!v) v = this.addView(u, u.isBoss ? scale + 1 : scale);
           v.home = { x, y };
           v.depth = 10 + y / 1000;
           v.sprite.setDepth(v.depth);
@@ -355,8 +411,10 @@ export class BattleScene extends Phaser.Scene {
     if (u.row === 'BACK' && !u.isBoss) finalScale *= 0.9;
     const animated = key.startsWith('mob_anim_');
     const sprite = this.add.image(0, 0, key, animated ? 0 : undefined).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
+    // Portrait: short names (full names are in the turn bar / skill pop-ups) so labels fit side by side.
+    const shown = this.portrait && [...u.name].length > 9 ? `${[...u.name].slice(0, 8).join('')}…` : u.name;
     const label = this.add
-      .text(0, 0, u.passive ? `${u.name} (HP ∞)` : `${u.name} Lv.${u.level}`, { fontFamily: PIXEL_FONT, fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
+      .text(0, 0, u.passive ? `${shown} (HP ∞)` : `${shown} Lv.${u.level}`, { fontFamily: PIXEL_FONT, fontSize: '11px', color: '#fff', stroke: '#000', strokeThickness: 3 })
       .setOrigin(0.5, 0)
       .setDepth(11);
     const bars = this.add.graphics().setDepth(11);
@@ -598,6 +656,7 @@ export class BattleScene extends Phaser.Scene {
       } else if (v.sprite.isTinted) v.sprite.clearTint();
     }
     if (dirty) this.drawBars();
+    this.tickAwakenCue(t);
     const av = this.activeId ? this.views.get(this.activeId) : undefined;
     if (av && av.sprite.alpha > 0.5) {
       this.marker.setVisible(true).setPosition(av.sprite.x, av.sprite.y - av.sprite.displayHeight - 14 + Math.sin(t * 7) * 3);
@@ -611,7 +670,9 @@ export class BattleScene extends Phaser.Scene {
     if (!this.awakenAllowed || !me.awakenable) return '';
     const pct = Math.round((me.awaken / AWAKEN_MAX) * 100);
     const full = me.awaken >= AWAKEN_MAX;
-    const right = this.awakenPending
+    const right = this.ring
+      ? '<small class="aw-wait">แตะให้ตรงจังหวะ!</small>'
+      : this.awakenPending
       ? '<small class="aw-wait">ปล่อยในเทิร์นถัดไป…</small>'
       : full
         ? '<button class="btn primary aw-btn" data-act="awaken">สกิลพร้อมใช้งาน!</button>'
@@ -619,8 +680,35 @@ export class BattleScene extends Phaser.Scene {
     return `<div class="awaken-row ${full ? 'full' : ''}"><span class="aw-label">[ระบบ] ตื่นรู้</span><span class="aw-bar"><i style="width:${pct}%"></i></span>${right}</div>`;
   }
 
-  /** Time for the ring to close onto the target circle (the PERFECT moment). */
+  /** Pulsing cyan aura + rising sparks under our hero while Awakening is ready (and a one-off ping). */
+  private tickAwakenCue(t: number) {
+    const me = this.d.combat.units.find((u) => u.id === this.meId);
+    const v = this.views.get(this.meId);
+    const ready = !!me && !!v && this.awakenAllowed && !this.req.auto && !this.finished && me.hp > 0 && me.awaken >= AWAKEN_MAX && !this.awakenPending && !this.ring;
+    if (ready && !this.wasReady) {
+      sfx('notice');
+      haptic('tap');
+      this.popup(this.meId, '[ระบบ] ตื่นรู้พร้อม!', '#7ff0ff', false, 0, -v!.sprite.displayHeight * 0.45);
+    }
+    this.wasReady = ready;
+    if (!ready || !v) {
+      this.aura?.setVisible(false);
+      return;
+    }
+    this.aura ??= this.add.graphics().setDepth(9.5);
+    const k = 0.5 + 0.5 * Math.sin(t * 6);
+    const w = v.shadow.width * (1.15 + 0.12 * k);
+    this.aura.clear().setVisible(true);
+    this.aura.lineStyle(3, 0x7ff0ff, 0.5 + 0.4 * k).strokeEllipse(v.sprite.x, v.home.y, w, w * 0.3);
+    for (let i = 0; i < 4; i++) {
+      const p = (t * 0.8 + i / 4) % 1;
+      this.aura.fillStyle(i % 2 ? 0x7ff0ff : 0xffffff, 1 - p).fillRect(v.sprite.x + (i - 1.5) * 10, v.home.y - p * v.sprite.displayHeight, 3, 3);
+    }
+  }
+
+  /** Default ring length (the PERFECT moment); the first presses use a slower tutorial ring. */
   private static readonly RING_MS = 900;
+  private static readonly TUTORIAL_RING_MS = 1600;
 
   private startRing() {
     const me = this.d.combat.units.find((u) => u.id === this.meId);
@@ -643,10 +731,22 @@ export class BattleScene extends Phaser.Scene {
       window.removeEventListener('keydown', key);
     };
     this.events.once('shutdown', close);
+    // First two presses on this device: a slower ring and a fuller hint.
+    let tries = 0;
+    try {
+      tries = Number(localStorage.getItem('pw.awakenTries') ?? 0);
+      localStorage.setItem('pw.awakenTries', String(tries + 1));
+    } catch {
+      /* ignore */
+    }
+    const tutorial = tries < 2;
+    this.ringMs = tutorial ? BattleScene.TUTORIAL_RING_MS : BattleScene.RING_MS;
     this.ring = { start: performance.now(), g, close, done: false };
     this.setTimeScale(0.15);
-    this.showBanner('[ระบบ] แตะเมื่อวงแหวนทับวงทอง!', '#7ff0ff');
+    this.showBanner(tutorial ? '[ระบบ] วงฟ้าจะหดเข้าหาวงทอง\nแตะจอตอนที่ทับกันพอดี = PERFECT!' : '[ระบบ] แตะเมื่อวงแหวนทับวงทอง!', '#7ff0ff');
     sfx('notice');
+    this.lastPanel = '';
+    this.renderPanel();
   }
 
   /** Draws the shrinking ring each frame (real time, unaffected by the slowed scene clock). */
@@ -656,7 +756,7 @@ export class BattleScene extends Phaser.Scene {
     const me = this.views.get(this.meId);
     const cx = me ? me.home.x : this.scale.width / 2;
     const cy = me ? me.home.y - me.sprite.displayHeight * 0.5 : this.scale.height / 2;
-    const t = (performance.now() - r.start) / BattleScene.RING_MS;
+    const t = (performance.now() - r.start) / this.ringMs;
     const target = 30;
     const radius = target * (1 + 2.2 * Math.max(0, 1 - t));
     r.g.clear();
@@ -664,14 +764,14 @@ export class BattleScene extends Phaser.Scene {
     r.g.lineStyle(5, 0xffd54f, 1).strokeCircle(cx, cy, target);
     r.g.lineStyle(2, 0x3a1a00, 1).strokeCircle(cx, cy, target - 4);
     r.g.lineStyle(4, 0x7ff0ff, 0.95).strokeCircle(cx, cy, radius);
-    if (t > 1 + 300 / BattleScene.RING_MS) this.gradeRing(null);
+    if (t > 1 + 300 / this.ringMs) this.gradeRing(null);
   }
 
   private gradeRing(at: number | null) {
     const r = this.ring;
     if (!r || r.done) return;
     r.done = true;
-    const perfectAt = r.start + BattleScene.RING_MS;
+    const perfectAt = r.start + this.ringMs;
     const grade = awakenGrade(at === null ? null : at - perfectAt);
     r.close();
     this.tweens.add({ targets: r.g, alpha: 0, duration: 60, onComplete: () => r.g.destroy() });
@@ -682,6 +782,8 @@ export class BattleScene extends Phaser.Scene {
     sfx(grade === 'PERFECT' ? 'crit' : grade === 'GOOD' ? 'buff' : 'miss');
     if (grade !== 'MISS') haptic(grade === 'PERFECT' ? 'crit' : 'tap');
     this.queueAwaken(grade);
+    this.lastPanel = '';
+    this.renderPanel();
   }
 
   /** Records the press as an engine input for our unit's next turn (replayable). */

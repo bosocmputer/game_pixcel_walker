@@ -144,8 +144,8 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .hud.vehicle .walk-btn small::after { content: ' · 🚗 เร็วเกินไป ไม่นับก้าว'; }
 
 .joystick {
-  /* Above the landmark/fight cards so it never covers their buttons. */
-  position: absolute; right: 16px; bottom: calc(250px + env(safe-area-inset-bottom)); width: 110px; height: 110px;
+  /* Docked above the landmark/fight cards (--near-h is measured in hud.ts) so it never covers their buttons. */
+  position: absolute; right: 16px; bottom: calc(108px + var(--near-h, 140px) + env(safe-area-inset-bottom)); width: 110px; height: 110px;
   border-radius: 50%; background: rgba(255,255,255,.18); border: 2px solid rgba(255,255,255,.4); touch-action: none;
 }
 .joystick.hidden { display: none; }
@@ -234,7 +234,7 @@ body.in-battle .hud > :not(.toasts) { display: none; }
 .zoom { position: absolute; right: 8px; top: calc(120px + env(safe-area-inset-top)); display: grid; gap: 6px; }
 .zoom button { width: 40px; height: 40px; border: 0; border-radius: 12px; background: rgba(255,250,242,.95); font-size: 20px; box-shadow: 0 3px 0 rgba(0,0,0,.25); }
 
-.sim-tools { position: absolute; right: 30px; bottom: calc(372px + env(safe-area-inset-bottom)); display: flex; gap: 6px; }
+.sim-tools { position: absolute; left: 12px; bottom: calc(108px + var(--near-h, 140px) + env(safe-area-inset-bottom)); display: flex; gap: 6px; }
 .sim-tools.hidden { display: none; }
 .sim-speed, .sim-home {
   border: 0; border-radius: 999px; padding: 8px 14px; font: inherit; font-weight: 700; font-size: 15px;

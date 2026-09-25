@@ -154,8 +154,8 @@ WAVE, RECOVER, ITEM, SUMMON, END…`). The client consumes it to animate (`Battl
 diff it on replay. Nothing in the UI influences the outcome except the recorded inputs below.
 
 ### 3b. Player agency (`combat/awaken.ts`, tests `combat/awaken.test.ts`)
-- **Awakening gauge** (players only: side A with a class, not passive): +10 per landed hit dealt, +14 per landed hit
-  taken, cap 100, carried between dungeon waves (`UnitSetup.awaken`). Monsters never have one.
+- **Awakening gauge** (players only: side A with a class, not passive): +6 per landed hit dealt, +4 per landed hit
+  taken (was 10/14 — it filled by round 3; playtest 2026-09-25), cap 100, carried between dungeon waves (`UnitSetup.awaken`). Monsters never have one.
 - **Input** `{ unit, turn, kind: 'AWAKEN', grade }`: applies on the unit's first turn with `turnsTaken >= turn` that isn't
   skipped by hard CC; read right after the status/CC phase (before potions). Consumed once; ignored if the gauge isn't full.
 - **Awakening Strike**: `AWAKEN` event, then an unavoidable strike on `ENEMY_LOWEST_HP` scaling the unit's higher of

@@ -79,6 +79,14 @@ describe('awakening', () => {
     expect(c.units.filter((u) => u.side === 'B').every((u) => u.awaken === 0 && !u.awakenable)).toBe(true);
   });
 
+  it('fills slowly enough to be special: not full after 3 rounds of a 3-monster field fight', () => {
+    for (const seed of [1, 2, 3, 4, 5]) {
+      const c = createCombat({ partyA: [hero()], partyB: [monsterSetup('soi_dog_spirit', 'e0'), monsterSetup('alley_rat', 'e1'), monsterSetup('pixel_slime', 'e2')], seed });
+      while (c.result === 'ONGOING' && c.round <= 3) step(c);
+      expect(c.units.find((u) => u.id === 'p1')!.awaken, `seed ${seed}`).toBeLessThan(AWAKEN_MAX);
+    }
+  });
+
   it('dungeon inputs are logged per wave and replay to the same fight', () => {
     const play = (inputs?: Dungeon['inputs']) => {
       const d = createDungeon({ party: [{ ...hero({ level: 16 }), awaken: AWAKEN_MAX }], waves: landmarkWaves('goblin_king'), seed: 21, rollModifiers: false, inputs });

@@ -17,6 +17,8 @@ import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
 import { admin } from '../game/admin';
+import { preloadFx } from './battleFx';
+import { preloadOverlay } from './battleOverlay';
 import { ChatBubbles } from './chatBubbles';
 import { PIN_FILES, RIFT_FRAMES, hasPixelSprite, pixelImage } from '../game/sprites';
 import { net } from '../game/net';
@@ -89,6 +91,11 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+    // Warm up the battle effects in the background so the first fight opens instantly (it used to
+    // sit on a blank map for ~2 s while ~30 sheets loaded).
+    preloadFx(this);
+    preloadOverlay(this);
+    this.load.start();
 
     this.rangeRing = this.add.graphics().setDepth(4);
     this.accuracyRing = this.add.circle(0, 0, 10, 0x26c6da, 0.12).setStrokeStyle(2, 0x26c6da, 0.6).setDepth(5);

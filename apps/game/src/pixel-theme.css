@@ -455,6 +455,9 @@ button.hs-card.sel { background: #fff6d0; box-shadow: 0 0 0 2px #f2c230, inset 0
   .bottombar { gap: 2px; padding-left: 4px; padding-right: 4px; }
   .menu-btn { width: 56px; height: 56px; }
   .menu-btn span { font-size: 10px; }
+  /* Cards with two or more buttons: buttons go under the text, so titles aren't squeezed to one word per line. */
+  .lm-card:has(.lm-actions .btn + .btn) { grid-template-columns: 1fr; }
+  .lm-card:has(.lm-actions .btn + .btn) .lm-actions { grid-row: auto; grid-column: 1; justify-content: flex-start; }
 }
 
 /* Awakening intro (first launch) */
@@ -536,3 +539,13 @@ body.in-home .hud .ad-bar { display: none; }
 @keyframes aw-glow { 50% { filter: brightness(1.7); } }
 @keyframes aw-pulse { 50% { transform: scale(1.06); } }
 .awaken-catcher { position: fixed; inset: 0; z-index: 90; cursor: pointer; touch-action: none; }
+
+/* Battle panel on phones: compact so the fight gets the screen (ROADMAP ⚔️ playtest 2026-09-25) */
+@media (max-width: 440px) {
+  .battle-hint { display: none; }
+  .battle-vitals { font-size: 11px; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .deck-row { grid-template-columns: repeat(4, 1fr); gap: 3px; }
+  .deck-slot { grid-template-columns: 1fr !important; justify-items: center; text-align: center; padding: 2px !important; }
+  .deck-slot > span b { display: none; }
+  .deck-slot small { font-size: 10px; }
+}

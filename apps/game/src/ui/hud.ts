@@ -221,6 +221,12 @@ export function mountHud() {
   bus.on('toast', ({ text, kind }) => showToast(hud.querySelector('.toasts')!, text, kind ?? 'info'));
   window.setInterval(() => renderNear(hud.querySelector('.near')!), 5000);
   mountJoystick(hud.querySelector('.joystick')!);
+  // The fight / landmark cards grow and shrink; keep the joystick (and sim buttons) docked just
+  // above them so it never covers a card's buttons (it used to sit on the "สู้" button on phones).
+  const cards = hud.querySelector<HTMLElement>('.near')!;
+  const dock = () => hud.style.setProperty('--near-h', `${Math.round(cards.getBoundingClientRect().height)}px`);
+  new ResizeObserver(dock).observe(cards);
+  dock();
   render();
 }
 

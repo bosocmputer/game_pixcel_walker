@@ -208,13 +208,15 @@ export interface StageOpts {
   /** Landmark kind whose gate we are in (its building stands on the horizon). */
   kind?: LandmarkKind;
   part?: DayPart;
+  /** Horizon as a fraction of the screen height (portrait phones use less sky). */
+  horizon?: number;
 }
 
 /** Builds the whole backdrop; everything is fixed to the screen (scroll factor 0). */
 export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: number; part: DayPart } {
   const { width, height } = scene.scale;
   const part = o.part ?? dayPart();
-  const horizonY = Math.round(height * HORIZON);
+  const horizonY = Math.round(height * (o.horizon ?? HORIZON));
   const lw = Math.ceil(width / LOW);
   const skyH = Math.ceil(horizonY / LOW);
   const floorH = Math.ceil((height - horizonY) / LOW);

@@ -11,9 +11,12 @@
 import type { AwakenGrade, SkillDef } from './types';
 
 export const AWAKEN_MAX = 100;
-/** Gauge gained per landed hit the unit deals / takes. */
-export const AWAKEN_GAIN_DEAL = 10;
-export const AWAKEN_GAIN_TAKE = 14;
+/**
+ * Gauge gained per landed hit the unit deals / takes. Tuned (2026-09-25 playtest) so a normal
+ * 3-monster field fight fills it around round 6–7: about one Awakening per fight, not one per 3 rounds.
+ */
+export const AWAKEN_GAIN_DEAL = 6;
+export const AWAKEN_GAIN_TAKE = 4;
 /** Awakening Strike power: × the unit's best attack stat (ATK or MATK). */
 export const AWAKEN_MULT: Record<AwakenGrade, number> = { PERFECT: 3.0, GOOD: 2.4, MISS: 1.8 };
 /** Timing windows (ms from the ring's centre) for grading a press. */

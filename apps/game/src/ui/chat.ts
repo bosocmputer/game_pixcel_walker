@@ -19,7 +19,7 @@ function lineHtml(l: (typeof chat.lines)[number]): string {
   const name = mine
     ? `<b class="cl-me">${esc(l.name)}</b>`
     : `<button type="button" class="cl-name" data-mute="${esc(l.from)}" data-name="${esc(l.name)}" title="แตะเพื่อปิด/เปิดข้อความจากคนนี้">${esc(l.name)}</button>`;
-  return `<div class="cl ${l.channel}">${l.channel === 'party' ? '<i class="cl-tag">ปาร์ตี้</i>' : ''}${name}<span>${esc(l.text)}</span></div>`;
+  return `<div class="cl ch-${l.channel}">${l.channel === 'party' ? '<i class="cl-tag">ปาร์ตี้</i>' : ''}${name}<span>${esc(l.text)}</span></div>`;
 }
 
 export function mountChat(host: HTMLElement) {

@@ -30,6 +30,9 @@
 - ปิดข้อความรายคน: แตะชื่อในแชท (เก็บในเครื่อง)
 **แก้ไข / เปลี่ยน**
 - พิมพ์ในช่องแชทไม่ทำให้ตัวละครเดิน (กันปุ่ม WASD ไม่ให้ถึงเกม)
+**แก้บั๊ก**
+- ข้อความในหน้าต่างแชทซ้อนทับกันเป็นบรรทัดเดียว: คลาสของบรรทัดใช้ชื่อช่อง `near` ซึ่งชนกับคลาส `.near` ของแผงการ์ดด้านล่างจอ
+  (position: absolute) → เปลี่ยนเป็น `ch-near` / `ch-party`
 **ไฟล์หลักที่แตะ:** `packages/shared/src/net/{chat,chat.test,protocol}.ts`, `apps/server/src/index.ts`, `apps/game/src/game/{chat,net,bus}.ts` (chat ใหม่),
 `apps/game/src/ui/chat.ts` (ใหม่), `apps/game/src/scenes/{chatBubbles(ใหม่),WorldScene,remotePlayers}.ts`, `apps/game/src/ui/hud.ts`, `pixel-theme.css`, docs
 **ทดสอบ:** npm test (110 ผ่าน) · typecheck ผ่าน · build ผ่าน · ในเบราว์เซอร์ + presence server จริง 2 ผู้เล่น (`?player=2`):

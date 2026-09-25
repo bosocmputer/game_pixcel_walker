@@ -484,7 +484,7 @@ body.in-home .hud .chat-box { display: none; }
 .chat-log { height: 150px; overflow-y: auto; display: grid; align-content: start; gap: 2px; font-size: 13px; padding: 2px; background: rgba(0, 0, 0, .25); }
 .chat-empty { margin: 6px; font-size: 12px; }
 .cl { line-height: 1.35; word-break: break-word; }
-.cl.party span { color: #b8ffae; }
+.cl.ch-party span { color: #b8ffae; }
 .cl-tag { font-style: normal; font-size: 10px; color: #1c1a28; background: #9cd88c; padding: 0 3px; margin-right: 4px; text-shadow: none; }
 .cl-name, .cl-me { font: inherit; font-weight: 700; margin-right: 6px; }
 .cl-name { background: none; border: 0; padding: 0; color: #8fd8ff; cursor: pointer; text-shadow: 1px 1px 0 #000; }

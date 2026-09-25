@@ -5,7 +5,7 @@
  */
 import Phaser from 'phaser';
 import { PIXEL_FONT } from '../ui/pixel';
-import { FIGHT_RANGE_M, MONSTERS, gateLayer, gateRank, haversine, type Landmark, type Spawn } from '@pw/shared';
+import { FIGHT_RANGE_M, MONSTERS, RANK_COLOR, gateLayer, gateRank, haversine, type Landmark, type Spawn } from '@pw/shared';
 import { DEFAULT_APPEARANCE, heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
@@ -74,14 +74,14 @@ export class WorldScene extends Phaser.Scene {
   }
 
   create() {
-    // Pins: rift strips become looping sprite-sheet animations; the rest are single images.
+    // Pins: open-gate strips become looping sprite-sheet animations; the rest are single images.
     for (const name of PIN_FILES) {
       const key = `lm_${name}`;
       if (this.textures.exists(key)) continue;
       const img = pixelImage('landmarks', name);
       if (!img) {
         this.textures.addCanvas(key, landmarkIcon(name));
-      } else if (name.startsWith('rift_')) {
+      } else if (name.startsWith('gate_')) {
         this.textures.addSpriteSheet(key, img, { frameWidth: img.width / RIFT_FRAMES, frameHeight: img.height });
         this.anims.create({ key: `${key}_open`, frames: this.anims.generateFrameNumbers(key, {}), frameRate: 6, repeat: -1 });
       } else {
@@ -335,13 +335,24 @@ export class WorldScene extends Phaser.Scene {
     this.rangeRing.clear().fillStyle(0xffa726, 0.07).fillPoints(pts, true).lineStyle(2, 0xffa726, 0.7).strokePoints(pts, true);
   }
 
-  /** Pin texture for a place (docs/STORY.md §5): rift by layer + rank, sealed crack, or a place picture. */
+  /** Pin texture for a place (docs/STORY.md §5): the building with a live rift or a sealed door, or a place picture. */
   private pinTexture(l: Landmark, open: boolean): string {
-    const layer = gateLayer(l.kind);
-    const rank = gateRank(l.kind) ?? 'E';
-    if (!layer) return `lm_${l.kind}`;
-    if (!open) return `lm_sealed_${rank}`;
-    return `lm_rift_${layer.toLowerCase()}_${rank}`;
+    if (!gateLayer(l.kind)) return `lm_${l.kind}`;
+    return open ? `lm_gate_${l.kind}` : `lm_sealed_${l.kind}`;
+  }
+
+  /** Name tag under a pin: gate rank chip (rank colour) + the name the admin gave it. */
+  private pinTag(l: Landmark): Phaser.GameObjects.GameObject[] {
+    const style = { fontFamily: PIXEL_FONT, fontSize: '16px', color: '#ffffff', stroke: '#000000', strokeThickness: 4 };
+    const name = this.add.text(0, 2, l.label, style).setOrigin(0.5, 0);
+    const rank = gateRank(l.kind);
+    if (!rank) return [name];
+    const chip = this.add.text(0, 2, rank, { ...style, color: RANK_COLOR[rank], fontStyle: 'bold' }).setOrigin(0, 0);
+    const gap = 4;
+    const total = chip.width + gap + name.width;
+    chip.setX(-total / 2);
+    name.setOrigin(0, 0).setX(-total / 2 + chip.width + gap);
+    return [chip, name];
   }
 
   /** Create/destroy landmark sprites near the player (cheap; runs twice a second). */
@@ -354,14 +365,11 @@ export class WorldScene extends Phaser.Scene {
       let c = this.landmarkSprites.get(l.id);
       if (!c) {
         const icon = this.add.sprite(0, 0, this.pinTexture(l, true)).setOrigin(0.5, 1).setScale(getHeroScale());
-        c = this.add.container(0, 0, [icon]).setDepth(7);
+        c = this.add.container(0, 0, [icon, ...this.pinTag(l)]).setDepth(7);
         c.setData({ icon, lat: l.lat, lng: l.lng, open: null });
-        // Services hover like a [ระบบ] hologram; sanctuaries breathe softly.
-        if (l.kind === 'HOSPITAL' || l.kind === 'MARKET') this.tweens.add({ targets: icon, y: -4, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.easeInOut' });
-        if (l.kind === 'SANCTUARY') this.tweens.add({ targets: icon, alpha: 0.7, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
         this.landmarkSprites.set(l.id, c);
       }
-      // Gates: an open rift animates; a closed one is a sealed crack.
+      // Gates: an open rift animates in the doorway; a closed one is sealed.
       if (gateLayer(l.kind)) {
         const open = bossAvailableAt(l, s, now) <= now;
         if (c.getData('open') !== open) {

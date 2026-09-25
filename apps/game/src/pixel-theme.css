@@ -514,7 +514,7 @@ body.in-home .hud .chat-box { display: none; }
 .ad-kinds { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 4px; }
 .ad-kind { display: grid; justify-items: center; gap: 2px; padding: 4px 2px; }
 .ad-kind b { font-size: 12px; line-height: 1.2; }
-.ad-art { display: inline-block; flex: none; width: 28px; height: 38px; background: center bottom / contain no-repeat; image-rendering: pixelated; }
+.ad-art { display: inline-block; flex: none; width: 28px; height: 34px; background: center bottom / contain no-repeat; image-rendering: pixelated; }
 .ad-art.rift { background-size: 400% 100%; background-position: 0 0; }
 .ad-info { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; }
 .ad-label { display: grid; gap: 4px; font-weight: 700; }

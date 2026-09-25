@@ -13,10 +13,9 @@ import { uiIcon } from './pixel';
 let kind: LandmarkKind = 'CONVENIENCE';
 let label = '';
 
-/** Small pin preview from the landmark art (first frame of a rift strip). */
+/** Small pin preview from the landmark art (first frame of an open-gate strip). */
 function pinArt(k: LandmarkKind): string {
-  const layer = gateLayer(k);
-  if (layer) return `<i class="ad-art rift" style="background-image:url(/assets/landmarks/rift_${layer.toLowerCase()}_${gateRank(k) ?? 'E'}.png)"></i>`;
+  if (gateLayer(k)) return `<i class="ad-art rift" style="background-image:url(/assets/landmarks/gate_${k}.png)"></i>`;
   return `<i class="ad-art" style="background-image:url(/assets/landmarks/${k}.png)"></i>`;
 }
 

@@ -20,7 +20,9 @@ import {
   PRESENCE_RADIUS_M,
   PRESENCE_TICK_MS,
   PRESENCE_TIMEOUT_MS,
+  chatAllowed,
   haversine,
+  sanitizeChat,
   isolatedMembers,
   type ClientMsg,
   type DungeonEntrant,
@@ -41,6 +43,7 @@ interface Session {
   lng: number | null;
   busy: boolean;
   lastSeen: number;
+  lastChat: number;
 }
 
 interface Party {
@@ -82,7 +85,7 @@ const clampStr = (s: unknown, n: number) => String(s ?? '').slice(0, n);
 const finite = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 
 wss.on('connection', (ws, req) => {
-  const s: Session = { ws, id: null, name: '', level: 1, look: null, lat: null, lng: null, busy: false, lastSeen: Date.now() };
+  const s: Session = { ws, id: null, name: '', level: 1, look: null, lat: null, lng: null, busy: false, lastSeen: Date.now(), lastChat: 0 };
   sessions.add(s);
   console.log(`[+] connection from ${req.socket.remoteAddress} (${sessions.size} open)`);
 
@@ -117,6 +120,9 @@ wss.on('connection', (ws, req) => {
         s.level = Math.max(1, Math.min(99, Number(msg.level) || s.level));
         s.look = msg.look ?? s.look;
         s.busy = !!msg.busy;
+        break;
+      case 'chat':
+        if (s.id) handleChat(s, msg.text, msg.channel);
         break;
       default:
         if (s.id) handleParty(s, msg);
@@ -404,6 +410,34 @@ function beginRun(run: Run) {
 
 // ---------------------------------------------------------------------------------------------
 // Party leash: wander out of range of everyone else in the party and you drop out.
+
+// ---------------------------------------------------------------------------------------------
+// Chat — the server is the authority: re-sanitise, rate-limit, and pick who hears the line.
+// "near" = exactly the players who can already see you on their map (presence radius), so a
+// stranger never learns more than they already see; "party" = your party wherever they are.
+
+function handleChat(s: Session, raw: unknown, channel: unknown) {
+  const now = Date.now();
+  if (!chatAllowed(s.lastChat, now)) return notice(s, 'พิมพ์เร็วเกินไป รอสักครู่', 'bad');
+  const text = sanitizeChat(raw);
+  if (!text) return;
+  s.lastChat = now;
+  const ch = channel === 'party' ? 'party' : 'near';
+  const partyId = partyOf.get(s.id!);
+  if (ch === 'party' && !partyId) return notice(s, 'ยังไม่มีปาร์ตี้', 'bad');
+  const line: ServerMsg = { t: 'chat', from: s.id!, name: s.name, text, channel: ch, at: now };
+  for (const o of sessions) {
+    if (o === s || !o.id || o.id === s.id) continue;
+    const hears =
+      ch === 'party'
+        ? partyOf.get(o.id) === partyId
+        : s.lat !== null && s.lng !== null && o.lat !== null && o.lng !== null &&
+          (partyOf.get(o.id) === partyId && !!partyId
+            ? true
+            : haversine({ lat: s.lat, lng: s.lng }, { lat: o.lat, lng: o.lng }) <= PRESENCE_RADIUS_M);
+    if (hears) send(o.ws, line);
+  }
+}
 
 function checkLeash(now: number) {
   for (const p of [...parties.values()]) {

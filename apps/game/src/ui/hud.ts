@@ -71,6 +71,7 @@ import { bankWindowHtml, repairWindowHtml } from './homeWindows';
 import { openShopState, shopWindowHtml, wireShopWindow } from './shopWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
+import { mountChat } from './chat';
 import { SYS, playerRank, questWindowHtml, questsClaimable, rankChip, systemNotice } from './systemUi';
 
 
@@ -129,6 +130,7 @@ export function mountHud() {
     <div class="toasts"></div>
   </div>`);
   root().appendChild(hud);
+  mountChat(hud);
 
   hud.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('[data-simspeed]')) {

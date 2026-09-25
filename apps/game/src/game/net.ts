@@ -4,7 +4,7 @@
  * Also carries parties and dungeon runs (see apps/server).
  * Add `?player=2` to the URL to run a second, distinct player in another tab for testing.
  */
-import { PARTY_RANGE_M, PRESENCE_PATH, haversine, type ClientMsg, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type RunTarget, type ServerMsg } from '@pw/shared';
+import { PARTY_RANGE_M, PRESENCE_PATH, haversine, type ChatChannel, type ClientMsg, type DungeonEntrant, type PartyInfo, type PlayerLook, type PlayerPresence, type RunTarget, type ServerMsg } from '@pw/shared';
 import { bus, toast } from './bus';
 import { paperdollOf } from './paperdoll';
 import { playerSetup } from './party';
@@ -76,6 +76,10 @@ class Net {
 
   leaveParty() {
     this.send({ t: 'party:leave' });
+  }
+
+  sendChat(text: string, channel: ChatChannel) {
+    this.send({ t: 'chat', text, channel });
   }
 
   kick(id: string) {
@@ -196,6 +200,9 @@ class Net {
         break;
       case 'notice':
         toast(msg.text, msg.kind);
+        break;
+      case 'chat':
+        bus.emit('chat:recv', { from: msg.from, name: msg.name, text: msg.text, channel: msg.channel, at: msg.at });
         break;
       case 'run:prepare': {
         this.pendingRun = { id: msg.runId, target: msg.target };

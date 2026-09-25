@@ -16,6 +16,7 @@ import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
+import { ChatBubbles } from './chatBubbles';
 import { PIN_FILES, RIFT_FRAMES, hasPixelSprite, pixelImage } from '../game/sprites';
 import { net } from '../game/net';
 import { autoHunt } from '../game/autohunt';
@@ -65,6 +66,7 @@ export class WorldScene extends Phaser.Scene {
   private lastLandmarkScan = 0;
   private unsubs: (() => void)[] = [];
   private remotes!: RemotePlayers;
+  private bubbles!: ChatBubbles;
 
   constructor() {
     super('World');
@@ -92,7 +94,8 @@ export class WorldScene extends Phaser.Scene {
     this.pulse = this.add.circle(0, 0, 10, 0xffffff, 0).setStrokeStyle(3, 0xffa726, 0.9).setDepth(5);
     this.tweens.add({ targets: this.pulse, scale: 3, alpha: 0, duration: 1600, repeat: -1 });
     this.shadow = this.add.ellipse(0, 0, 40, 14, 0x000000, 0.28).setDepth(9);
-    this.remotes = new RemotePlayers(this);
+    this.bubbles = new ChatBubbles(this);
+    this.remotes = new RemotePlayers(this, this.bubbles);
     this.refreshHero(store.s);
     const origin = getHeroOrigin();
     this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(origin.x, origin.y).setScale(getHeroScale());
@@ -116,6 +119,7 @@ export class WorldScene extends Phaser.Scene {
       bus.on('battle:start', (req) => this.startBattle(req)),
       bus.on('home:enter', () => this.enterHome()),
       bus.on('players', ({ players }) => this.remotes.sync(players)),
+      bus.on('chat', (line) => this.bubbles.show(line.mine ? 'me' : line.from, line.text, line.channel)),
       bus.on('zoom', ({ delta }) => (delta === 0 ? resetNorth() : zoomBy(delta * 0.5))),
     );
     this.events.once('shutdown', () => this.unsubs.forEach((u) => u()));
@@ -303,6 +307,8 @@ export class WorldScene extends Phaser.Scene {
     }
     this.placeOverlays();
     this.remotes.update(delta, getHeroScale());
+    this.bubbles.place('me', this.player.x, this.player.y - this.player.displayHeight * 0.95 - 4, this.player.visible);
+    this.bubbles.prune();
   }
 
   /** Play-radius ring: the true ground circle projected, so it stays right under any rotation/tilt. */

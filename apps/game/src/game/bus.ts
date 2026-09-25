@@ -1,5 +1,5 @@
 /** Tiny typed event bus between Phaser scenes and the DOM UI. */
-import type { ClassId, DungeonEntrant, Landmark, PartyInfo, PlayerPresence, RunTarget, Spawn, WaveDef } from '@pw/shared';
+import type { ChatLine, ClassId, DungeonEntrant, Landmark, PartyInfo, PlayerPresence, RunTarget, Spawn, WaveDef } from '@pw/shared';
 
 export interface BusEvents {
   'position': { lat: number; lng: number; accuracy: number; simulated: boolean };
@@ -28,6 +28,10 @@ export interface BusEvents {
   'run:status': { runId: string; accepted: string[]; waiting: string[] };
   /** The pending run began or was cancelled. */
   'run:end': { runId: string };
+  /** A chat line arrived from the server (before mute filtering). */
+  'chat:recv': ChatLine;
+  /** A chat line to show (ours or someone else's): log + speech bubble. */
+  'chat': ChatLine & { mine: boolean };
 }
 
 export interface BattleRequest {

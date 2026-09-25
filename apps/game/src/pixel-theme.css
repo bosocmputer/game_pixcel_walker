@@ -464,3 +464,33 @@ button.hs-card.sel { background: #fff6d0; box-shadow: 0 0 0 2px #f2c230, inset 0
 .intro-ask { margin: 12px 0 8px; color: #f2c230; }
 .intro-go { width: 100%; }
 @keyframes sys-in-plain { from { opacity: 0; transform: scale(.94); } }
+
+/* Chat (ui/chat.ts): pill under the top bar, log + input when open */
+.chat-box { position: absolute; left: 8px; top: calc(max(8px, env(safe-area-inset-top)) + 84px); z-index: 4; max-width: min(92vw, 380px); pointer-events: auto; }
+body.in-home .hud .chat-box { display: none; }
+.chat-pill {
+  display: flex; align-items: center; gap: 6px; max-width: min(46vw, 260px); padding: 2px 8px; color: #fff; font-size: 12px;
+  border: 8px solid transparent; border-image: url(/assets/ui/btn-dark.png) 4 fill / 8px stretch; background: none; text-shadow: 1px 1px 0 #000; cursor: pointer;
+}
+.chat-box.open .chat-pill { border-image-source: url(/assets/ui/btn-blue.png); }
+.chat-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-pill .badge { position: static; margin-left: 2px; }
+.chat-panel {
+  margin-top: 4px; width: min(92vw, 380px); padding: 4px 6px; color: #fff; text-shadow: 1px 1px 0 #000;
+  border: 8px solid transparent; border-image: url(/assets/ui/btn-dark.png) 4 fill / 8px stretch; background: none;
+}
+.chat-panel .win-tabs { margin: 0 0 4px; }
+.chat-panel .win-tab:disabled { opacity: .45; }
+.chat-log { height: 150px; overflow-y: auto; display: grid; align-content: start; gap: 2px; font-size: 13px; padding: 2px; background: rgba(0, 0, 0, .25); }
+.chat-empty { margin: 6px; font-size: 12px; }
+.cl { line-height: 1.35; word-break: break-word; }
+.cl.party span { color: #b8ffae; }
+.cl-tag { font-style: normal; font-size: 10px; color: #1c1a28; background: #9cd88c; padding: 0 3px; margin-right: 4px; text-shadow: none; }
+.cl-name, .cl-me { font: inherit; font-weight: 700; margin-right: 6px; }
+.cl-name { background: none; border: 0; padding: 0; color: #8fd8ff; cursor: pointer; text-shadow: 1px 1px 0 #000; }
+.cl-name::after, .cl-me::after { content: ':'; }
+.cl-me { color: #ffd896; }
+.chat-form { display: flex; gap: 4px; margin-top: 4px; }
+.chat-form input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 6px 8px; color: #1c1a28; background: #f6f0e1; border: 2px solid #000; border-radius: 0; }
+.chat-form .btn { padding: 4px 10px; }
+.chat-help { margin: 4px 0 0; font-size: 10px; color: #b8c0d8 !important; }

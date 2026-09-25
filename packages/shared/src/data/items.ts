@@ -1,4 +1,4 @@
-import type { EquipSlot, Modifiers, Rarity } from '../types';
+import type { Element, EquipSlot, Modifiers, Rarity, WeaponType } from '../types';
 
 export const RARITY_BONUS_SLOTS: Record<Rarity, number> = {
   COMMON: 0,
@@ -32,6 +32,10 @@ export interface EquipmentDef {
   level?: number;
   /** A line or two of item history shown in the bag / shop. */
   lore?: string;
+  /** Weapons: how attacks look in battle (swing, reach, impact). Presentation only. */
+  weapon?: WeaponType;
+  /** Weapons: colour of trails / sparkles in battle (no effect on damage). */
+  fxElement?: Element;
 }
 
 export interface ConsumableDef {
@@ -79,6 +83,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Wooden Training Sword',
     nameTh: 'ดาบไม้ฝึกซ้อม',
     slot: 'weapon',
+    weapon: 'SWORD',
     rarity: 'COMMON',
     sprite: 'weapon_wood_01',
     modifiers: { flat: { atk: 3 } },
@@ -92,6 +97,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Apprentice Staff',
     nameTh: 'ไม้เท้าฝึกหัด',
     slot: 'weapon',
+    weapon: 'STAFF',
     rarity: 'COMMON',
     sprite: 'weapon_staff_wood_01',
     modifiers: { flat: { matk: 5 } },
@@ -118,6 +124,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Pixel Broadsword',
     nameTh: 'ดาบพิกเซลโบราณ',
     slot: 'weapon',
+    weapon: 'SWORD',
     rarity: 'RARE',
     sprite: 'weapon_broadsword_01',
     modifiers: { flat: { atk: 45, str: 5 } },
@@ -132,6 +139,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Convenience Club',
     nameTh: 'กระบองโบโลน่า',
     slot: 'weapon',
+    weapon: 'CLUB',
     rarity: 'EPIC',
     sprite: 'weapon_club_01',
     modifiers: { flat: { atk: 80, maxHp: 200 } },
@@ -146,6 +154,8 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Archmage Starlight Staff',
     nameTh: 'คทาละอองดาว',
     slot: 'weapon',
+    weapon: 'STAFF',
+    fxElement: 'HOLY',
     rarity: 'LEGENDARY',
     sprite: 'weapon_staff_star_01',
     modifiers: { flat: { matk: 150, int: 18 } },
@@ -227,6 +237,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Bamboo Spear',
     nameTh: 'หอกไม้ไผ่',
     slot: 'weapon',
+    weapon: 'SPEAR',
     rarity: 'COMMON',
     sprite: 'weapon_spear_bamboo_01',
     modifiers: { flat: { atk: 7, dex: 2 } },
@@ -240,6 +251,8 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Lanna Charm Knife',
     nameTh: 'มีดหมอล้านนา',
     slot: 'weapon',
+    weapon: 'DAGGER',
+    fxElement: 'HOLY',
     rarity: 'UNCOMMON',
     sprite: 'weapon_dagger_lanna_01',
     modifiers: { flat: { atk: 20, agi: 4, crit: 0.03 } },
@@ -253,6 +266,8 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Naga River Staff',
     nameTh: 'ไม้เท้านาคาแม่ปิง',
     slot: 'weapon',
+    weapon: 'STAFF',
+    fxElement: 'WATER',
     rarity: 'RARE',
     sprite: 'weapon_staff_naga_01',
     modifiers: { flat: { matk: 55, int: 6, mdef: 8 } },
@@ -266,6 +281,7 @@ export const EQUIPMENT: Record<string, EquipmentDef> = {
     name: 'Corner Bastion Sword',
     nameTh: 'ดาบยามแจ่งเมือง',
     slot: 'weapon',
+    weapon: 'SWORD',
     rarity: 'RARE',
     sprite: 'weapon_sword_guard_01',
     modifiers: { flat: { atk: 58, str: 4, def: 6 } },
@@ -467,3 +483,9 @@ export const LEGACY_ITEMS: Record<string, { to: string | null; refund: number }>
 
 /** Optional potion pack bought with the starter budget. */
 export const STARTER_POTIONS = { itemId: 'red_potion', count: 5 } as const;
+
+/** Battle look of a visible weapon sprite (paperdoll key); nothing / unknown = bare fists. */
+export function weaponStyle(sprite?: string | null): { type: WeaponType | 'FIST'; element: Element } {
+  const w = sprite ? Object.values(EQUIPMENT).find((e) => e.slot === 'weapon' && e.sprite === sprite) : undefined;
+  return { type: w?.weapon ?? 'FIST', element: w?.fxElement ?? 'NEUTRAL' };
+}

@@ -276,12 +276,15 @@ export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: numbe
  * + pixelate pulse. Myth/world layer: golden flame border + glow. `webgl` post-FX only when the
  * renderer supports it (plain overlays always run).
  */
-export function riftBreak(scene: Phaser.Scene, layer: StageLayer) {
+export function riftBreak(scene: Phaser.Scene, layer: StageLayer, strength = 1) {
+  // strength: the player's shake/flash setting × a speed damper (0 = only the banner, no effects).
+  if (strength <= 0) return;
   const { width, height } = scene.scale;
   const cam = scene.cameras.main;
   const webgl = scene.game.renderer.type === Phaser.WEBGL;
   if (layer === 'MYTH' || layer === 'WORLD') {
-    cam.flash(260, 255, 210, 90);
+    const glow = scene.add.rectangle(0, 0, width, height, 0xffd26a, 0.4 * strength).setOrigin(0).setDepth(69).setScrollFactor(0);
+    scene.tweens.add({ targets: glow, alpha: 0, duration: 320, onComplete: () => glow.destroy() });
     const g = scene.add.graphics().setDepth(70).setScrollFactor(0);
     let n = 0;
     const draw = () => {
@@ -307,13 +310,13 @@ export function riftBreak(scene: Phaser.Scene, layer: StageLayer) {
       scene.tweens.add({ targets: g, alpha: 0, duration: 300, onComplete: () => g.destroy() });
     });
     if (webgl) {
-      const glow = cam.postFX?.addVignette(0.5, 0.5, 0.9, 0.35);
-      scene.time.delayedCall(1300, () => glow && cam.postFX.clear());
+      const vignette = cam.postFX?.addVignette(0.5, 0.5, 0.9, 0.35);
+      scene.time.delayedCall(1300, () => vignette && cam.postFX.clear());
     }
     return;
   }
   // Pixel layer / field: glitch tear
-  cam.shake(420, 0.012);
+  cam.shake(420, 0.008 * strength);
   const slices = scene.add.graphics().setDepth(70).setScrollFactor(0);
   let n = 0;
   const glitch = () => {
@@ -321,7 +324,7 @@ export function riftBreak(scene: Phaser.Scene, layer: StageLayer) {
     for (let i = 0; i < 9; i++) {
       const y = Math.random() * height;
       const h = 2 + Math.random() * 10;
-      slices.fillStyle(i % 2 ? 0x7ff0ff : 0xff7ae0, 0.35 + Math.random() * 0.3);
+      slices.fillStyle(i % 2 ? 0x7ff0ff : 0xff7ae0, (0.35 + Math.random() * 0.3) * strength);
       slices.fillRect(Math.random() * width * 0.3 - 20, y, width * (0.5 + Math.random() * 0.7), h);
     }
     n++;
@@ -332,7 +335,8 @@ export function riftBreak(scene: Phaser.Scene, layer: StageLayer) {
     timer.remove();
     slices.destroy();
   });
-  if (webgl && cam.postFX) {
+  // Colour cycling + pixelate only at full strength (they are the most tiring part).
+  if (webgl && cam.postFX && strength >= 0.9) {
     const cm = cam.postFX.addColorMatrix();
     const px = cam.postFX.addPixelate(6);
     let t = 0;

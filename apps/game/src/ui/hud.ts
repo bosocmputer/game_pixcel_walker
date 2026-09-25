@@ -73,6 +73,7 @@ import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
 import { mountChat } from './chat';
 import { hapticsOn, setHaptics } from '../game/haptics';
+import { FX_LEVEL_TH, cycleFxLevel, fxLevel } from '../game/fxPrefs';
 import { adminSettingsHtml, adminWindowHtml, mountAdminHud, wireAdminSettings, wireAdminWindow } from './adminWindow';
 import { SYS, playerRank, questWindowHtml, questsClaimable, rankChip, systemNotice } from './systemUi';
 
@@ -671,6 +672,8 @@ function settingsPanel(): string {
   return `<h2>${uiIcon('settings')}ตั้งค่า</h2>
     <button class="btn primary" data-act="arena">${uiIcon('swords', true)}สนามทดสอบการต่อสู้</button>
     ${audioRows()}
+    <div class="row"><b>จอสั่น/แสงวาบ (ต่อสู้)</b><span class="spacer"></span>
+      <button class="btn ${fxLevel() === 'normal' ? 'primary' : ''}" data-act="fxlevel">${FX_LEVEL_TH[fxLevel()]}</button></div>
     <div class="row"><b>การสั่น (มือถือ)</b><span class="spacer"></span>
       <button class="btn ${hapticsOn() ? 'primary' : ''}" data-act="haptics">${hapticsOn() ? 'เปิด' : 'ปิด'}</button></div>
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
@@ -730,6 +733,10 @@ function wirePanel(body: HTMLElement) {
     sfx('coin');
   });
   on('[data-act="enterhome"]', () => enterHome());
+  on('[data-act="fxlevel"]', () => {
+    cycleFxLevel();
+    renderPanel();
+  });
   on('[data-act="haptics"]', () => {
     setHaptics(!hapticsOn());
     renderPanel();

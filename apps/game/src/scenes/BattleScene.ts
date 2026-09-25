@@ -30,6 +30,9 @@ import {
   runToEnd,
   step,
   type AwakenGrade,
+  type Element,
+  type WeaponType,
+  weaponStyle,
   type CombatEvent,
   type CombatUnit,
   type Dungeon,
@@ -53,7 +56,8 @@ import { store } from '../state/store';
 import { el, esc } from '../ui/dom';
 import { autoHunt } from '../game/autohunt';
 import { music, sfx } from '../game/audio';
-import { createFxAnims, hitFx, meleeSwing, playFx, preloadFx, shootProjectile, skillLook, statusFx, type FxAnchor, type SkillLook } from './battleFx';
+import { createFxAnims, hitFx, meleeSwing, playFx, preloadFx, shootProjectile, skillLook, statusFx, weaponSwing, type FxAnchor, type SkillLook } from './battleFx';
+import { fxScale } from '../game/fxPrefs';
 import { ComboCounter, ELEMENT_COLOR, coinBurst, damageNumber, flinchTexture, shatter } from './battleJuice';
 import { haptic } from '../game/haptics';
 import { buildStage, riftBreak, type StageLayer } from './battleStage';
@@ -98,6 +102,8 @@ interface UnitView {
   animated: boolean;
   /** Hero flinch texture (runtime lean-back copy of the idle frame). */
   hurtKey: string | null;
+  /** Heroes: the weapon they visibly hold decides swing, reach and impact (null = monster). */
+  weapon: { type: WeaponType | 'FIST'; element: Element } | null;
 }
 
 const STATUS_TH: Record<string, string> = {
@@ -356,7 +362,8 @@ export class BattleScene extends Phaser.Scene {
     const bars = this.add.graphics().setDepth(11);
     // Hand-drawn slash frames (wind-up / strike / follow-through) for avatar-pack heroes.
     const slashKeys: string[] = [];
-    if (doll && isPack) {
+    const weapon = isHero ? weaponStyle(doll?.weapon) : null;
+    if (doll && isPack && weapon?.type === 'SWORD') {
       const frames = animFrameCount(doll.appearance?.gender ?? 'male', doll.appearance?.hairStyle ?? '', 'slash');
       for (let i = 0; i < frames; i++) {
         const slashKey = `hero_${JSON.stringify(doll)}_slash_${i}`;
@@ -386,6 +393,7 @@ export class BattleScene extends Phaser.Scene {
       depth: 10,
       animated,
       hurtKey: animated ? null : flinchTexture(this, key, u.side === 'A' ? 1 : -1),
+      weapon,
     };
     this.views.set(u.id, v);
     return v;
@@ -514,14 +522,34 @@ export class BattleScene extends Phaser.Scene {
     }, ms);
   }
 
-  /** Hit-stop length for a hit (shorter at higher battle speeds so auto-hunt stays snappy). */
+  /** Hit-stop length for a hit (shorter at higher speeds; plain hits don't stop at 4×). */
   private hitStopMs(crit: boolean, ult: boolean): number {
+    if (!crit && !ult && this.speed >= 4) return 0;
     return Math.round((ult ? 150 : crit ? 110 : 55) / Math.sqrt(this.speed));
   }
 
-  /** Quick camera punch-in on a crit / ultimate. */
+  /** Shake/flash strength: the player's setting, damped hard at 2× / 4× so fast fights stay easy on the eyes. */
+  private fxK(): number {
+    return fxScale() * (this.speed >= 4 ? 0.2 : this.speed >= 2 ? 0.5 : 1);
+  }
+
+  private shake(ms: number, intensity: number) {
+    const i = intensity * this.fxK();
+    if (i >= 0.0012) this.cameras.main.shake(ms, i);
+  }
+
+  /** A soft coloured wash instead of a full-white camera flash. */
+  private flashScreen(color: number, alpha: number) {
+    const a = alpha * fxScale() * (this.speed >= 4 ? 0.5 : 1);
+    if (a < 0.05) return;
+    const r = this.add.rectangle(0, 0, this.scale.width, this.scale.height, color, a).setOrigin(0).setDepth(79).setScrollFactor(0);
+    this.tweens.add({ targets: r, alpha: 0, duration: 240, onComplete: () => r.destroy() });
+  }
+
+  /** Quick camera punch-in on a crit / ultimate (not at 4×, not with effects off). */
   private zoomPunch(amount = 0.05) {
-    if (this.slowmo) return;
+    if (this.slowmo || this.speed >= 4 || fxScale() === 0) return;
+    amount *= fxScale();
     const cam = this.cameras.main;
     cam.zoomTo(1 + amount, 60, 'Quad.easeOut', true);
     this.time.delayedCall(90, () => {
@@ -705,7 +733,7 @@ export class BattleScene extends Phaser.Scene {
       }
       this.tweens.add({ targets: [band, edge, edge2], x: 0, duration: 140, ease: 'Cubic.easeOut' });
       this.tweens.add({ targets: [title, sub], x: width * 0.44, duration: 180, delay: 60, ease: 'Cubic.easeOut' });
-      this.cameras.main.flash(120, 127, 240, 255);
+      this.flashScreen(0x7ff0ff, 0.35);
       sfx('ultimate');
       haptic('ultimate');
       this.time.delayedCall(ms - 180, () => {
@@ -728,7 +756,7 @@ export class BattleScene extends Phaser.Scene {
     const cam = this.cameras.main;
     this.slowmo = true;
     this.setTimeScale(0.3);
-    cam.flash(140, 255, 255, 255);
+    this.flashScreen(0xffffff, 0.45);
     cam.zoomTo(1.14, 220, 'Quad.easeOut', true);
     cam.pan(v.home.x, v.home.y - v.sprite.displayHeight * 0.5, 220, 'Quad.easeOut', true);
     haptic('finisher');
@@ -819,7 +847,9 @@ export class BattleScene extends Phaser.Scene {
   private lungeAtTarget(attacker: UnitView, target: UnitView, side: 'A' | 'B', delay: number): number {
     const from = { ...attacker.home };
     const direction = side === 'A' ? 1 : -1;
-    const stopShort = Math.max(28, Math.min(48, (attacker.sprite.displayWidth + target.sprite.displayWidth) * 0.32));
+    // Reach follows the weapon: a spear stops well short, a dagger steps right in.
+    const reach = attacker.weapon?.type === 'SPEAR' ? 1.9 : attacker.weapon?.type === 'DAGGER' ? 0.8 : 1;
+    const stopShort = Math.max(28, Math.min(48, (attacker.sprite.displayWidth + target.sprite.displayWidth) * 0.32)) * reach;
     const landing = { x: target.home.x - direction * stopShort, y: target.home.y };
     const lift = Math.min(32, Math.max(16, 18 + Math.abs(landing.y - from.y) * 0.25));
     const approachMs = 250 / this.speed;
@@ -862,7 +892,11 @@ export class BattleScene extends Phaser.Scene {
         if (slashing) attacker.sprite.setTexture(attacker.slashKeys[1]!);
         else if (attacker.animated) attacker.sprite.setFrame(2);
         // The drawn slash brings its own trail; only the procedural hero needs the effect.
-        if (!slashing) meleeSwing(this, { x: landing.x, y: landing.y, h: attacker.sprite.displayHeight }, attacker.fxPx, direction);
+        if (!slashing) {
+          const at = { x: landing.x, y: landing.y, h: attacker.sprite.displayHeight };
+          if (attacker.weapon) weaponSwing(this, at, attacker.fxPx, direction, attacker.weapon.type, attacker.weapon.element);
+          else meleeSwing(this, at, attacker.fxPx, direction);
+        }
         this.tweens.add({
           targets: attacker.sprite,
           angle: baseAngle + direction * (slashing ? 6 : 14),
@@ -990,7 +1024,7 @@ export class BattleScene extends Phaser.Scene {
           lead = flight;
         }
         if (bossUlt) {
-          this.cameras.main.shake(320, 0.014);
+          this.shake(320, 0.008);
           this.showBanner(`${u.name}\n${bossUlt.nameTh}!`, '#ff6b6b');
           sfx('ultimate');
           haptic('ultimate');
@@ -1046,8 +1080,10 @@ export class BattleScene extends Phaser.Scene {
             this.tweens.add({ targets: v.sprite, x: v.home.x + dir * (e.crit ? 16 : 8), yoyo: true, duration: 80, ease: 'Quad.easeOut' });
             v.sprite.setScale(v.baseX * 1.12, v.baseY * 0.84);
             this.tweens.add({ targets: v.sprite, scaleX: v.baseX, scaleY: v.baseY, duration: 220, ease: 'Back.easeOut' });
+            // Plain hits only nudge the camera at 1×; crits a little more (all scaled by fxK).
             const frac = victim ? e.amount / victim.base.maxHp : 0.1;
-            this.cameras.main.shake(e.crit ? 170 : 110, Math.min(0.02, 0.003 + frac * 0.035));
+            if (e.crit) this.shake(150, 0.006);
+            else if (this.speed < 2) this.shake(90, Math.min(0.005, 0.0015 + frac * 0.012));
             if (attacker?.side === 'A') this.combo.hit();
             else this.combo.break();
             if (e.crit) {
@@ -1058,14 +1094,14 @@ export class BattleScene extends Phaser.Scene {
               this.awakenStrikeOn = null;
               this.fx('holy', e.target, 0, { scale: 1.4 });
               this.fx('crit', e.target, 40, { scale: 1.3 });
-              this.cameras.main.shake(260, 0.022);
+              this.shake(260, 0.012);
               this.zoomPunch(0.1);
             }
             if (finale) this.finalBlow(e.target);
             else this.freeze(stop);
           });
           const look = this.looks.get(e.source);
-          hitFx(this, a, a.px, { element: e.element, crit: e.crit, block: e.block, melee: look?.melee ?? true, delay });
+          hitFx(this, a, a.px, { element: e.element, crit: e.crit, block: e.block, melee: look?.melee ?? true, delay, weapon: this.views.get(e.source)?.weapon?.type });
         }
         break;
       }
@@ -1135,7 +1171,7 @@ export class BattleScene extends Phaser.Scene {
         sfx('holy');
         break;
       case 'PHASE':
-        riftBreak(this, this.stageLayer);
+        riftBreak(this, this.stageLayer, fxScale() * (this.speed >= 4 ? 0.5 : 1));
         haptic('ultimate');
         this.showBanner(e.message, '#ff8a80');
         this.fx('cast_fire', e.unit, 0, { ground: true, scale: 1.4 });

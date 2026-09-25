@@ -3,7 +3,7 @@
  * events. BattleScene calls these; everything here is presentation only.
  */
 import Phaser from 'phaser';
-import { SKILLS, type Element, type StatusId } from '@pw/shared';
+import { SKILLS, type Element, type StatusId, type WeaponType } from '@pw/shared';
 import { sfx, type Sfx } from '../game/audio';
 
 export const FX_SHEETS = [
@@ -123,8 +123,15 @@ export function skillLook(skillId: string): SkillLook {
 }
 
 /** Hit effect + sound for a damage event. */
-export function hitFx(scene: Phaser.Scene, at: FxAnchor, px: number, o: { element: Element; crit: boolean; block: boolean; melee: boolean; delay: number }) {
-  const key = o.element === 'NEUTRAL' ? (o.melee ? 'slash' : 'impact') : ELEMENT_FX[o.element];
+export function hitFx(
+  scene: Phaser.Scene,
+  at: FxAnchor,
+  px: number,
+  o: { element: Element; crit: boolean; block: boolean; melee: boolean; delay: number; weapon?: WeaponType | 'FIST' },
+) {
+  // Melee hits look like the weapon that landed them: blades cut, blunt things and fists thump.
+  const blade = !o.weapon || o.weapon === 'SWORD' || o.weapon === 'DAGGER';
+  const key = o.element === 'NEUTRAL' ? (o.melee ? (blade ? 'slash' : 'impact') : 'impact') : ELEMENT_FX[o.element];
   playFx(scene, key, at, px, { delay: o.delay, ground: ['fire', 'water', 'lightning', 'ice', 'earth', 'holy', 'poison'].includes(key) });
   if (o.crit) playFx(scene, 'crit', at, px, { delay: o.delay + 40 });
   if (o.block) playFx(scene, 'shield', at, px, { delay: o.delay, scale: 0.7 });
@@ -138,4 +145,104 @@ export function statusFx(scene: Phaser.Scene, at: FxAnchor, px: number, status: 
   if (!f) return;
   playFx(scene, f[0], at, px, { delay, ground: ['fire', 'ice', 'poison'].includes(f[0]), scale: status === 'BURN' || status === 'POISON' ? 0.7 : 1 });
   scene.time.delayedCall(delay, () => sfx(f[1]));
+}
+
+const TRAIL: Record<Element, number> = {
+  NEUTRAL: 0xffec99, FIRE: 0xff9a4a, WATER: 0x6ad0ff, LIGHTNING: 0xffe45a, EARTH: 0xd8b070, HOLY: 0xfff2a8, SHADOW: 0xc890ff,
+};
+
+/**
+ * The hero's swing, drawn from the weapon actually equipped (ROADMAP ⚔️ — effects follow the gear):
+ * SWORD arc · DAGGER two quick cuts · SPEAR straight thrust · CLUB overhead smash + dust ·
+ * STAFF bonk + sparkles in the staff's element · FIST punch burst. `at` = the landing spot.
+ */
+export function weaponSwing(scene: Phaser.Scene, at: FxAnchor, px: number, direction: 1 | -1, weapon: WeaponType | 'FIST', element: Element) {
+  const color = TRAIL[element];
+  const x = at.x + direction * at.h * 0.18;
+  const y = at.y - at.h * 0.55;
+  const span = Math.max(18, at.h * 0.28);
+  const g = scene.add.graphics().setDepth(29);
+  const fade = (ms: number) => scene.tweens.add({ targets: g, alpha: 0, duration: ms, ease: 'Quad.easeOut', onComplete: () => g.destroy() });
+  switch (weapon) {
+    case 'SWORD':
+      g.destroy();
+      if (element !== 'NEUTRAL') {
+        const tint = scene.add.graphics().setDepth(29);
+        tint.lineStyle(Math.max(2, px * 0.8), color, 1);
+        for (const o of [-0.2, 0, 0.2]) tint.lineBetween(x - direction * span * 0.7, y + span * (0.5 + o), x + direction * span * 0.7, y - span * (0.5 - o));
+        scene.tweens.add({ targets: tint, alpha: 0, duration: 200, onComplete: () => tint.destroy() });
+      }
+      return meleeSwing(scene, at, px, direction);
+    case 'DAGGER': {
+      // Two fast, short cuts in an X — each with a small slash sprite.
+      const cut = (flip: boolean) => {
+        g.lineStyle(Math.max(3, px), color, 1);
+        g.lineBetween(x - direction * span * 0.5, y + (flip ? 1 : -1) * span * 0.4, x + direction * span * 0.5, y - (flip ? 1 : -1) * span * 0.4);
+        g.lineStyle(Math.max(1, px * 0.4), 0xffffff, 1);
+        g.lineBetween(x - direction * span * 0.4, y + (flip ? 1 : -1) * span * 0.32, x + direction * span * 0.4, y - (flip ? 1 : -1) * span * 0.32);
+        const spr = scene.add.sprite(x, y, 'fx_slash').setScale(px * 0.8).setFlipX(direction < 0).setAngle(flip ? 40 : -40).setDepth(28);
+        spr.play('fx_slash');
+        spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => spr.destroy());
+      };
+      cut(false);
+      scene.time.delayedCall(70, () => g.active && cut(true));
+      return fade(260);
+    }
+    case 'SPEAR': {
+      // A long straight streak that narrows to a bright tip.
+      const len = span * 2.8;
+      const tip = x + direction * span * 0.4;
+      for (let i = 0; i < 4; i++) {
+        g.lineStyle(Math.max(2, px * (1.8 - i * 0.35)), i ? 0xffffff : color, 1 - i * 0.15);
+        g.lineBetween(tip - direction * len * (1 - i * 0.18), y + (i - 1.5) * px, tip, y);
+      }
+      g.fillStyle(0xffffff, 1).fillTriangle(tip, y - px * 2, tip, y + px * 2, tip + direction * px * 4, y);
+      if (scene.anims.exists('fx_impact')) {
+        const hit = scene.add.sprite(tip + direction * px * 2, y, 'fx_impact').setScale(px * 0.7).setDepth(28);
+        hit.play('fx_impact');
+        hit.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => hit.destroy());
+      }
+      return fade(240);
+    }
+    case 'CLUB': {
+      // Overhead smash: a heavy downward arc, a thump and dust at the feet.
+      g.lineStyle(Math.max(5, px * 1.6), element === 'NEUTRAL' ? 0xffb060 : color, 1);
+      g.beginPath();
+      g.arc(x - direction * span * 0.2, y + span * 0.2, span, direction > 0 ? -2.4 : -0.74, direction > 0 ? -0.2 : -2.94, direction < 0);
+      g.strokePath();
+      g.lineStyle(Math.max(2, px * 0.5), 0xffffff, 1);
+      g.beginPath();
+      g.arc(x - direction * span * 0.2, y + span * 0.2, span * 0.85, direction > 0 ? -2.2 : -0.94, direction > 0 ? -0.3 : -2.84, direction < 0);
+      g.strokePath();
+      playFx(scene, 'impact', { x: x + direction * span * 0.6, y: y + span * 0.9, h: at.h * 0.4 }, px, { scale: 1.1 });
+      playFx(scene, 'smoke', { x: at.x + direction * span * 0.6, y: at.y, h: at.h }, px, { ground: true, scale: 0.7 });
+      return fade(280);
+    }
+    case 'STAFF': {
+      // A bonk plus a burst of sparkles and a small spell flash in the staff's own element.
+      g.lineStyle(Math.max(3, px), color, 1);
+      g.beginPath();
+      g.arc(x, y, span * 0.7, direction > 0 ? -1.6 : -1.54, direction > 0 ? 0.2 : -3.34, direction < 0);
+      g.strokePath();
+      const sx0 = x + direction * span * 0.6;
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        const size = Math.max(3, Math.round(px * 1.3));
+        const spark = scene.add.rectangle(sx0, y, size, size, i % 2 ? color : 0xffffff).setDepth(30);
+        scene.tweens.add({ targets: spark, x: sx0 + Math.cos(a) * span * 0.9, y: y + Math.sin(a) * span * 0.9, alpha: 0, duration: 320, onComplete: () => spark.destroy() });
+      }
+      const key = element === 'NEUTRAL' ? 'mana' : ELEMENT_FX[element];
+      playFx(scene, key, { x: sx0, y: y + at.h * 0.3, h: at.h * 0.6 }, px, { scale: 0.7 });
+      return fade(260);
+    }
+    default: {
+      // Bare fists: a round punch burst with speed lines.
+      const px0 = x + direction * span * 0.5;
+      g.lineStyle(Math.max(3, px), 0xffffff, 1).strokeCircle(px0, y, span * 0.3);
+      g.lineStyle(Math.max(2, px * 0.6), 0xffec99, 1).strokeCircle(px0, y, span * 0.55);
+      for (let i = 0; i < 3; i++) g.lineStyle(Math.max(1, px * 0.5), 0xffffff, 0.9).lineBetween(px0 - direction * span * (1 + i * 0.25), y + (i - 1) * px * 2, px0 - direction * span * 0.45, y + (i - 1) * px * 2);
+      playFx(scene, 'impact', { x: px0, y: y + at.h * 0.3, h: at.h * 0.6 }, px, { scale: 0.8 });
+      return fade(200);
+    }
+  }
 }

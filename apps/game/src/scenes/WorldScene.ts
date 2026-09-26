@@ -371,7 +371,8 @@ export class WorldScene extends Phaser.Scene {
       seen.add(l.id);
       let c = this.landmarkSprites.get(l.id);
       if (!c) {
-        const icon = this.add.sprite(0, 0, this.pinTexture(l, true)).setOrigin(0.5, 1).setScale(getHeroScale());
+        // 32-bit pin art is drawn at 2x the old grid → half the map scale for the same size.
+        const icon = this.add.sprite(0, 0, this.pinTexture(l, true)).setOrigin(0.5, 1).setScale(getHeroScale() / 2);
         c = this.add.container(0, 0, [icon, ...this.pinTag(l)]).setDepth(7);
         c.setData({ icon, lat: l.lat, lng: l.lng, open: null });
         this.landmarkSprites.set(l.id, c);
@@ -400,7 +401,7 @@ export class WorldScene extends Phaser.Scene {
   // World monsters
 
   private homeScale(): number {
-    return hasPixelSprite('landmarks', 'HOME') ? getHeroScale() : 2.5;
+    return hasPixelSprite('landmarks', 'HOME') ? getHeroScale() / 2 : 2.5;
   }
 
   private levelColor(level: number): string {

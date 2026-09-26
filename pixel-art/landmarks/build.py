@@ -14,6 +14,11 @@ can tell a convenience store from a station at a glance (admins name pins after 
 
     python pixel-art/landmarks/build.py
 
+32-bit (2026-09-26, MASTER_SPEC §5C): shapes are authored on the old grid and re-rasterised at
+2x by kit2x.Canvas2x; the rift / seal in the doorway are drawn natively at 2x; every piece then
+gets a bevel pass (lit top / shaded bottom edge per panel), a cool rim light and the dark outline.
+Frames: gates 112x136 (park 128x160), services 96x104, home 80x100.
+
 Outputs apps/game/public/assets/landmarks/*.png (1x; stale files removed) and preview.png here.
 """
 import math
@@ -25,6 +30,9 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "scripts"))
 from pixelstudio import Sprite, ramp  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
+
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x, bevel, rim  # noqa: E402
 
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "landmarks")
 INK = "#0c0818"
@@ -49,6 +57,31 @@ def ground(s, cx, y, rx, col="#3a3450"):
     s.ellipse(cx - rx, y - 2, cx + rx, y + 1, col)
 
 
+GLASS = {"#8fd8ff", "#6ab8f0", "#8ae8ff"}
+
+
+def glass(s):
+    """Diagonal reflection streaks across every window pane."""
+    img = s._img()
+    w, h = img.size
+    px = img.load()
+    cols = {tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in GLASS}
+    for y in range(h):
+        for x in range(w):
+            if px[x, y][3] and px[x, y][:3] in cols and (x + y) % 11 in (0, 1):
+                px[x, y] = (236, 250, 255, 255)
+
+
+def finish(c, outline=INK, bevel_it=True):
+    """32-bit pass on a Canvas2x piece: bevel every panel, cool rim light, dark outline."""
+    glass(c.s)
+    if bevel_it:
+        bevel(c.s, skip=("#7ff0ff", "#ff7ae0", "#ffffff", "#fffbe8"))
+    rim(c.s, "#b8d8ff")
+    c.s.outline(outline, where="outside")
+    return c
+
+
 # --------------------------------------------------------------------------------------------
 # Doorway: open rift or sealed
 
@@ -67,49 +100,69 @@ def door_mask(x0, y0, x1, y1, arch):
     return pts
 
 
-def portal(s, x0, y0, x1, y1, layer, f, arch=False, rise=True):
-    """A rift filling the doorway, animated per frame."""
-    pts = door_mask(x0, y0, x1, y1, arch)
-    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2 + 1
-    rx, ry = max(1, (x1 - x0) / 2), max(1, (y1 - y0) / 2)
+def portal(c, x0, y0, x1, y1, layer, f, arch=False, rise=True):
+    """A rift filling the doorway (old-grid box), drawn natively at 2x, animated per frame."""
+    s = c.s
+    X0, Y0, X1, Y1 = x0 * K, y0 * K, x1 * K + K - 1, y1 * K + K - 1
+    pts = door_mask(X0, Y0, X1, Y1, arch)
+    cx, cy = (X0 + X1) / 2, (Y0 + Y1) / 2 + 2
+    rx, ry = max(1, (X1 - X0) / 2), max(1, (Y1 - Y0) / 2)
     for x, y in pts:
         d = math.hypot((x - cx) / rx, (y - cy) / ry)        # 0 centre .. ~1.4 corners
+        ang = math.atan2(y - cy, x - cx)
         if layer == "pixel":
-            ring = int(d * 4 - f) % 4
-            c = ["#2a1860", "#12082e", "#3a1a78", "#0a0620"][ring]
-            if d < 0.35:
-                c = "#ff7ae0" if (x + y + f) % 2 else "#7ff0ff"
-            elif (x * 7 + (y + f * 2) * 13) % 17 == 0:
-                c = "#7ff0ff" if (x + f) % 2 else "#ff7ae0"
+            ring = int(d * 7 - f * 1.75 + ang * 0.9) % 5      # a spiralling glitch vortex
+            col = ["#2a1860", "#12082e", "#3a1a78", "#0a0620", "#4a2a98"][ring]
+            if d < 0.22:
+                col = "#ffffff"
+            elif d < 0.38:
+                col = "#ff7ae0" if (x // 2 + y // 2 + f) % 2 else "#7ff0ff"
+            elif (x * 7 + (y + f * 4) * 13) % 29 == 0:
+                col = "#7ff0ff" if (x + f) % 2 else "#ff7ae0"
         else:
-            ring = int(d * 3 + f * 0.75) % 3
-            c = "#fffbe8" if d < 0.3 else [GOLD[4], GOLD[3], GOLD[2]][ring] if d < 0.9 else GOLD[1]
-            if layer == "world" and (x * 5 + y * 3 + f * 7) % 19 == 0:
-                c = "#b6f28c"
-        s.px(x, y, c)
+            ring = int(d * 6 + f * 1.5 - ang * 0.6) % 4
+            col = "#ffffff" if d < 0.18 else "#fffbe8" if d < 0.32 else [GOLD[4], GOLD[3], "#ffe89a", GOLD[2]][ring] if d < 0.92 else GOLD[1]
+            if layer == "world" and (x * 5 + y * 3 + f * 11) % 31 == 0:
+                col = "#b6f28c"
+        s.px(x, y, col)
+    for yy in range(Y0, Y1 + 1):                             # glowing rim of the doorway
+        row = [x for x, y in pts if y == yy]
+        if row:
+            s.px(min(row), yy, "#ff7ae0" if layer == "pixel" else "#fff6c8")
+            s.px(max(row), yy, "#7ff0ff" if layer == "pixel" else GOLD[3])
     if rise:                                                  # bits leaving the rift and drifting up
-        for k in range(5):
-            xx = int(cx) + [-4, 3, -1, 5, -6][k] + (1 if f % 2 and k % 2 else 0)
-            yy = y0 - 2 - ((k * 5 + f * 3) % 12)
+        for k in range(8):
+            xx = int(cx) + [-8, 6, -2, 10, -12, 3, -6, 8][k] + (2 if f % 2 and k % 2 else 0)
+            yy = Y0 - 3 - ((k * 7 + f * 6) % 26)
+            size = 2 if k % 3 == 0 else 1
             if layer == "pixel":
-                s.px(xx, yy, "#7ff0ff" if k % 2 else "#ff7ae0")
+                col = "#7ff0ff" if k % 2 else "#ff7ae0"
             else:
-                s.px(xx, yy, "#fff6c8" if k % 2 else ("#b6f28c" if layer == "world" else GOLD[3]))
+                col = "#fff6c8" if k % 2 else ("#b6f28c" if layer == "world" else GOLD[3])
+            s.rect(xx, yy, xx + size - 1, yy + size - 1, col)
 
 
-def seal(s, x0, y0, x1, y1, arch=False):
-    """Doorway shut by the [ระบบ]: dark slab, three cyan seal bars with bracket ends, a lock."""
-    for x, y in door_mask(x0, y0, x1, y1, arch):
-        s.px(x, y, "#2a2a38" if (x + y) % 5 else "#34344a")
-    h = y1 - y0
+def seal(c, x0, y0, x1, y1, arch=False):
+    """Doorway shut by the [ระบบ]: dark slab, three glowing seal bars with bracket ends, a lock (2x)."""
+    s = c.s
+    X0, Y0, X1, Y1 = x0 * K, y0 * K, x1 * K + K - 1, y1 * K + K - 1
+    for x, y in door_mask(X0, Y0, X1, Y1, arch):
+        s.px(x, y, "#34344a" if (x // 3 + y // 5) % 4 == 0 else "#2a2a38")
+    h = Y1 - Y0
     for k in range(3):
-        y = y0 + (k + 1) * h // 4 - 1
-        s.rect(x0 - 1, y, x1 + 1, y + 2, SEAL_D)
-        s.line(x0 - 1, y + 1, x1 + 1, y + 1, SEAL)
-        s.rect(x0 - 2, y - 1, x0 - 1, y + 3, SEAL); s.rect(x1 + 1, y - 1, x1 + 2, y + 3, SEAL)
-    mx = (x0 + x1) // 2
-    my = y0 + h // 2
-    s.rect(mx - 2, my - 1, mx + 2, my + 3, "#0c1226"); s.rect(mx - 1, my, mx + 1, my + 2, "#f2c230")
+        y = Y0 + (k + 1) * h // 4 - 2
+        s.rect(X0 - 2, y, X1 + 2, y + 5, SEAL_D)
+        s.line(X0 - 2, y + 2, X1 + 2, y + 2, SEAL)
+        s.line(X0 - 2, y + 3, X1 + 2, y + 3, "#c8f6ff")
+        for bx in (X0 - 4, X1 + 2):
+            s.rect(bx, y - 2, bx + 2, y + 7, SEAL)
+            s.line(bx + 1, y - 2, bx + 1, y + 7, "#c8f6ff")
+    mx, my = (X0 + X1) // 2, Y0 + h // 2
+    s.rect(mx - 5, my - 3, mx + 5, my + 6, "#0c1226")
+    s.ellipse(mx - 3, my - 7, mx + 3, my + 1, "#f2c230", fill=False)                   # shackle
+    s.rect(mx - 4, my - 2, mx + 4, my + 5, "#f2c230")
+    s.rect(mx - 4, my - 2, mx - 2, my + 5, "#fff1a8")
+    s.rect(mx, my + 1, mx, my + 3, "#0c1226")
 
 
 def doorway(s, box, layer, f, arch=False):
@@ -124,7 +177,7 @@ def doorway(s, box, layer, f, arch=False):
 # Gate buildings (each takes f: frame for open, None for sealed)
 
 def convenience(f):
-    s = Sprite(GW, GH)
+    s = Canvas2x(GW, GH)
     wall = R("#e8e4d8", hs=8)
     ground(s, 28, GH - 4, 24)
     s.rect(7, 30, 48, GH - 5, wall[2]); s.rect(7, 30, 9, GH - 5, wall[3]); s.rect(46, 30, 48, GH - 5, wall[1])
@@ -147,12 +200,11 @@ def convenience(f):
     s.rect(9, GH - 8, 46, GH - 5, wall[1])                            # kerb
     doorway(s, (23, 37, 32, GH - 6), "pixel", f)
     s.rect(22, 36, 33, 36, "#5a5270")                                 # door frame
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def mall(f):
-    s = Sprite(GW, GH)
+    s = Canvas2x(GW, GH)
     wall = R("#c8c0e0", hs=14)
     ground(s, 28, GH - 4, 27)
     s.rect(2, 14, 53, GH - 5, wall[2]); s.rect(2, 14, 4, GH - 5, wall[3]); s.rect(51, 14, 53, GH - 5, wall[1])
@@ -172,12 +224,11 @@ def mall(f):
     s.rect(14, 45, 41, 46, "#e8507a")
     doorway(s, (20, 48, 35, GH - 6), "pixel", f)
     s.line(27, 48, 27, GH - 6, "#3a3f58") if f is None else None
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def fuel(f):
-    s = Sprite(GW, GH)
+    s = Canvas2x(GW, GH)
     ground(s, 28, GH - 4, 26)
     # canopy with red / white stripes
     s.rect(2, 16, 53, 24, "#f4f4f4"); s.rect(2, 16, 53, 18, "#e0303a"); s.rect(2, 21, 53, 22, "#e0303a")
@@ -192,12 +243,11 @@ def fuel(f):
     s.rect(11, 36, 23, 37, "#8a8aa8")
     # the rift stands under the canopy, right of the pump
     doorway(s, (29, 32, 41, GH - 6), "pixel", f, arch=True)
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def station(f):
-    s = Sprite(GW, GH)
+    s = Canvas2x(GW, GH)
     wall = R("#d8b890", hs=12)
     roof = R("#4a6aa8", hs=18)
     ground(s, 28, GH - 4, 27)
@@ -216,13 +266,12 @@ def station(f):
     # blue platform sign on a post
     s.line(51, 34, 51, GH - 10, "#3a3f58"); s.rect(47, 30, 55, 34, "#2f6ad0"); s.line(48, 32, 54, 32, "#ffffff")
     doorway(s, (22, 34, 33, GH - 11), "pixel", f, arch=True)
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def temple(f):
     """Lanna viharn: white walls, two-tier red roof with gold eaves and upturned finials, naga stairs."""
-    s = Sprite(GW, GH)
+    s = Canvas2x(GW, GH)
     wall = R("#f2ece0", hs=8)
     roof = R("#c8402a", hs=16)
     ground(s, 28, GH - 4, 26)
@@ -243,14 +292,13 @@ def temple(f):
         s.rect(x, GH - 12, x + 1, GH - 6, "#3aa06a"); s.px(x + (0 if d < 0 else 1), GH - 13, GOLD[3]); s.px(x + (0 if d < 0 else 1) + d, GH - 14, GOLD[4])
     s.rect(20, GH - 7, 35, GH - 5, wall[0])                           # steps
     doorway(s, (23, 44, 32, GH - 8), "myth", f, arch=True)
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def museum(f):
     """Ancient ruin / museum: weathered stone colonnade under a cracked pediment, one column
     broken, moss in the joints; the golden rift glows between the middle columns."""
-    s = Sprite(GW, GH)
+    s = Canvas2x(GW, GH)
     stone = R("#b8ae98", hs=10)
     ground(s, 28, GH - 4, 26)
     # steps
@@ -280,13 +328,12 @@ def museum(f):
         s.px(x, y, "#58a04a")
     s.px(10, 46, "#3a8040"); s.px(38, 51, "#3a8040")
     doorway(s, (23, 33, 32, GH - 13), "myth", f, arch=True)
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def park(f):
     """Ancient park tree: huge canopy, a golden rift in the hollow of its trunk, world-boss crown above."""
-    s = Sprite(PW, PH)
+    s = Canvas2x(PW, PH)
     leaf = R("#3aa04a", hs=20)
     bark = R("#8a5a34", hs=14)
     ground(s, 32, PH - 4, 26, "#2a4a30")
@@ -311,8 +358,7 @@ def park(f):
         s.polygon([(x - 2, y + 5), (x, y), (x + 2, y + 5)], GOLD[3])
     s.rect(23, top + 6, 41, top + 7, GOLD[2]); s.px(32, top + 6, "#e0303a")
     doorway(s, (27, 52, 37, PH - 7), "world", f, arch=True)
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 BUILD = {"CONVENIENCE": convenience, "MALL": mall, "FUEL": fuel, "STATION": station,
@@ -324,7 +370,7 @@ BUILD = {"CONVENIENCE": convenience, "MALL": mall, "FUEL": fuel, "STATION": stat
 
 def market():
     """Market stall: scalloped striped awning, fruit & veg baskets on a wooden counter."""
-    s = Sprite(48, 52)
+    s = Canvas2x(48, 52)
     wood = R("#a0703a", hs=14)
     ground(s, 24, 48, 21)
     for x in (6, 40):
@@ -345,13 +391,12 @@ def market():
         s.circle(4 + i, 18, 2, "#e0303a" if (i // 4) % 2 == 0 else "#f4f4f4", fill=True)
     s.rect(2, 8, 45, 9, "#b0283a")
     s.line(24, 18, 24, 21, "#3a3f58"); s.circle(24, 23, 2, "#f2c230", fill=True)     # lantern
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def hospital():
     """Clinic: white building, blue windows, green cross sign (not the protected red cross)."""
-    s = Sprite(48, 52)
+    s = Canvas2x(48, 52)
     wall = R("#eef2f6", hs=10)
     ground(s, 24, 48, 21)
     s.rect(5, 18, 42, 46, wall[2]); s.rect(5, 18, 7, 46, wall[3]); s.rect(40, 18, 42, 46, wall[1])
@@ -363,22 +408,23 @@ def hospital():
     s.circle(23, 8, 7, "#ffffff", fill=True); s.circle(23, 8, 7, "#38a060")                    # sign
     s.rect(21, 3, 25, 13, "#38b764"); s.rect(18, 6, 28, 10, "#38b764")
     s.line(23, 15, 23, 15, "#3a3f58")
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 def sanctuary():
     """Open pavilion (sala) with a soft light column inside, lotus ring — no faith symbols."""
-    s = Sprite(44, 54)
+    s = Canvas2x(44, 54)
     roof = R("#6a7ab0", hs=16)
     s.ellipse(2, 44, 41, 52, "#e6d69a"); s.ellipse(5, 45, 38, 51, "#fff6d0")
     for x in range(12, 32):                                            # light column
         a = 1 - abs(x - 21.5) / 10
         for y in range(18, 49):
-            if a > 0.7:
+            if a > 0.75:
                 s.px(x, y, "#fffbe8")
-            elif a > 0.4 and (x + y) % 2 == 0:
-                s.px(x, y, "#fff2c0")
+            elif a > 0.5:
+                s.px(x, y, "#fff2c0")                                      # soft solid bands, no dither (32-bit rule)
+            elif a > 0.3 and y % 6 < 3:
+                s.px(x, y, "#f6e6a8")
     for x in (7, 35):                                                  # posts
         s.rect(x, 20, x + 1, 47, "#c8b89a"); s.px(x, 20, "#f4ecd8")
     s.polygon([(2, 21), (22, 6), (41, 21)], roof[2]); s.polygon([(2, 21), (22, 6), (22, 21)], roof[3], only="opaque")
@@ -390,12 +436,11 @@ def sanctuary():
         s.px(x, y, "#58d06a"); s.px(x, y - 1, "#9ae88a")
     for x, y in ((4, 12), (39, 14), (11, 30), (33, 34)):
         s.px(x, y, "#fff6c8")
-    s.outline("#8a7a4a", where="outside")
-    return s
+    return finish(s, "#8a7a4a", bevel_it=False)
 
 
 def home():
-    s = Sprite(40, 50)
+    s = Canvas2x(40, 50)
     wall = R("#f2e2bf", hs=10)
     roof = R("#c8502a", hs=16)
     s.ellipse(4, 42, 35, 48, "#f2a02a"); s.ellipse(8, 43, 31, 47, "#ffd08a")
@@ -406,8 +451,7 @@ def home():
         s.rect(x, 28, x + 3, 31, "#ffe08a"); s.px(x, 28, "#fff6c8")
     s.line(29, 2, 29, 16, "#3a3f58")
     s.polygon([(30, 2), (38, 4), (30, 8)], "#4f7fe0"); s.px(31, 4, "#a8c4ff")
-    s.outline(INK, where="outside")
-    return s
+    return finish(s)
 
 
 # --------------------------------------------------------------------------------------------
@@ -438,15 +482,15 @@ def main():
             os.remove(os.path.join(OUT, fn))
 
     # Review sheet: open frame 0 / sealed per gate, then the services. Also a 1x row (map size).
-    Z = 3
+    Z = 2
     def fw(k):
-        return PW if k == "PARK" else GW
+        return (PW if k == "PARK" else GW) * K
     rows = [
         [files[f"gate_{k}"].crop((0, 0, fw(k), files[f"gate_{k}"].height)) for k in GATES],
         [files[f"sealed_{k}"] for k in GATES],
         [files["MARKET"], files["HOSPITAL"], files["SANCTUARY"], files["HOME"]],
     ]
-    cell = PW * Z + 12
+    cell = PW * K * Z + 12
     one_x = rows[0] + rows[2]
     one_h = max(i.height for i in one_x) * 2 + 8
     height = sum(max(i.height for i in row) * Z + 20 for row in rows) + one_h + 8
@@ -469,13 +513,13 @@ def main():
     sheet.save(os.path.join(HERE, "preview.png"))
 
     # animated check: every open gate, frames side by side
-    anim = Image.new("RGBA", (FRAMES * (PW + 4) * 3, len(GATES) * (PH + 4) * 3), (176, 214, 150, 255))
+    anim = Image.new("RGBA", (FRAMES * (PW * K + 4) * 2, len(GATES) * (PH * K + 4) * 2), (176, 214, 150, 255))
     for r, k in enumerate(GATES):
         st = files[f"gate_{k}"]
         w = st.width // FRAMES
         for fidx in range(FRAMES):
-            fr = st.crop((fidx * w, 0, (fidx + 1) * w, st.height)).resize((w * 3, st.height * 3), Image.NEAREST)
-            anim.alpha_composite(fr, (fidx * (PW + 4) * 3, r * (PH + 4) * 3))
+            fr = st.crop((fidx * w, 0, (fidx + 1) * w, st.height)).resize((w * 2, st.height * 2), Image.NEAREST)
+            anim.alpha_composite(fr, (fidx * (PW * K + 4) * 2, r * (PH * K + 4) * 2))
     anim.save(os.path.join(HERE, "frames.png"))
     print("OK", len(files), "landmark files")
 

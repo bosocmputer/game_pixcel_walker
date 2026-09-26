@@ -7,7 +7,8 @@ import type { CombatUnit } from '@pw/shared';
 
 /** Frame order of assets/ui/status.png (pixel-art/status-icons/build.py). */
 export const STATUS_ICONS = ['STUN', 'FREEZE', 'POISON', 'BURN', 'BLEED', 'SLOW', 'TAUNTING', 'ROOT', 'SHIELD'] as const;
-export const STATUS_PX = 12;
+/** 32-bit icons (24 px) drawn 1:1. */
+export const STATUS_PX = 24;
 
 export function preloadOverlay(scene: Phaser.Scene) {
   if (!scene.textures.exists('status_icons')) {
@@ -84,7 +85,7 @@ export class StatusRow {
     this.last = key;
     for (const i of this.icons) i.destroy();
     this.icons = [];
-    const scale = 2;
+    const scale = 1;
     const step = STATUS_PX * scale + 2;
     let ix = x - ((ids.length - 1) * step) / 2;
     for (const id of ids) {

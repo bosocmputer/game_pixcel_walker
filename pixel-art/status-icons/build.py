@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Battle status icons shown above a unit's head (ROADMAP ⚔️ 2.6). 12x12 each on a dark round badge
-so they read over any backdrop; one horizontal strip in STATUS order.
+Battle status icons shown under a unit's bars (ROADMAP ⚔️ 2.6). 32-bit (2026-09-26): designed on a
+12x12 grid, re-rasterised at 2x (24x24) by kit2x + a bevel pass; dark round badge so they read
+over any backdrop; one horizontal strip in STATUS order.
 
     python pixel-art/status-icons/build.py
 
@@ -16,6 +17,9 @@ sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "
 from pixelstudio import Sprite  # noqa: E402
 from PIL import Image  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x, bevel  # noqa: E402
+
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "ui", "status.png")
 # Keep in sync with STATUS_ICONS in apps/game/src/scenes/battleOverlay.ts
 STATUS = ["STUN", "FREEZE", "POISON", "BURN", "BLEED", "SLOW", "TAUNTING", "ROOT", "SHIELD"]
@@ -24,19 +28,24 @@ INK = "#0c0818"
 
 
 def badge(ring):
-    s = Sprite(S, S)
-    s.circle(5, 5, 5, "#1c1a28", fill=True)
-    s.rect(1, 3, 10, 8, "#1c1a28")
-    s.rect(3, 1, 8, 10, "#1c1a28")
+    s = Canvas2x(S, S)
+    s.s.ellipse(0, 0, S * K - 1, S * K - 1, "#1c1a28")                # one smooth disc at 2x
     s.outline(ring, where="inside")
+    s.outline(ring, where="inside")                              # 2 px ring at 2x
     return s
 
 
 def stun():
+    """Dizzy: three little stars circling on an orbit ring (drawn at full 2x resolution)."""
     s = badge("#f2c230")
-    for x, y in ((6, 5), (6, 4), (5, 4), (4, 5), (4, 6), (5, 7), (6, 7), (7, 6), (7, 5), (7, 4), (7, 3), (6, 3), (5, 3), (4, 3), (3, 4), (3, 5), (3, 6), (3, 7), (4, 8), (5, 8)):
-        s.px(x, y, "#ffe45a")                                   # dizzy spiral
-    s.px(8, 8, "#fff6c8"); s.px(2, 2, "#fff6c8"); s.px(9, 2, "#ffe45a")
+    f = s.s
+    f.ellipse(4, 8, 19, 15, "#6a5a20", fill=False)                    # orbit
+    for cx, cy, big in ((7, 9, True), (17, 11, False), (12, 15, True)):
+        r = 3 if big else 2
+        f.line(cx - r, cy, cx + r, cy, "#ffe45a"); f.line(cx, cy - r, cx, cy + r, "#ffe45a")
+        f.px(cx, cy, "#ffffff")
+        if big:
+            f.px(cx - 1, cy - 1, "#fff6c8"); f.px(cx + 1, cy + 1, "#c89a20")
     return s
 
 
@@ -109,14 +118,18 @@ DRAW = {"STUN": stun, "FREEZE": freeze, "POISON": poison, "BURN": burn, "BLEED":
 
 
 def main():
-    ims = [DRAW[k]().composite(1) for k in STATUS]
-    strip = Image.new("RGBA", (S * len(ims), S), (0, 0, 0, 0))
+    ims = []
+    for k in STATUS:
+        c = DRAW[k]()
+        bevel(c.s, light=0.25, dark=0.2, skip=("#1c1a28",))
+        ims.append(c.composite(1))
+    strip = Image.new("RGBA", (S * K * len(ims), S * K), (0, 0, 0, 0))
     for i, im in enumerate(ims):
-        strip.alpha_composite(im, (i * S, 0))
+        strip.alpha_composite(im, (i * S * K, 0))
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     strip.save(OUT)
-    bg = Image.new("RGBA", (strip.width * 8 + 16, S * 8 + 16), (90, 110, 140, 255))
-    bg.alpha_composite(strip.resize((strip.width * 8, S * 8), Image.NEAREST), (8, 8))
+    bg = Image.new("RGBA", (strip.width * 4 + 16, S * K * 4 + 16), (90, 110, 140, 255))
+    bg.alpha_composite(strip.resize((strip.width * 4, S * K * 4), Image.NEAREST), (8, 8))
     bg.save(os.path.join(HERE, "preview.png"))
     print("OK", len(ims), "status icons")
 

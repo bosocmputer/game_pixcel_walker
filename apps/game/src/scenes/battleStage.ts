@@ -259,7 +259,8 @@ export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: numbe
         ctx.drawImage(img, 0, 0, fw, img.height, 0, 0, fw, img.height);
         scene.textures.addCanvas(key, c);
       }
-      scene.add.image(width * 0.72, horizonY + 6, key).setOrigin(0.5, 1).setScale(LOW + 1).setDepth(2).setScrollFactor(0).setAlpha(0.95);
+      // 32-bit pin art (2x res) → 2x on screen, the same size the 16-bit building had at 4x.
+      scene.add.image(width * 0.72, horizonY + 6, key).setOrigin(0.5, 1).setScale(2).setDepth(2).setScrollFactor(0).setAlpha(0.95);
     }
   }
 

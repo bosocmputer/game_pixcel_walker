@@ -1,118 +1,118 @@
 {
  "slash": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "slash_red": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "impact": {
   "frames": 5,
-  "size": 48
+  "size": 96
  },
  "crit": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "fire": {
   "frames": 7,
-  "size": 48
+  "size": 96
  },
  "water": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "lightning": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "ice": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "earth": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "holy": {
   "frames": 7,
-  "size": 48
+  "size": 96
  },
  "shadow": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "poison": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "heal": {
   "frames": 7,
-  "size": 48
+  "size": 96
  },
  "mana": {
   "frames": 7,
-  "size": 48
+  "size": 96
  },
  "shield": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "buff": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "debuff": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "stun": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "cast": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "cast_holy": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "cast_fire": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "smoke": {
   "frames": 6,
-  "size": 48
+  "size": 96
  },
  "p_fireball": {
   "frames": 2,
-  "size": 16
+  "size": 32
  },
  "p_orb_water": {
   "frames": 2,
-  "size": 16
+  "size": 32
  },
  "p_orb_holy": {
   "frames": 2,
-  "size": 16
+  "size": 32
  },
  "p_orb_shadow": {
   "frames": 2,
-  "size": 16
+  "size": 32
  },
  "p_spark": {
   "frames": 2,
-  "size": 16
+  "size": 32
  },
  "p_arrow": {
   "frames": 2,
-  "size": 16
+  "size": 32
  },
  "p_rock": {
   "frames": 2,
-  "size": 16
+  "size": 32
  }
 }

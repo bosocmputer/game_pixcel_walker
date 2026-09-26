@@ -49,7 +49,11 @@ class Canvas2x:
         return self
 
     def ellipse(self, x0, y0, x1, y1, c, fill=True, only=None):
-        self.s.ellipse(x0 * K, y0 * K, x1 * K + K - 1, y1 * K + K - 1, c, fill=fill, only=only)
+        X0, Y0, X1, Y1 = x0 * K, y0 * K, x1 * K + K - 1, y1 * K + K - 1
+        self.s.ellipse(X0, Y0, X1, Y1, c, fill=fill, only=only)
+        if not fill:
+            # Keep the old ring weight (a 1 px ring on the old grid = 2 px here), with the finer curve.
+            self.s.ellipse(X0 + 1, Y0 + 1, X1 - 1, Y1 - 1, c, fill=False, only=only)
         return self
 
     def circle(self, cx, cy, r, c, fill=False, only=None):

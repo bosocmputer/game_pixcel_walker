@@ -79,11 +79,12 @@ npx tsx tools/artpreview/avatar.mts   # avatar pack + equipment layers → tools
   `pixel-art/<slug>/build.py` in git — it is the source; never hand-edit exported PNGs. Copy the final
   1× export into `apps/game/public/assets/...` for the game to load.
 - **Art direction is moving to 32-bit (2026-09-25, MASTER_SPEC §5C)**: 2x resolution, whole-number display
-  scale only (1x phones / 2x wide), 7-step ramps, rim light, selout, no dither on characters. Monsters are
-  done (`pixel-art/monsters` + `kit32.py`); pins, icons, UI, FX and the original hero follow. New art = 32-bit.
+  scale only (1x phones / 2x wide), 7-step ramps, rim light, selout, no dither on characters. Monsters, pins,
+  icons, UI kit and FX are done (`pixel-art/monsters/kit32.py`, `pixel-art/kit2x.py`); the original hero is
+  next. New art = 32-bit. 9-slice UI pieces are 24 px with an 8 px slice (`border-image: url(x) 8 fill / 8px`).
 - UI is pixel art everywhere except the map: frames/buttons/icons come from `pixel-art/ui-kit/build.py`
   (`assets/ui`), styled in `apps/game/src/pixel-theme.css`. Reuse the existing classes (`.btn`, `.mini`, `.pick`,
-  `.sheet`, `.modal`…) for new UI and `uiIcon()` (`ui/pixel.ts`) instead of emoji. Keep pixel sizes at 2× (even px).
+  `.sheet`, `.modal`…) for new UI and `uiIcon()` (`ui/pixel.ts`) instead of emoji. Show art at whole-number scales.
 - Runtime layers (equipment on the avatar, recolours) stay in TypeScript (`apps/game/src/game/gear.ts`);
   review them with `npx tsx tools/artpreview/avatar.mts`.
 - Art must be original or properly licensed. The current avatar body/hair is prototype art from another

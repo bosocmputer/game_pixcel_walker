@@ -11,13 +11,18 @@ export const FX_SHEETS = [
   'poison', 'heal', 'mana', 'shield', 'buff', 'debuff', 'stun', 'cast', 'cast_holy', 'cast_fire', 'smoke',
 ];
 export const PROJECTILES = ['fireball', 'orb_water', 'orb_holy', 'orb_shadow', 'spark', 'arrow', 'rock'];
+/**
+ * FX art is 32-bit (2x: 96 px frames, 32 px projectiles), so every FX sprite scale is halved to keep
+ * the same on-screen size. FX may use fractional scales (fast, short-lived — see MASTER_SPEC §5C).
+ */
+const FX_RES = 2;
 
 export function preloadFx(scene: Phaser.Scene) {
   for (const n of FX_SHEETS) {
-    if (!scene.textures.exists(`fx_${n}`)) scene.load.spritesheet(`fx_${n}`, `/assets/fx/${n}.png`, { frameWidth: 48, frameHeight: 48 });
+    if (!scene.textures.exists(`fx_${n}`)) scene.load.spritesheet(`fx_${n}`, `/assets/fx/${n}.png`, { frameWidth: 96, frameHeight: 96 });
   }
   for (const n of PROJECTILES) {
-    if (!scene.textures.exists(`p_${n}`)) scene.load.spritesheet(`p_${n}`, `/assets/fx/p_${n}.png`, { frameWidth: 16, frameHeight: 16 });
+    if (!scene.textures.exists(`p_${n}`)) scene.load.spritesheet(`p_${n}`, `/assets/fx/p_${n}.png`, { frameWidth: 32, frameHeight: 32 });
   }
 }
 
@@ -58,7 +63,7 @@ export function playFx(scene: Phaser.Scene, key: string, at: FxAnchor, px: numbe
   if (!scene.anims.exists(`fx_${key}`)) return;
   scene.time.delayedCall(opts.delay ?? 0, () => {
     const y = opts.ground ? at.y - 20 * px : at.y - at.h * 0.5;
-    const spr = scene.add.sprite(at.x, y, `fx_${key}`).setScale(px * (opts.scale ?? 1)).setDepth(opts.ground ? 9 : 25);
+    const spr = scene.add.sprite(at.x, y, `fx_${key}`).setScale((px * (opts.scale ?? 1)) / FX_RES).setDepth(opts.ground ? 9 : 25);
     spr.play(`fx_${key}`);
     spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => spr.destroy());
   });
@@ -71,7 +76,7 @@ export function meleeSwing(scene: Phaser.Scene, at: FxAnchor, px: number, direct
   const y = at.y - at.h * 0.6;
   const spr = scene.add
     .sprite(x, y, 'fx_slash')
-    .setScale(px * 1.3)
+    .setScale((px * 1.3) / FX_RES)
     .setFlipX(direction < 0)
     .setAngle(direction * -18)
     .setDepth(28);
@@ -99,7 +104,7 @@ export function shootProjectile(scene: Phaser.Scene, kind: string, from: FxAncho
   if (!scene.anims.exists(`p_${kind}`)) return;
   const y0 = from.y - from.h * 0.55;
   const y1 = to.y - to.h * 0.5;
-  const p = scene.add.sprite(from.x, y0, `p_${kind}`).setScale(px).setDepth(26);
+  const p = scene.add.sprite(from.x, y0, `p_${kind}`).setScale(px / FX_RES).setDepth(26);
   p.setFlipX(to.x < from.x);
   p.play(`p_${kind}`);
   scene.tweens.add({ targets: p, x: to.x, y: y1, duration: ms, ease: 'Quad.easeIn', onComplete: () => p.destroy() });
@@ -180,7 +185,7 @@ export function weaponSwing(scene: Phaser.Scene, at: FxAnchor, px: number, direc
         g.lineBetween(x - direction * span * 0.5, y + (flip ? 1 : -1) * span * 0.4, x + direction * span * 0.5, y - (flip ? 1 : -1) * span * 0.4);
         g.lineStyle(Math.max(1, px * 0.4), 0xffffff, 1);
         g.lineBetween(x - direction * span * 0.4, y + (flip ? 1 : -1) * span * 0.32, x + direction * span * 0.4, y - (flip ? 1 : -1) * span * 0.32);
-        const spr = scene.add.sprite(x, y, 'fx_slash').setScale(px * 0.8).setFlipX(direction < 0).setAngle(flip ? 40 : -40).setDepth(28);
+        const spr = scene.add.sprite(x, y, 'fx_slash').setScale((px * 0.8) / FX_RES).setFlipX(direction < 0).setAngle(flip ? 40 : -40).setDepth(28);
         spr.play('fx_slash');
         spr.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => spr.destroy());
       };
@@ -198,7 +203,7 @@ export function weaponSwing(scene: Phaser.Scene, at: FxAnchor, px: number, direc
       }
       g.fillStyle(0xffffff, 1).fillTriangle(tip, y - px * 2, tip, y + px * 2, tip + direction * px * 4, y);
       if (scene.anims.exists('fx_impact')) {
-        const hit = scene.add.sprite(tip + direction * px * 2, y, 'fx_impact').setScale(px * 0.7).setDepth(28);
+        const hit = scene.add.sprite(tip + direction * px * 2, y, 'fx_impact').setScale((px * 0.7) / FX_RES).setDepth(28);
         hit.play('fx_impact');
         hit.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => hit.destroy());
       }

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Battle effects for Pixel Walker — pixel-art sprite sheets (48x48 frames in a horizontal strip)
-plus 16x16 projectiles. Drawn procedurally per frame (radius / height / scatter by time) so each
+Battle effects for Pixel Walker — pixel-art sprite sheets plus projectiles. 32-bit (2026-09-26,
+MASTER_SPEC §5C): designed on the 48x48 / 16x16 grids and re-rasterised at 2x by kit2x (96x96
+frames, 32x32 projectiles; rings and bursts get finer curves). Drawn procedurally per frame (radius / height / scatter by time) so each
 animation is smooth and consistent. Bright core → coloured body → dark rim, hard pixels, no AA.
 
     python pixel-art/fx/build.py
@@ -20,6 +21,9 @@ sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "
 from pixelstudio import Sprite, ramp  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x  # noqa: E402
+
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "fx")
 F = 48
 C = F // 2
@@ -31,9 +35,9 @@ def R(base, n=5, hs=18):
 
 def strip(frames):
     """Combine per-frame Sprites into one horizontal strip image."""
-    img = Image.new("RGBA", (F * len(frames), F), (0, 0, 0, 0))
+    img = Image.new("RGBA", (F * K * len(frames), F * K), (0, 0, 0, 0))
     for i, s in enumerate(frames):
-        img.alpha_composite(s.composite(1), (i * F, 0))
+        img.alpha_composite(s.composite(1), (i * F * K, 0))
     return img
 
 
@@ -57,22 +61,31 @@ def rng(seed):
 # Physical
 
 def slash(n=6, col="#ffffff"):
+    """A solid crescent swept around the target, drawn at full 2x resolution: bright leading
+    edge, colour body, fading tail (32-bit: no striped arcs)."""
     frames = []
     r = R(col, hs=10)
     for i in range(n):
-        s = Sprite(F, F)
+        c = Canvas2x(F, F)
+        f = c.s
+        cx = cy = C * K
         a0, a1 = -2.4 + i * 0.55, -2.4 + i * 0.55 + 1.6
-        for k in range(24):
-            a = a0 + (a1 - a0) * k / 23
-            for w, c in ((17, r[4]), (15, r[3]), (13, r[2])):
-                if i >= n - 2 and w == 17:
+        steps = 120
+        for k in range(steps):
+            t = k / (steps - 1)                                  # 0 tail .. 1 leading edge
+            a = a0 + (a1 - a0) * t
+            width = 2 + round(6 * t) if i < n - 2 else 2 + round(3 * t)
+            for w in range(width):
+                rad = 34 - w
+                col_ = r[4] if w == 0 else r[3] if w < width * 0.5 else r[2]
+                if t < 0.25 and w > 1:
                     continue
-                x, y = C + math.cos(a) * w, C + math.sin(a) * w
-                s.px(round(x), round(y), c)
+                f.px(round(cx + math.cos(a) * rad), round(cy + math.sin(a) * rad), col_)
         if i < n - 1:
-            ex, ey = C + math.cos(a1) * 16, C + math.sin(a1) * 16
-            sparkle(s, round(ex), round(ey), "#ffffff", big=True)
-        frames.append(s)
+            ex, ey = cx + math.cos(a1) * 32, cy + math.sin(a1) * 32
+            f.rect(round(ex) - 1, round(ey) - 4, round(ex) + 1, round(ey) + 4, "#ffffff")
+            f.rect(round(ex) - 4, round(ey) - 1, round(ex) + 4, round(ey) + 1, "#ffffff")
+        frames.append(c)
     return strip(frames)
 
 
@@ -80,7 +93,7 @@ def impact(n=5, col="#ffe29a", big=False):
     frames = []
     r = R(col, hs=20)
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         rad = 4 + i * (5 if big else 4)
         spikes = 8
         for k in range(spikes):
@@ -106,7 +119,7 @@ def fire(n=7):
     g = rng(3)
     tongues = [(g.randint(-12, 12), g.randint(10, 20), g.random() * 6) for _ in range(9)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         life = i / (n - 1)
         for x0, h, ph in tongues:
             hh = h * (0.4 + 0.9 * math.sin(math.pi * min(1, life * 1.3 + 0.1)))
@@ -131,7 +144,7 @@ def water(n=6):
     g = rng(7)
     drops = [(g.uniform(-2.8, -0.3), g.uniform(8, 17)) for _ in range(12)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         t = i / (n - 1)
         # splash ring on the ground
         s.ellipse(C - 6 - i * 3, 38 - i // 2, C + 6 + i * 3, 42 + i // 2, r[2] if i < n - 1 else r[1], fill=False)
@@ -154,7 +167,7 @@ def lightning(n=6):
     for y in range(6, 44, 6):
         pts.append((C + g.randint(-7, 7), y))
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         if i in (1, 2, 3):
             for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
                 s.line(x0 - 1, y0, x1 - 1, y1, "#b58f12")
@@ -178,7 +191,7 @@ def ice(n=6):
     r = R("#8fd8ff", hs=14)
     shards = [(-12, 14), (-5, 22), (3, 26), (10, 18), (15, 11), (-17, 8)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         grow = min(1, i / 3)
         shatter = max(0, i - 3)
         for dx, h in shards:
@@ -201,7 +214,7 @@ def earth(n=6):
     g = rng(5)
     rocks = [(g.randint(-14, 14), g.uniform(3, 7), g.uniform(-1.2, 1.2)) for _ in range(8)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         t = i / (n - 1)
         s.ellipse(C - 14, 38, C + 14, 44, r[0] if i < n - 1 else r[1])            # crack in the ground
         s.line(C - 10, 41, C + 10, 41, "#1c1a28")
@@ -220,7 +233,7 @@ def holy(n=7):
     frames = []
     r = R("#fff1a8", hs=20)
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         w = [2, 5, 8, 9, 8, 5, 2][i]
         s.rect(C - w, 0, C + w, 44, r[2])
         s.rect(C - max(1, w // 2), 0, C + max(1, w // 2), 44, r[4])
@@ -239,7 +252,7 @@ def shadow(n=6):
     g = rng(9)
     blobs = [(g.uniform(0, math.tau), g.uniform(4, 16)) for _ in range(10)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         t = i / (n - 1)
         for a, d in blobs:
             dd = d * (0.4 + t)
@@ -262,7 +275,7 @@ def poison(n=6):
     g = rng(13)
     bub = [(g.randint(-14, 14), g.randint(0, 5), g.randint(2, 4)) for _ in range(9)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         for x0, off, rad in bub:
             y = 42 - ((i + off) * 6) % 40
             rr = max(1, rad - (1 if y < 14 else 0))
@@ -281,7 +294,7 @@ def heal(n=7):
     g = rng(17)
     parts = [(g.randint(-15, 15), g.randint(0, 20)) for _ in range(9)]
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         ring(s, C, 40, 6 + i * 2, "#8dff8a" if i < 4 else "#3aa06a")
         for x0, off in parts:
             y = 42 - ((i * 5 + off) % 38)
@@ -295,7 +308,7 @@ def shield(n=6):
     frames = []
     r = R("#6fb7ff", hs=16)
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         rad = [6, 12, 17, 18, 18, 17][i]
         pts = [(round(C + math.cos(a) * rad), round(C + math.sin(a) * rad)) for a in [k * math.tau / 6 + math.pi / 6 for k in range(6)]]
         for (x0, y0), (x1, y1) in zip(pts, pts[1:] + pts[:1]):
@@ -314,7 +327,7 @@ def arrows(n=6, up=True, col="#ffb347"):
     frames = []
     r = R(col, hs=18)
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         for k, x0 in enumerate((-12, 0, 12)):
             y = (40 - ((i * 6 + k * 9) % 36)) if up else (8 + ((i * 6 + k * 9) % 36))
             d = -1 if up else 1
@@ -329,7 +342,7 @@ def arrows(n=6, up=True, col="#ffb347"):
 def stun(n=6):
     frames = []
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         for k in range(3):
             a = k * math.tau / 3 + i * math.tau / n
             x, y = round(C + math.cos(a) * 12), round(12 + math.sin(a) * 4)
@@ -344,7 +357,7 @@ def cast(n=6, col="#b8a0ff"):
     frames = []
     r = R(col, hs=18)
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         rx = [4, 10, 16, 20, 20, 18][i]
         ry = max(2, rx // 3)
         s.ellipse(C - rx, 40 - ry, C + rx, 40 + ry, r[3], fill=False)
@@ -364,7 +377,7 @@ def smoke(n=6):
     frames = []
     r = R("#b8b0c8", hs=10)
     for i in range(n):
-        s = Sprite(F, F)
+        s = Canvas2x(F, F)
         for k in range(6):
             a = k * math.tau / 6
             d = 4 + i * 3
@@ -378,9 +391,9 @@ def smoke(n=6):
 # Projectiles 16x16 (2 frames)
 
 def projectile(kind):
-    img = Image.new("RGBA", (32, 16), (0, 0, 0, 0))
+    img = Image.new("RGBA", (64, 32), (0, 0, 0, 0))
     for f in range(2):
-        s = Sprite(16, 16)
+        s = Canvas2x(16, 16)
         if kind == "fireball":
             s.circle(9, 8, 4 + f, "#ff7a2a", fill=True); s.circle(10, 7, 2, "#fff1a8", fill=True)
             for k in range(4):
@@ -400,7 +413,7 @@ def projectile(kind):
         elif kind == "rock":
             s.circle(8, 8, 3, "#9a9486", fill=True); s.px(7, 7, "#cfc8b8"); s.px(9 + f, 10, "#6b655a")
         s.outline("#1c1a28", where="outside")
-        img.alpha_composite(s.composite(1), (f * 16, 0))
+        img.alpha_composite(s.composite(1), (f * 32, 0))
     return img
 
 
@@ -436,25 +449,26 @@ def main():
         im = fn()
         im.save(os.path.join(OUT, f"{name}.png"))
         sheets[name] = im
-        meta[name] = {"frames": im.width // F, "size": F}
+        meta[name] = {"frames": im.width // (F * K), "size": F * K}
     for name in PROJECTILES:
         im = projectile(name)
         im.save(os.path.join(OUT, f"p_{name}.png"))
-        meta[f"p_{name}"] = {"frames": 2, "size": 16}
+        meta[f"p_{name}"] = {"frames": 2, "size": 32}
     with open(os.path.join(OUT, "fx.json"), "w") as f:
         json.dump(meta, f, indent=1)
-    Z = 3
+    Z = 1
+    FF = F * K
     maxw = max(im.width for im in sheets.values())
-    sheet = Image.new("RGBA", (maxw * Z + 150, len(sheets) * (F * Z + 6) + 60), (40, 44, 66, 255))
+    sheet = Image.new("RGBA", (maxw * Z + 150, len(sheets) * (FF * Z + 6) + 60), (40, 44, 66, 255))
     d = ImageDraw.Draw(sheet)
     for i, (n, im) in enumerate(sheets.items()):
-        y = i * (F * Z + 6) + 4
+        y = i * (FF * Z + 6) + 4
         d.text((4, y + 4), n, fill=(255, 255, 255, 255))
-        sheet.alpha_composite(im.resize((im.width * Z, F * Z), Image.NEAREST), (140, y))
+        sheet.alpha_composite(im, (140, y))
     x = 140
     for n in PROJECTILES:
         im = Image.open(os.path.join(OUT, f"p_{n}.png")).convert("RGBA")
-        sheet.alpha_composite(im.resize((im.width * 3, im.height * 3), Image.NEAREST), (x, len(sheets) * (F * Z + 6) + 8))
+        sheet.alpha_composite(im.resize((im.width * 2, im.height * 2), Image.NEAREST), (x, len(sheets) * (FF * Z + 6) + 8))
         x += 110
     sheet.save(os.path.join(HERE, "preview.png"))
     print("OK", len(sheets), "sheets +", len(PROJECTILES), "projectiles")

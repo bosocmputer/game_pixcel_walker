@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-16-bit UI kit for Pixel Walker — window frames, buttons and wells as 9-slice PNGs, plus 16x16
-interface icons. Everything is drawn at 1x and shown at 2x in the game (CSS border-image,
-image-rendering: pixelated).
+UI kit for Pixel Walker — window frames, buttons and wells as 9-slice PNGs, plus interface icons.
+32-bit (2026-09-26, MASTER_SPEC §5C): frames are drawn natively at 24x24 with an 8 px slice and
+shown 1:1 (CSS: border-image: url(x.png) 8 fill / 8px); icons are designed on a 16 grid and
+re-rasterised at 32x32 by kit2x (+ bevel), shown 1:1 at 32 px.
 
     python pixel-art/ui-kit/build.py
 
 Outputs apps/game/public/assets/ui/*.png and preview.png (6x) here for review.
-9-slice pieces are 12x12 with a 4px slice (CSS: border-image: url(x.png) 4 fill / 8px).
 """
 import os
 import sys
@@ -15,8 +15,14 @@ import sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "scripts"))
-from pixelstudio import Sprite, ramp  # noqa: E402
+from pixelstudio import Sprite, ramp, mix  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
+
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x, bevel  # noqa: E402
+
+N = 24          # 9-slice piece size
+SL = 8          # slice (corner) size
 
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "ui")
 INK = "#1c1a28"
@@ -33,59 +39,76 @@ THEMES = {
 }
 
 
-def frame(t, pressed=False, size=12):
-    """Beveled 12x12 frame: notched ink border, light top-left, 2px shadow bottom-right."""
-    s = Sprite(size, size)
-    n = size - 1
-    s.rect(1, 1, n - 1, n - 1, t["fill"])
-    hi, sh = (t["sh"], t["hi"]) if pressed else (t["hi"], t["sh"])
-    s.line(1, 1, n - 1, 1, hi)
-    s.line(1, 1, 1, n - 1, hi)
-    s.line(1, n - 1, n - 1, n - 1, sh)
-    s.line(n - 1, 1, n - 1, n - 1, sh)
-    if not pressed:
-        s.line(2, n - 2, n - 2, n - 2, sh)  # 2px bottom lip = raised
-    s.line(1, 0, n - 1, 0, t["ink"])
-    s.line(1, n, n - 1, n, t["ink"])
-    s.line(0, 1, 0, n - 1, t["ink"])
-    s.line(n, 1, n, n - 1, t["ink"])
+def _notched_border(s, c, n):
+    """1 px ink border with 2 px rounded corners."""
+    s.line(2, 0, n - 2, 0, c); s.line(2, n, n - 2, n, c); s.line(0, 2, 0, n - 2, c); s.line(n, 2, n, n - 2, c)
+    for x, y in ((1, 1), (n - 1, 1), (1, n - 1), (n - 1, n - 1)):
+        s.px(x, y, c)
+
+
+def frame(t, pressed=False):
+    """Beveled 24x24 frame (8 px slice): rounded ink border, top sheen, soft gradient body,
+    2-step lit edge top-left, 3 px raised lip bottom-right (pressed = sunk, no lip)."""
+    s = Sprite(N, N)
+    n = N - 1
+    fill, hi, sh, ink = t["fill"], t["hi"], t["sh"], t["ink"]
+    top = mix(fill, hi, 0.3)
+    s.rect(1, 1, n - 1, n - 1, fill)
+    for x in range(1, n):
+        s.px(x, 1, None if x in (1, n - 1) else fill)
+    if pressed:
+        s.rect(2, 2, n - 2, 4, mix(fill, sh, 0.45))                     # inner shadow at the top
+        s.line(2, 2, 2, n - 2, mix(fill, sh, 0.45))
+        s.line(2, n - 2, n - 2, n - 2, hi)
+    else:
+        s.rect(2, 2, n - 2, 9, top)                                      # upper half catches light
+        s.line(3, 3, n - 4, 3, mix(top, hi, 0.6))                        # sheen
+        s.line(2, 2, n - 2, 2, hi); s.line(2, 2, 2, n - 4, hi)           # lit edge
+        s.line(3, 2, 3, n - 5, mix(fill, hi, 0.55))
+        s.line(n - 2, 3, n - 2, n - 3, sh)                               # shaded right edge
+        for i, col in enumerate((sh, sh, mix(sh, ink, 0.35))):           # raised lip
+            s.line(2, n - 3 + i if i < 2 else n - 1, n - 2, n - 3 + i if i < 2 else n - 1, col)
+    _notched_border(s, ink, n)
     return s
 
 
 def well():
-    """Inset well for slots and gauges: dark top-left, light bottom-right."""
-    s = Sprite(12, 12)
-    s.rect(1, 1, 10, 10, "#e6dcc6")
-    s.line(1, 1, 10, 1, "#9c8f73")
-    s.line(1, 1, 1, 10, "#9c8f73")
-    s.line(2, 2, 9, 2, "#cfc2a4")
-    s.line(1, 10, 10, 10, "#ffffff")
-    s.line(10, 1, 10, 10, "#ffffff")
-    s.line(1, 0, 10, 0, "#6d6250")
-    s.line(1, 11, 10, 11, "#6d6250")
-    s.line(0, 1, 0, 10, "#6d6250")
-    s.line(11, 1, 11, 10, "#6d6250")
+    """Inset well for slots and gauges: shaded top-left, light bottom-right."""
+    s = Sprite(N, N)
+    n = N - 1
+    s.rect(1, 1, n - 1, n - 1, "#e6dcc6")
+    s.rect(2, 2, n - 2, 3, "#b8ab8e"); s.line(2, 2, 2, n - 2, "#b8ab8e"); s.line(3, 3, 3, n - 3, "#cfc2a4")
+    s.line(2, 2, n - 2, 2, "#9c8f73")
+    s.line(2, n - 2, n - 2, n - 2, "#ffffff"); s.line(n - 2, 3, n - 2, n - 2, "#ffffff")
+    s.line(3, n - 3, n - 3, n - 3, "#f4ecd8")
+    _notched_border(s, "#6d6250", n)
     return s
 
 
 def selected():
-    """Highlight frame for a selected slot (orange, 1px notch)."""
-    s = Sprite(12, 12)
+    """Highlight frame for a selected slot (2 px orange + light inner line)."""
+    s = Sprite(N, N)
+    n = N - 1
     o, l = "#f08c00", "#ffd896"
-    s.line(1, 0, 10, 0, o); s.line(1, 11, 10, 11, o); s.line(0, 1, 0, 10, o); s.line(11, 1, 11, 10, o)
-    s.line(1, 1, 10, 1, l); s.line(1, 1, 1, 10, l)
-    s.line(1, 10, 10, 10, o); s.line(10, 1, 10, 10, o)
+    _notched_border(s, o, n)
+    s.line(2, 1, n - 2, 1, o); s.line(1, 2, 1, n - 2, o); s.line(2, n - 1, n - 2, n - 1, o); s.line(n - 1, 2, n - 1, n - 2, o)
+    s.line(2, 2, n - 2, 2, l); s.line(2, 2, 2, n - 2, l)
     return s
 
 
 def sys_frame(edge, glow, fill="#141c38"):
-    """[ระบบ] window (docs/STORY.md §5): dark navy hologram, glowing edge, bracket corners."""
-    s = Sprite(12, 12)
-    s.rect(1, 1, 10, 10, fill)
-    s.line(1, 0, 10, 0, edge); s.line(1, 11, 10, 11, edge); s.line(0, 1, 0, 10, edge); s.line(11, 1, 11, 10, edge)
-    s.line(1, 1, 10, 1, "#1e2c54"); s.line(1, 10, 10, 10, "#0c1226")
-    for x, y in ((0, 0), (1, 0), (0, 1), (11, 0), (10, 0), (11, 1), (0, 11), (1, 11), (0, 10), (11, 11), (10, 11), (11, 10)):
-        s.px(x, y, glow)                                                                       # bracket corners
+    """[ระบบ] window (docs/STORY.md §5): dark navy hologram, 2-tone glowing edge, bracket corners."""
+    s = Sprite(N, N)
+    n = N - 1
+    s.rect(1, 1, n - 1, n - 1, fill)
+    s.line(2, 2, n - 2, 2, "#1e2c54"); s.line(2, 3, n - 2, 3, "#18244a")      # light from the top
+    s.line(2, n - 2, n - 2, n - 2, "#0c1226")
+    s.line(1, 0, n - 1, 0, edge); s.line(1, n, n - 1, n, edge); s.line(0, 1, 0, n - 1, edge); s.line(n, 1, n, n - 1, edge)
+    s.line(1, 1, n - 1, 1, mix(edge, fill, 0.55)); s.line(1, 1, 1, n - 1, mix(edge, fill, 0.55))   # inner glow
+    for x0, y0, dx, dy in ((0, 0, 1, 1), (n, 0, -1, 1), (0, n, 1, -1), (n, n, -1, -1)):              # bracket corners
+        for i in range(5):
+            s.px(x0 + dx * i, y0, glow); s.px(x0, y0 + dy * i, glow)
+        s.px(x0 + dx, y0 + dy, edge)
     return s
 
 
@@ -96,10 +119,11 @@ SYS_FRAMES = {"sys": ("#4fd8ff", "#c8f6ff"), "sys-gold": ("#f2c230", "#fff2b0"),
 # 16x16 icons
 
 def icon():
-    return Sprite(16, 16)
+    return Canvas2x(16, 16)
 
 
 def done(s):
+    bevel(s.s, light=0.22, dark=0.18, skip=(INK,))
     s.outline(INK, where="outside")
     return s
 
@@ -319,21 +343,21 @@ def main():
     x = 10
     for name, s in pieces.items():
         im = s.composite(1)
-        w, h = 34, 16  # stretch the centre like border-image
+        w, h = 68, 32  # stretch the centre like border-image
         big = Image.new("RGBA", (w, h))
-        c = 4
-        for (sx0, sx1, dx0, dx1) in ((0, c, 0, c), (c, 12 - c, c, w - c), (12 - c, 12, w - c, w)):
-            for (sy0, sy1, dy0, dy1) in ((0, c, 0, c), (c, 12 - c, c, h - c), (12 - c, 12, h - c, h)):
+        c = SL
+        for (sx0, sx1, dx0, dx1) in ((0, c, 0, c), (c, N - c, c, w - c), (N - c, N, w - c, w)):
+            for (sy0, sy1, dy0, dy1) in ((0, c, 0, c), (c, N - c, c, h - c), (N - c, N, h - c, h)):
                 part = im.crop((sx0, sy0, sx1, sy1)).resize((dx1 - dx0, dy1 - dy0), Image.NEAREST)
                 big.alpha_composite(part, (dx0, dy0))
-        sheet.alpha_composite(big.resize((w * 4, h * 4), Image.NEAREST), (x, 10) if x < 900 else (x - 900, 90))
+        sheet.alpha_composite(big.resize((w * 2, h * 2), Image.NEAREST), (x, 10) if x < 900 else (x - 900, 90))
         d.text((x if x < 900 else x - 900, 78 if x < 900 else 158), name, fill=(255, 255, 255, 255))
         x += 150
     y0 = 200
     for i, (name, im) in enumerate(icons.items()):
         cx, cy = 10 + (i % 10) * 96, y0 + (i // 10) * 130
-        sheet.alpha_composite(im.resize((16 * 4, 16 * 4), Image.NEAREST), (cx, cy))
-        sheet.alpha_composite(im.resize((32, 32), Image.NEAREST), (cx + 66, cy + 32))
+        sheet.alpha_composite(im.resize((32 * 2, 32 * 2), Image.NEAREST), (cx, cy))
+        sheet.alpha_composite(im, (cx + 66, cy + 32))
         d.text((cx, cy + 70), name, fill=(255, 255, 255, 255))
     sheet.save(os.path.join(HERE, "preview.png"))
     print("OK", len(pieces), "frames,", len(icons), "icons")

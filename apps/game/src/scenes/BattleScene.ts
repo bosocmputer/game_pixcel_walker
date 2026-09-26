@@ -376,6 +376,11 @@ export class BattleScene extends Phaser.Scene {
     this.drawBars();
   }
 
+  /** Whole-number display scale for 32-bit art: 1 on phones / narrow screens, 2 on wide ones. */
+  private artScale(): number {
+    return this.portrait || this.scale.width < 900 ? 1 : 2;
+  }
+
   private addView(u: CombatUnit, scale: number): UnitView {
     let key: string;
     let doll: Paperdoll | null = null;
@@ -401,14 +406,16 @@ export class BattleScene extends Phaser.Scene {
     const isHero = !!ally || u.side === 'A';
     const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
     const origin = isHero && isPack ? { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y } : { x: 0.5, y: 1 };
+    // 32-bit art (2026-09-26) is shown at a whole-number scale only (1x phones, 2x wide screens) —
+    // a fractional scale makes some art pixels 1 px and others 2 px wide.
+    const art = this.artScale();
     let finalScale: number;
     if (isHero) {
-      finalScale = isPack ? scale * 0.55 : scale;
+      // The pack hero (placeholder, 64 px tall) is sized like the coming 32-bit hero (~96 px at 1x).
+      finalScale = isPack ? 1.5 * art : scale;
     } else {
-      // Native-res pixel monsters use the hero's pixel size so both read as one art style.
-      finalScale = hasPixelSprite('monsters', u.sprite) ? (isPack ? scale * 0.55 : scale / 2) : isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
+      finalScale = hasPixelSprite('monsters', u.sprite) ? art : isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
     }
-    if (u.row === 'BACK' && !u.isBoss) finalScale *= 0.9;
     const animated = key.startsWith('mob_anim_');
     const sprite = this.add.image(0, 0, key, animated ? 0 : undefined).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
     // Portrait: short names (full names are in the turn bar / skill pop-ups) so labels fit side by side.

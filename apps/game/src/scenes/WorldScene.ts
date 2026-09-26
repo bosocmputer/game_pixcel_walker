@@ -421,7 +421,8 @@ export class WorldScene extends Phaser.Scene {
         const shadow = this.add.ellipse(0, 0, 36, 10, 0x000000, 0.25);
         const isBoss = !!def.boss;
         const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
-        const mobScale = hasPixelSprite('monsters', def.sprite) ? getHeroScale() : isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
+        // 32-bit monster art is drawn at 2x the old grid → half the map scale for the same size.
+        const mobScale = hasPixelSprite('monsters', def.sprite) ? getHeroScale() / 2 : isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
         const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(mobScale);
         const label = this.add
           .text(0, 4, `Lv.${def.level}`, { fontFamily: PIXEL_FONT, fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })

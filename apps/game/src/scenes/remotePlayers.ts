@@ -18,6 +18,7 @@ import {
 } from '../game/avatar';
 import { depthScale, project, zoomScale } from '../game/map';
 import { net } from '../game/net';
+import type { ChatBubbles } from './chatBubbles';
 
 const WALK_FRAMES = [1, 0, 2, 0];
 
@@ -40,7 +41,10 @@ interface Remote {
 export class RemotePlayers {
   private remotes = new Map<string, Remote>();
 
-  constructor(private scene: Phaser.Scene) {}
+  constructor(
+    private scene: Phaser.Scene,
+    private bubbles?: ChatBubbles,
+  ) {}
 
   sync(players: PlayerPresence[]) {
     const seen = new Set<string>();
@@ -150,6 +154,7 @@ export class RemotePlayers {
       const top = p.y - r.sprite.displayHeight * 0.95;
       r.label.setPosition(p.x, top).setVisible(onScreen);
       r.busy.setPosition(p.x, top - 14).setVisible(onScreen && r.data.busy);
+      this.bubbles?.place(r.data.id, p.x, top - (r.data.busy ? 30 : 14), onScreen);
     }
   }
 }

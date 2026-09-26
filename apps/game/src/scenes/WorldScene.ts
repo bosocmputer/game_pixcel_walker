@@ -5,7 +5,7 @@
  */
 import Phaser from 'phaser';
 import { PIXEL_FONT } from '../ui/pixel';
-import { FIGHT_RANGE_M, MONSTERS, gateLayer, gateRank, haversine, type Landmark, type Spawn } from '@pw/shared';
+import { FIGHT_RANGE_M, MONSTERS, RANK_COLOR, gateLayer, gateRank, haversine, type Landmark, type Spawn } from '@pw/shared';
 import { DEFAULT_APPEARANCE, heroCanvas, landmarkIcon, monsterCanvas, type Facing } from '../game/art';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { CHUNK_TILES, ensureAround, landmarksAround, loadingCount, toTile } from '../game/world';
@@ -16,6 +16,10 @@ import { bossAvailableAt, nearbyLandmarks, BOSS_RADIUS_M } from '../game/rules';
 import { store, type SaveData } from '../state/store';
 import { paperdollOf } from '../game/paperdoll';
 import { RemotePlayers } from './remotePlayers';
+import { admin } from '../game/admin';
+import { preloadFx } from './battleFx';
+import { preloadOverlay } from './battleOverlay';
+import { ChatBubbles } from './chatBubbles';
 import { PIN_FILES, RIFT_FRAMES, hasPixelSprite, pixelImage } from '../game/sprites';
 import { net } from '../game/net';
 import { autoHunt } from '../game/autohunt';
@@ -65,20 +69,21 @@ export class WorldScene extends Phaser.Scene {
   private lastLandmarkScan = 0;
   private unsubs: (() => void)[] = [];
   private remotes!: RemotePlayers;
+  private bubbles!: ChatBubbles;
 
   constructor() {
     super('World');
   }
 
   create() {
-    // Pins: rift strips become looping sprite-sheet animations; the rest are single images.
+    // Pins: open-gate strips become looping sprite-sheet animations; the rest are single images.
     for (const name of PIN_FILES) {
       const key = `lm_${name}`;
       if (this.textures.exists(key)) continue;
       const img = pixelImage('landmarks', name);
       if (!img) {
         this.textures.addCanvas(key, landmarkIcon(name));
-      } else if (name.startsWith('rift_')) {
+      } else if (name.startsWith('gate_')) {
         this.textures.addSpriteSheet(key, img, { frameWidth: img.width / RIFT_FRAMES, frameHeight: img.height });
         this.anims.create({ key: `${key}_open`, frames: this.anims.generateFrameNumbers(key, {}), frameRate: 6, repeat: -1 });
       } else {
@@ -86,13 +91,19 @@ export class WorldScene extends Phaser.Scene {
       }
     }
     this.cameras.main.setBackgroundColor('rgba(0,0,0,0)');
+    // Warm up the battle effects in the background so the first fight opens instantly (it used to
+    // sit on a blank map for ~2 s while ~30 sheets loaded).
+    preloadFx(this);
+    preloadOverlay(this);
+    this.load.start();
 
     this.rangeRing = this.add.graphics().setDepth(4);
     this.accuracyRing = this.add.circle(0, 0, 10, 0x26c6da, 0.12).setStrokeStyle(2, 0x26c6da, 0.6).setDepth(5);
     this.pulse = this.add.circle(0, 0, 10, 0xffffff, 0).setStrokeStyle(3, 0xffa726, 0.9).setDepth(5);
     this.tweens.add({ targets: this.pulse, scale: 3, alpha: 0, duration: 1600, repeat: -1 });
     this.shadow = this.add.ellipse(0, 0, 40, 14, 0x000000, 0.28).setDepth(9);
-    this.remotes = new RemotePlayers(this);
+    this.bubbles = new ChatBubbles(this);
+    this.remotes = new RemotePlayers(this, this.bubbles);
     this.refreshHero(store.s);
     const origin = getHeroOrigin();
     this.player = this.add.image(0, 0, this.heroKey()).setDepth(10).setOrigin(origin.x, origin.y).setScale(getHeroScale());
@@ -116,6 +127,8 @@ export class WorldScene extends Phaser.Scene {
       bus.on('battle:start', (req) => this.startBattle(req)),
       bus.on('home:enter', () => this.enterHome()),
       bus.on('players', ({ players }) => this.remotes.sync(players)),
+      bus.on('chat', (line) => this.bubbles.show(line.mine ? 'me' : line.from, line.text, line.channel)),
+      bus.on('pins', () => this.refreshNear()),
       bus.on('zoom', ({ delta }) => (delta === 0 ? resetNorth() : zoomBy(delta * 0.5))),
     );
     this.events.once('shutdown', () => this.unsubs.forEach((u) => u()));
@@ -126,7 +139,9 @@ export class WorldScene extends Phaser.Scene {
 
     // The Phaser canvas lets pointer events through to the map, so taps come from MapLibre.
     const map = getMap();
-    const onTap = (e: { point: { x: number; y: number } }) => this.onTap(e.point.x, e.point.y);
+    // Admin placing a pin: the tap chooses its spot instead of starting a fight.
+    const onTap = (e: { point: { x: number; y: number }; lngLat: { lat: number; lng: number } }) =>
+      admin.placing ? admin.placeAt(e.lngLat.lat, e.lngLat.lng) : this.onTap(e.point.x, e.point.y);
     map?.on('click', onTap);
     // Sim mode test tool: right-click (desktop) / long-press (Android) teleports there.
     const onWarp = (e: { lngLat: { lat: number; lng: number }; preventDefault?: () => void }) => {
@@ -188,7 +203,14 @@ export class WorldScene extends Phaser.Scene {
       this.lastDataChunk = dataKey;
       ensureAround(t.x, t.y, 1);
     }
-    const near = nearbyLandmarks(lat, lng, BOSS_RADIUS_M);
+    this.refreshNear();
+  }
+
+  /** Tells the HUD which landmarks are in reach (on moves and when the admin pins change). */
+  private refreshNear() {
+    const at = this.target ?? this.current;
+    if (!at) return;
+    const near = nearbyLandmarks(at.lat, at.lng, BOSS_RADIUS_M);
     const ids = near.map((l) => l.id).join(',');
     if (ids !== this.lastNearIds) {
       this.lastNearIds = ids;
@@ -303,6 +325,8 @@ export class WorldScene extends Phaser.Scene {
     }
     this.placeOverlays();
     this.remotes.update(delta, getHeroScale());
+    this.bubbles.place('me', this.player.x, this.player.y - this.player.displayHeight * 0.95 - 4, this.player.visible);
+    this.bubbles.prune();
   }
 
   /** Play-radius ring: the true ground circle projected, so it stays right under any rotation/tilt. */
@@ -318,13 +342,24 @@ export class WorldScene extends Phaser.Scene {
     this.rangeRing.clear().fillStyle(0xffa726, 0.07).fillPoints(pts, true).lineStyle(2, 0xffa726, 0.7).strokePoints(pts, true);
   }
 
-  /** Pin texture for a place (docs/STORY.md §5): rift by layer + rank, sealed crack, or a place picture. */
+  /** Pin texture for a place (docs/STORY.md §5): the building with a live rift or a sealed door, or a place picture. */
   private pinTexture(l: Landmark, open: boolean): string {
-    const layer = gateLayer(l.kind);
-    const rank = gateRank(l.kind) ?? 'E';
-    if (!layer) return `lm_${l.kind}`;
-    if (!open) return `lm_sealed_${rank}`;
-    return `lm_rift_${layer.toLowerCase()}_${rank}`;
+    if (!gateLayer(l.kind)) return `lm_${l.kind}`;
+    return open ? `lm_gate_${l.kind}` : `lm_sealed_${l.kind}`;
+  }
+
+  /** Name tag under a pin: gate rank chip (rank colour) + the name the admin gave it. */
+  private pinTag(l: Landmark): Phaser.GameObjects.GameObject[] {
+    const style = { fontFamily: PIXEL_FONT, fontSize: '16px', color: '#ffffff', stroke: '#000000', strokeThickness: 4 };
+    const name = this.add.text(0, 2, l.label, style).setOrigin(0.5, 0);
+    const rank = gateRank(l.kind);
+    if (!rank) return [name];
+    const chip = this.add.text(0, 2, rank, { ...style, color: RANK_COLOR[rank], fontStyle: 'bold' }).setOrigin(0, 0);
+    const gap = 4;
+    const total = chip.width + gap + name.width;
+    chip.setX(-total / 2);
+    name.setOrigin(0, 0).setX(-total / 2 + chip.width + gap);
+    return [chip, name];
   }
 
   /** Create/destroy landmark sprites near the player (cheap; runs twice a second). */
@@ -336,15 +371,13 @@ export class WorldScene extends Phaser.Scene {
       seen.add(l.id);
       let c = this.landmarkSprites.get(l.id);
       if (!c) {
-        const icon = this.add.sprite(0, 0, this.pinTexture(l, true)).setOrigin(0.5, 1).setScale(getHeroScale());
-        c = this.add.container(0, 0, [icon]).setDepth(7);
+        // 32-bit pin art is drawn at 2x the old grid → half the map scale for the same size.
+        const icon = this.add.sprite(0, 0, this.pinTexture(l, true)).setOrigin(0.5, 1).setScale(getHeroScale() / 2);
+        c = this.add.container(0, 0, [icon, ...this.pinTag(l)]).setDepth(7);
         c.setData({ icon, lat: l.lat, lng: l.lng, open: null });
-        // Services hover like a [ระบบ] hologram; sanctuaries breathe softly.
-        if (l.kind === 'HOSPITAL' || l.kind === 'MARKET') this.tweens.add({ targets: icon, y: -4, yoyo: true, repeat: -1, duration: 900, ease: 'Sine.easeInOut' });
-        if (l.kind === 'SANCTUARY') this.tweens.add({ targets: icon, alpha: 0.7, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
         this.landmarkSprites.set(l.id, c);
       }
-      // Gates: an open rift animates; a closed one is a sealed crack.
+      // Gates: an open rift animates in the doorway; a closed one is sealed.
       if (gateLayer(l.kind)) {
         const open = bossAvailableAt(l, s, now) <= now;
         if (c.getData('open') !== open) {
@@ -368,7 +401,7 @@ export class WorldScene extends Phaser.Scene {
   // World monsters
 
   private homeScale(): number {
-    return hasPixelSprite('landmarks', 'HOME') ? getHeroScale() : 2.5;
+    return hasPixelSprite('landmarks', 'HOME') ? getHeroScale() / 2 : 2.5;
   }
 
   private levelColor(level: number): string {
@@ -389,7 +422,8 @@ export class WorldScene extends Phaser.Scene {
         const shadow = this.add.ellipse(0, 0, 36, 10, 0x000000, 0.25);
         const isBoss = !!def.boss;
         const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
-        const mobScale = hasPixelSprite('monsters', def.sprite) ? getHeroScale() : isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
+        // 32-bit monster art is drawn at 2x the old grid → half the map scale for the same size.
+        const mobScale = hasPixelSprite('monsters', def.sprite) ? getHeroScale() / 2 : isBoss ? (isPack ? 3.5 : 3.2) : (isPack ? 2.3 : 2.6);
         const img = this.add.image(0, 0, key).setOrigin(0.5, 1).setScale(mobScale);
         const label = this.add
           .text(0, 4, `Lv.${def.level}`, { fontFamily: PIXEL_FONT, fontSize: '12px', color: this.levelColor(def.level), stroke: '#000', strokeThickness: 3 })

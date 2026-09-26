@@ -31,8 +31,9 @@ interface HomeMeta {
 }
 
 /** Hero height in room pixels (the bed is 28, the wardrobe 48). */
-const HERO_ROOM_H = 44;
-const WALK_PX_PER_S = 70;
+/** Room art is 32-bit (2x): every room-pixel constant below is in 2x room pixels. */
+const HERO_ROOM_H = 88;
+const WALK_PX_PER_S = 140;
 
 export class HomeScene extends Phaser.Scene {
   private meta!: HomeMeta;
@@ -65,7 +66,7 @@ export class HomeScene extends Phaser.Scene {
 
   create() {
     this.meta = this.cache.json.get('home_meta') as HomeMeta;
-    this.pos = { x: 92, y: 82 };
+    this.pos = { x: 184, y: 164 };
     this.busy = false;
     this.walking = null;
     this.sprites.clear();
@@ -94,7 +95,7 @@ export class HomeScene extends Phaser.Scene {
     this.room.on('pointerdown', (p: Phaser.Input.Pointer) => {
       const x = (p.x - this.ox) / this.S;
       const y = (p.y - this.oy) / this.S;
-      if (!this.busy && y > this.meta.floorY + 6) this.walkTo(x, y);
+      if (!this.busy && y > this.meta.floorY + 12) this.walkTo(x, y);
     });
 
     this.overlay = el(`<div class="home-overlay">
@@ -164,7 +165,7 @@ export class HomeScene extends Phaser.Scene {
     this.walking?.stop();
     const from = { ...this.pos };
     x = Phaser.Math.Clamp(x, 6, this.meta.w - 6);
-    y = Phaser.Math.Clamp(y, this.meta.floorY + 10, this.meta.h - 4);
+    y = Phaser.Math.Clamp(y, this.meta.floorY + 20, this.meta.h - 8);
     const dist = Math.hypot(x - from.x, y - from.y);
     const dx = x - from.x;
     const dy = y - from.y;
@@ -192,7 +193,7 @@ export class HomeScene extends Phaser.Scene {
     this.walkTo(it.stand[0], it.stand[1], () => {
       // Face the furniture once there.
       const cx = it.x + it.w / 2;
-      const facing = it.y + it.h <= this.meta.floorY + 6 ? 'up' : 'side';
+      const facing = it.y + it.h <= this.meta.floorY + 12 ? 'up' : 'side';
       this.placeHero(facing, 0, cx < this.pos.x);
       this.activate(it.id);
     });

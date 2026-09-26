@@ -2,7 +2,8 @@
 """
 Home interior: a Lanna teak-house room (panelled walls, window onto Doi Suthep, paper lanterns)
 plus separate furniture sprites the player taps (each with a glowing "_hi" hover version).
-Front view, 176x120, light from the top-left.
+Front view, designed on a 176x120 grid and drawn 32-bit at 2x (352x240) by kit2x.Canvas2x
+(2026-09-26, MASTER_SPEC §5C) — furniture gets a bevel pass; home.json is in 2x room pixels.
 
     python pixel-art/home/build.py
 
@@ -17,6 +18,9 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "scripts"))
 from pixelstudio import Sprite, ramp  # noqa: E402
 from PIL import Image  # noqa: E402
+
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x, bevel  # noqa: E402
 
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "home")
 INK = "#1c1a28"
@@ -38,7 +42,7 @@ GOLD = R("#f2c230", 5, 22)
 # Room (static background)
 
 def room():
-    s = Sprite(RW, RH)
+    s = Canvas2x(RW, RH)
     # Ceiling beam + panelled walls (fa pakon)
     s.rect(0, 0, RW - 1, FLOOR_Y - 1, TEAK[1])
     for x0 in range(0, RW, 22):
@@ -123,7 +127,7 @@ def done(s):
 
 
 def bed():
-    s = Sprite(52, 28)
+    s = Canvas2x(52, 28)
     s.rect(2, 4, 7, 25, DARK[2]); s.line(2, 4, 7, 4, DARK[3]); s.line(3, 4, 3, 25, DARK[3])          # headboard
     s.rect(44, 12, 49, 25, DARK[2]); s.line(44, 12, 49, 12, DARK[3])                                  # footboard
     s.rect(8, 16, 43, 21, DARK[1]); s.rect(8, 22, 43, 23, DARK[0])                                    # frame
@@ -141,7 +145,7 @@ def bed():
 
 
 def mirror():
-    s = Sprite(24, 48)
+    s = Canvas2x(24, 48)
     s.rect(2, 3, 21, 45, DARK[2]); s.line(2, 3, 21, 3, DARK[3]); s.line(2, 3, 2, 45, DARK[3]); s.line(21, 4, 21, 45, DARK[0])
     s.polygon([(2, 3), (11, 0), (12, 0), (21, 3)], GOLD[2])                                           # carved crest
     s.rect(5, 7, 18, 33, "#9ad4e8"); s.line(5, 7, 18, 7, "#d8f4ff")
@@ -152,7 +156,7 @@ def mirror():
 
 
 def shelf():
-    s = Sprite(30, 45)
+    s = Canvas2x(30, 45)
     s.rect(2, 2, 27, 42, DARK[1]); s.rect(4, 4, 25, 40, DARK[0])
     s.line(2, 2, 27, 2, DARK[3]); s.line(2, 2, 2, 42, DARK[3])
     for y in (15, 27, 40):
@@ -174,7 +178,7 @@ def shelf():
 
 
 def door():
-    s = Sprite(20, 44)
+    s = Canvas2x(20, 44)
     s.rect(2, 2, 17, 41, DARK[1])
     s.rect(4, 4, 15, 41, TEAK[2]); s.line(4, 4, 15, 4, TEAK[3]); s.line(4, 4, 4, 41, TEAK[3])
     for y0, y1 in ((7, 19), (23, 38)):
@@ -185,7 +189,7 @@ def door():
 
 
 def cauldron():
-    s = Sprite(26, 26)
+    s = Canvas2x(26, 26)
     fire = R("#f08a24", hs=24)
     s.polygon([(7, 25), (10, 17), (13, 22), (16, 16), (19, 25)], fire[2])                           # flames
     s.polygon([(10, 25), (12, 20), (14, 25)], fire[4])
@@ -199,7 +203,7 @@ def cauldron():
 
 
 def chest():
-    s = Sprite(26, 21)
+    s = Canvas2x(26, 21)
     wood = R("#8a4a26", hs=12)
     s.rect(2, 8, 23, 19, wood[2]); s.line(2, 8, 23, 8, wood[3])
     s.ellipse(2, 2, 23, 12, wood[3]); s.rect(2, 7, 23, 9, wood[2]); s.line(4, 3, 20, 3, wood[4])      # lid
@@ -213,7 +217,7 @@ def chest():
 
 
 def workbench():
-    s = Sprite(44, 30)
+    s = Canvas2x(44, 30)
     s.rect(2, 11, 41, 14, TEAK[3]); s.line(2, 11, 41, 11, TEAK[4]); s.rect(2, 15, 41, 16, DARK[1])   # table top
     for x in (4, 37):
         s.rect(x, 17, x + 2, 27, DARK[2]); s.line(x, 17, x, 27, DARK[3])
@@ -263,9 +267,12 @@ def main():
     r = room()
     r.save_png(os.path.join(OUT, "room.png"))
     scene = r.composite(1).copy()
-    meta = {"w": RW, "h": RH, "floorY": FLOOR_Y, "items": []}
+    # home.json is in 2x room pixels (HomeScene reads sizes from it).
+    meta = {"w": RW * K, "h": RH * K, "floorY": FLOOR_Y * K, "items": []}
     for fid, fn, (x, y), (sx, sy), label in FURNITURE:
         s = fn()
+        bevel(s.s, light=0.16, dark=0.18, skip=(INK,))
+        x, y, sx, sy = x * K, y * K, sx * K, sy * K
         path = os.path.join(OUT, f"{fid}.png")
         s.save_png(path)
         im = Image.open(path).convert("RGBA")
@@ -274,8 +281,8 @@ def main():
         scene.alpha_composite(im, (x, y))
     with open(os.path.join(OUT, "home.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=1)
-    Z = 5
-    scene.resize((RW * Z, RH * Z), Image.NEAREST).save(os.path.join(HERE, "preview.png"))
+    Z = 3
+    scene.resize((RW * K * Z, RH * K * Z), Image.NEAREST).save(os.path.join(HERE, "preview.png"))
     print("OK room +", len(FURNITURE), "furniture")
 
 

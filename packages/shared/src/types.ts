@@ -16,6 +16,8 @@ export type Rarity = 'COMMON' | 'UNCOMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
 
 /** Wearable slots (MASTER_SPEC §5): outfit, head, accessory, weapon. Outfits include their footwear. */
 export type EquipSlot = 'chest' | 'helmet' | 'accessory' | 'weapon';
+/** How a weapon attacks in battle (presentation: swing, reach, impact). */
+export type WeaponType = 'SWORD' | 'DAGGER' | 'SPEAR' | 'CLUB' | 'STAFF';
 export const EQUIP_SLOTS: EquipSlot[] = ['chest', 'helmet', 'accessory', 'weapon'];
 
 /** Additive and multiplicative modifiers applied on top of base derived stats. */

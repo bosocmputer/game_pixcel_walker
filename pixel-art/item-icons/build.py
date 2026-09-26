@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Item icons for Pixel Walker — 24x24, one light source (top-left), hue-shifted ramps,
-dark ink outline outside. Source of truth for apps/game/public/assets/items/*.png.
+Item icons for Pixel Walker — designed on a 24x24 grid, drawn 32-bit at 48x48 (kit2x re-raster +
+bevel pass + fine ink outline; 2026-09-26, MASTER_SPEC §5C). One light source (top-left),
+hue-shifted ramps. Source of truth for apps/game/public/assets/items/*.png (shown 1:1 at 48 px).
 
     python pixel-art/item-icons/build.py        (from the repo root, or from this folder)
 
@@ -17,16 +18,20 @@ sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "
 from pixelstudio import Sprite, ramp, mix  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x, bevel  # noqa: E402
+
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "items")
 S = 24
 INK = "#1c1a28"  # shared outline — keeps the whole set reading as one family
 
 
 def canvas():
-    return Sprite(S, S)
+    return Canvas2x(S, S)
 
 
 def finish(s):
+    bevel(s.s, light=0.22, dark=0.2, skip=(INK, "#ffffff"))
     s.outline(INK, where="outside")
     return s
 
@@ -863,8 +868,9 @@ def main():
     # Review sheets: 8x preview with labels, and silhouettes.
     names = list(rendered)
     imgs = list(rendered.values())
-    Z, cols = 8, 6
-    cell = S * Z + 16
+    S2 = S * K
+    Z, cols = 4, 6
+    cell = S2 * Z + 16
     rows = (len(imgs) + cols - 1) // cols
     for kind in ("preview", "silhouette"):
         sheet = Image.new("RGBA", (cols * cell, rows * (cell + 14)), (232, 228, 218, 255))
@@ -874,19 +880,19 @@ def main():
             if kind == "silhouette":
                 im = Image.eval(im, lambda v: v).copy()
                 px = im.load()
-                for yy in range(S):
-                    for xx in range(S):
+                for yy in range(S2):
+                    for xx in range(S2):
                         if px[xx, yy][3]:
                             px[xx, yy] = (34, 36, 46, 255)
             else:
-                d.rectangle([x - 2, y - 2, x + S * Z + 1, y + S * Z + 1], fill=(250, 250, 252, 255))
-            sheet.alpha_composite(im.resize((S * Z, S * Z), Image.NEAREST), (x, y))
-            d.text((x, y + S * Z + 2), n, fill=(40, 40, 50, 255))
+                d.rectangle([x - 2, y - 2, x + S2 * Z + 1, y + S2 * Z + 1], fill=(250, 250, 252, 255))
+            sheet.alpha_composite(im.resize((S2 * Z, S2 * Z), Image.NEAREST), (x, y))
+            d.text((x, y + S2 * Z + 2), n, fill=(40, 40, 50, 255))
         sheet.save(os.path.join(HERE, f"{kind}.png"))
-    # 2x strip at true game display size, on the UI's window colour
+    # strip at true game display size (48 px, 1:1), on the UI's window colour
     strip = Image.new("RGBA", (len(rendered) * 52 + 4, 56), (238, 242, 248, 255))
     for i, im in enumerate(rendered.values()):
-        strip.alpha_composite(im.resize((48, 48), Image.NEAREST), (4 + i * 52, 4))
+        strip.alpha_composite(im, (4 + i * 52, 4))
     strip.save(os.path.join(HERE, "strip2x.png"))
     print("OK", len(rendered), "icons")
 

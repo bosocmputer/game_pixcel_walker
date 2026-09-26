@@ -8,13 +8,14 @@ import { MONSTERS } from '@pw/shared';
 type Sheet = 'monsters' | 'landmarks';
 const images = new Map<string, HTMLImageElement>();
 /**
- * Map pins (pixel-art/landmarks, docs/STORY.md §5): gates are rift strips per layer and rank
- * (4 frames) plus a sealed crack per rank; places without a gate have one picture each.
+ * Map pins (pixel-art/landmarks, docs/STORY.md §5): every pin is the place itself. Gates have an
+ * open strip (4 frames, the rift alive in the doorway) and a sealed picture; places without a
+ * gate have one picture each.
  */
-export const PIN_RANKS = ['E', 'D', 'C', 'B', 'A', 'S'];
+export const GATE_PIN_KINDS = ['CONVENIENCE', 'MALL', 'FUEL', 'STATION', 'TEMPLE', 'MUSEUM', 'PARK'];
 export const RIFT_FRAMES = 4;
 export const PIN_FILES = [
-  ...PIN_RANKS.flatMap((r) => [`rift_pixel_${r}`, `rift_myth_${r}`, `rift_world_${r}`, `sealed_${r}`]),
+  ...GATE_PIN_KINDS.flatMap((k) => [`gate_${k}`, `sealed_${k}`]),
   'HOSPITAL',
   'MARKET',
   'SANCTUARY',
@@ -37,6 +38,8 @@ export async function loadPixelSprites(): Promise<void> {
   const monsterKeys = new Set(Object.values(MONSTERS).map((m) => m.sprite));
   await Promise.all([
     ...[...monsterKeys].map((k) => load(`/assets/monsters/${k}.png`)),
+    // Battle animation strips (idle · breathe · attack · hurt), pixel-art/monsters anim_strip()
+    ...[...monsterKeys].map((k) => load(`/assets/monsters/${k}_anim.png`)),
     ...PIN_FILES.map((k) => load(`/assets/landmarks/${k}.png`)),
   ]);
 }

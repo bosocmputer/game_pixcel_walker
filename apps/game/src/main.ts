@@ -14,6 +14,7 @@ import { mountHud, showOnboarding } from './ui/hud';
 import { createMap, getMap } from './game/map';
 import { autoHunt } from './game/autohunt';
 import { net } from './game/net';
+import { admin } from './game/admin';
 import { el } from './ui/dom';
 import { loadAvatarPack, USE_AVATAR_PACK } from './game/avatar';
 import { loadPixelSprites } from './game/sprites';
@@ -82,6 +83,7 @@ async function start() {
   document.getElementById('ui')!.appendChild(loading);
   const pos = await initialPosition();
   initWorld(pos.lat, pos.lng);
+  admin.start(); // admin-placed pins (offline cache first, then the server)
   const t = toTile(pos.lat, pos.lng);
   ensureAround(t.x, t.y, 1);
   await createMap(document.getElementById('map')!, pos.lat, pos.lng);
@@ -120,7 +122,7 @@ async function start() {
   autoHunt.init(game);
   net.start();
   walk.startLocation();
-  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap, audio } });
+  if (import.meta.env.DEV) Object.assign(window, { __pw: { walk, store, bus, rules, landmarksAround, game, getMap, audio, admin } });
   window.setInterval(tickRegen, 15000);
 }
 

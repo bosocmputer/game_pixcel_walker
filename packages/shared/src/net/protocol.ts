@@ -5,6 +5,8 @@
  */
 import type { UnitSetup } from '../combat/types';
 import type { ClassId } from '../types';
+import type { ChatChannel, ChatLine } from './chat';
+import type { Pin, PinDraft } from './pins';
 
 /** Visual info other players need to draw you. */
 export interface PlayerLook {
@@ -72,7 +74,13 @@ export type ClientMsg =
   | { t: 'party:kick'; id: string }
   | { t: 'run:open'; target: RunTarget }
   /** Reply to run:prepare. `entrant` null = decline / can't join right now. */
-  | { t: 'run:ready'; runId: string; entrant: DungeonEntrant | null };
+  | { t: 'run:ready'; runId: string; entrant: DungeonEntrant | null }
+  /** A chat line (net/chat.ts rules; the server re-checks and decides who hears it). */
+  | { t: 'chat'; text: string; channel: ChatChannel }
+  /** Admin: check a key (the server answers with `admin`). Pins: net/pins.ts. */
+  | { t: 'admin:login'; key: string }
+  | { t: 'pin:add'; key: string; pin: PinDraft }
+  | { t: 'pin:del'; key: string; id: string };
 
 export type ServerMsg =
   | { t: 'welcome'; id: string; online: number }
@@ -89,7 +97,13 @@ export type ServerMsg =
    * Everyone in the run simulates the same fight from (target, seed, entrants) — the engine is
    * deterministic, so all devices play out an identical battle without streaming turns.
    */
-  | { t: 'run:begin'; runId: string; target: RunTarget; seed: number; entrants: DungeonEntrant[]; openedBy: string };
+  | { t: 'run:begin'; runId: string; target: RunTarget; seed: number; entrants: DungeonEntrant[]; openedBy: string }
+  /** Someone nearby (or in your party) said something. Your own lines are not echoed back. */
+  | ({ t: 'chat' } & ChatLine)
+  /** Every admin-placed pin (sent on hello and again after each change; the list is small). */
+  | { t: 'pins'; pins: Pin[] }
+  /** Answer to admin:login. */
+  | { t: 'admin'; ok: boolean };
 
 export const PARTY_MAX = 3;
 export const PARTY_INVITE_TTL_MS = 30_000;

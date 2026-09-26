@@ -11,3 +11,6 @@ tools/artpreview/heroes.png
 tools/artpreview/avatar.png
 apps/game/public/maps/
 *.tsbuildinfo
+apps/server/data/
+pixel-art/**/__pycache__/
+pixel-art/**/_*.png

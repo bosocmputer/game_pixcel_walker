@@ -313,7 +313,8 @@ export function claimDailyBonus(): boolean {
 /** Hospital: full HP/MP for Gold. */
 export function hospitalHeal(): boolean {
   const cost = hospitalCost(store.s.level);
-  if (store.s.gold < cost) return false;
+  const full = derivedOf(store.s);
+  if (store.s.gold < cost || (store.s.hp >= full.maxHp && store.s.mp >= full.maxMp)) return false;
   store.update((s) => {
     const d = derivedOf(s);
     s.gold -= cost;
@@ -377,8 +378,6 @@ export interface BattleOutcome {
 export function applyBattleOutcome(opts: {
   result: 'WIN' | 'LOSE' | 'FLED' | 'ONGOING';
   defeated: string[];
-  hp: number;
-  mp: number;
   itemsLeft: Record<string, number>;
   rng: Rng;
   landmark?: Landmark;
@@ -395,8 +394,6 @@ export function applyBattleOutcome(opts: {
 
   store.update((s) => {
     const d = derivedOf(s);
-    s.hp = Math.max(0, Math.round(opts.hp));
-    s.mp = Math.max(0, Math.round(opts.mp));
     s.bag = Object.fromEntries(Object.entries(opts.itemsLeft).filter(([, n]) => n > 0));
 
     if (opts.worldBoss && opts.landmark) {
@@ -462,9 +459,12 @@ export function applyBattleOutcome(opts: {
       outcome.goldLost = deathGoldLoss(s.gold);
       s.gold -= outcome.goldLost;
       s.stats.deaths++;
-      s.hp = Math.round(derivedOf(s).maxHp * 0.3);
     }
-    s.hp = Math.max(1, s.hp);
+    // Every fight is a fresh start (MASTER_SPEC §9): HP/MP are back to full, win or lose.
+    // Potions used during the fight stay used (itemsLeft above).
+    const full = derivedOf(s);
+    s.hp = full.maxHp;
+    s.mp = full.maxMp;
     s.lastRegenAt = Date.now();
     clampVitals(s);
   });

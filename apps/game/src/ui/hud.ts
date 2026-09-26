@@ -71,6 +71,10 @@ import { bankWindowHtml, repairWindowHtml } from './homeWindows';
 import { openShopState, shopWindowHtml, wireShopWindow } from './shopWindow';
 import { charTabs, skillWindowHtml } from './skillWindow';
 import { autoHunt } from '../game/autohunt';
+import { mountChat } from './chat';
+import { hapticsOn, setHaptics } from '../game/haptics';
+import { FX_LEVEL_TH, cycleFxLevel, fxLevel } from '../game/fxPrefs';
+import { adminSettingsHtml, adminWindowHtml, mountAdminHud, wireAdminSettings, wireAdminWindow } from './adminWindow';
 import { SYS, playerRank, questWindowHtml, questsClaimable, rankChip, systemNotice } from './systemUi';
 
 
@@ -117,7 +121,7 @@ export function mountHud() {
     <div class="near"></div>
     <div class="joystick hidden"><div class="stick"></div></div>
     <div class="sim-tools hidden"><button class="sim-speed" data-simspeed title="ความเร็วโหมดจำลอง (ทดสอบ)"></button><button class="sim-home" data-simhome title="วาร์ปกลับจุดเริ่ม (คูเมืองเชียงใหม่)">${uiIcon('pin')}</button></div>
-    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">${uiIcon('plus')}</button><button data-zoom="-1" aria-label="ซูมออก">${uiIcon('minus')}</button><button data-zoom="0" aria-label="หันทิศเหนือ">${uiIcon('compass')}</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">${uiIcon('auto')}<small>AUTO</small></button></div>
+    <div class="zoom"><button data-zoom="1" aria-label="ซูมเข้า">${uiIcon('plus')}</button><button data-zoom="-1" aria-label="ซูมออก">${uiIcon('minus')}</button><button data-zoom="0" aria-label="หันทิศเหนือ">${uiIcon('compass')}</button><button class="auto-btn" data-autohunt aria-label="ล่าอัตโนมัติ">${uiIcon('auto')}<small>AUTO</small></button><button class="admin-btn hidden" data-admin aria-label="หมุดแผนที่ (แอดมิน)">${uiIcon('pin')}<small>PIN</small></button></div>
     <div class="bottombar">
       <button class="menu-btn" data-open="char">${uiIcon('char')}<span>ตัวละคร</span></button>
       <button class="menu-btn" data-open="bag">${uiIcon('bag')}<span>กระเป๋า</span></button>
@@ -129,6 +133,14 @@ export function mountHud() {
     <div class="toasts"></div>
   </div>`);
   root().appendChild(hud);
+  mountChat(hud);
+  mountAdminHud(hud);
+  // Admin pin list / login state changes redraw the open admin or settings window.
+  const redrawAdmin = () => {
+    if (panelName === 'admin' || panelName === 'settings') renderPanel();
+  };
+  bus.on('pins', redrawAdmin);
+  bus.on('admin:changed', redrawAdmin);
 
   hud.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('[data-simspeed]')) {
@@ -140,6 +152,7 @@ export function mountHud() {
       return toast('วาร์ปกลับคูเมือง · คลิกขวา/กดค้างบนแผนที่เพื่อวาร์ปไปจุดนั้น');
     }
     if ((e.target as HTMLElement).closest('[data-autohunt]')) return autoHunt.toggle();
+    if ((e.target as HTMLElement).closest('[data-admin]')) return openPanel('admin');
     const z = (e.target as HTMLElement).closest<HTMLElement>('[data-zoom]');
     if (z) return bus.emit('zoom', { delta: Number(z.dataset.zoom) });
     const t = (e.target as HTMLElement).closest<HTMLElement>('[data-open],[data-act]');
@@ -208,6 +221,12 @@ export function mountHud() {
   bus.on('toast', ({ text, kind }) => showToast(hud.querySelector('.toasts')!, text, kind ?? 'info'));
   window.setInterval(() => renderNear(hud.querySelector('.near')!), 5000);
   mountJoystick(hud.querySelector('.joystick')!);
+  // The fight / landmark cards grow and shrink; keep the joystick (and sim buttons) docked just
+  // above them so it never covers a card's buttons (it used to sit on the "สู้" button on phones).
+  const cards = hud.querySelector<HTMLElement>('.near')!;
+  const dock = () => hud.style.setProperty('--near-h', `${Math.round(cards.getBoundingClientRect().height)}px`);
+  new ResizeObserver(dock).observe(cards);
+  dock();
   render();
 }
 
@@ -251,6 +270,11 @@ function renderNear(box: HTMLElement) {
     const shopBtn = shop ? `<button class="btn primary" data-shop="${shop.id}">${uiIcon('bag', true)}${esc(shop.nameTh)}</button>` : '';
     if (l.kind === 'HOSPITAL') {
       const cost = hospitalCost(s.level);
+      const d = derivedOf(s);
+      if (s.hp >= d.maxHp && s.mp >= d.maxMp) {
+        return `<div class="lm-card svc"><div class="lm-title">${uiIcon('heart', true)}${esc(l.label)} <small>จุดรักษาของสมาคม Walker</small></div>
+        <div class="lm-actions"><button class="btn" disabled>HP/MP เต็มอยู่แล้ว</button></div></div>`;
+      }
       return `<div class="lm-card svc"><div class="lm-title">${uiIcon('heart', true)}${esc(l.label)} <small>จุดรักษาของสมาคม Walker</small></div>
         <div class="lm-sub">ฟื้นฟู HP/MP เต็มทันที</div>
         <div class="lm-actions"><button class="btn primary" data-hospital ${s.gold >= cost ? '' : 'disabled'}>รักษา ${uiIcon('coin', true)}${cost}</button></div></div>`;
@@ -259,7 +283,13 @@ function renderNear(box: HTMLElement) {
       const wait = sanctuaryReadyAt(s) - now;
       return `<div class="lm-card svc"><div class="lm-title">${uiIcon('star', true)}${esc(l.label)} <small>เขตศักดิ์สิทธิ์</small></div>
         <div class="lm-sub">รอยแยกเปิดใกล้ที่นี่ไม่ได้ · พักใจฟื้นฟู HP/MP ครึ่งหนึ่ง</div>
-        <div class="lm-actions">${wait > 0 ? `<button class="btn" disabled>พักได้อีกใน ${fmtWait(wait)}</button>` : '<button class="btn primary" data-bless>พักใจ</button>'}</div></div>`;
+        <div class="lm-actions">${
+          s.hp >= derivedOf(s).maxHp && s.mp >= derivedOf(s).maxMp
+            ? '<button class="btn" disabled>HP/MP เต็มอยู่แล้ว</button>'
+            : wait > 0
+              ? `<button class="btn" disabled>พักได้อีกใน ${fmtWait(wait)}</button>`
+              : '<button class="btn primary" data-bless>พักใจ</button>'
+        }</div></div>`;
     }
     const bossId = bossIdFor(l);
     const boss = bossId ? MONSTERS[bossId] : undefined;
@@ -472,6 +502,11 @@ function renderPanel() {
     }
     case 'settings':
       body.innerHTML = settingsPanel();
+      wireAdminSettings(body);
+      break;
+    case 'admin':
+      body.innerHTML = adminWindowHtml();
+      wireAdminWindow(body, renderPanel, () => closePanel());
       break;
   }
   body.scrollTop = scroll;
@@ -643,9 +678,14 @@ function settingsPanel(): string {
   return `<h2>${uiIcon('settings')}ตั้งค่า</h2>
     <button class="btn primary" data-act="arena">${uiIcon('swords', true)}สนามทดสอบการต่อสู้</button>
     ${audioRows()}
+    <div class="row"><b>จอสั่น/แสงวาบ (ต่อสู้)</b><span class="spacer"></span>
+      <button class="btn ${fxLevel() === 'normal' ? 'primary' : ''}" data-act="fxlevel">${FX_LEVEL_TH[fxLevel()]}</button></div>
+    <div class="row"><b>การสั่น (มือถือ)</b><span class="spacer"></span>
+      <button class="btn ${hapticsOn() ? 'primary' : ''}" data-act="haptics">${hapticsOn() ? 'เปิด' : 'ปิด'}</button></div>
     <div class="row"><b>โหมดจำลองการเดิน</b><span class="spacer"></span>
       ${walk.simulated ? '<span class="good">เปิดอยู่</span>' : '<button class="btn" data-act="sim">เปิด (สำหรับทดสอบบนคอม)</button>'}</div>
     <p class="muted">คอมพิวเตอร์: ใช้ปุ่ม WASD / ลูกศร เดิน, กด Shift ค้างเพื่อวิ่งเร็ว (เร็วเกิน 20 กม./ชม. จะต่อสู้ไม่ได้)</p>
+    ${adminSettingsHtml()}
     <p class="muted">ข้อมูลแผนที่ © OpenStreetMap contributors (ODbL)</p>
     <button class="btn danger" data-act="reset">ลบเซฟและเริ่มใหม่</button>`;
 }
@@ -699,6 +739,14 @@ function wirePanel(body: HTMLElement) {
     sfx('coin');
   });
   on('[data-act="enterhome"]', () => enterHome());
+  on('[data-act="fxlevel"]', () => {
+    cycleFxLevel();
+    renderPanel();
+  });
+  on('[data-act="haptics"]', () => {
+    setHaptics(!hapticsOn());
+    renderPanel();
+  });
   on('[data-act="rest"]', () => {
     restAtHome();
     toast('พักผ่อนเต็มที่แล้ว', 'good');

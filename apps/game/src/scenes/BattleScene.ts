@@ -61,6 +61,7 @@ import { fxScale } from '../game/fxPrefs';
 import { ComboCounter, ELEMENT_COLOR, coinBurst, damageNumber, flinchTexture, shatter } from './battleJuice';
 import { haptic } from '../game/haptics';
 import { buildStage, riftBreak, type StageLayer } from './battleStage';
+import { applyLighting, mulColor } from './battleLighting';
 import { StatusRow, TurnBar, preloadOverlay } from './battleOverlay';
 import { DEFAULT_POS, walk } from '../game/walk';
 
@@ -154,6 +155,8 @@ export class BattleScene extends Phaser.Scene {
   /** Phone held upright: less sky, bigger fighters, diagonal formation above the panel. */
   private portrait = false;
   private horizonY = 0;
+  /** Scene light every fighter sprite is tinted with (battleLighting). */
+  private ambient = 0xffffff;
   /** "Awakening ready" cue under our hero (aura), and whether it was ready last frame. */
   private aura: Phaser.GameObjects.Graphics | null = null;
   private wasReady = false;
@@ -272,13 +275,16 @@ export class BattleScene extends Phaser.Scene {
     this.stageLayer = landmarkLayer ?? (this.req.run?.target.kind === 'DUNGEON' || this.req.kind === 'DUNGEON' ? 'PIXEL' : 'FIELD');
     const at = walk.position ?? this.req.landmark ?? DEFAULT_POS;
     this.portrait = height > width * 1.2;
-    this.horizonY = buildStage(this, {
+    const stage = buildStage(this, {
       lat: at.lat,
       lng: at.lng,
       layer: this.stageLayer,
       kind: landmarkLayer ? this.req.landmark!.kind : undefined,
       horizon: this.portrait ? 0.28 : undefined,
-    }).horizonY;
+    });
+    this.horizonY = stage.horizonY;
+    // Scene light (SoC-style): ambient tint for fighters, lamps, vignette, drifting motes.
+    this.ambient = applyLighting(this, { layer: this.stageLayer, part: stage.part, horizonY: this.horizonY, fx: fxScale() }).ambient;
 
     this.header = this.add.text(width / 2, 12, '', { fontFamily: PIXEL_FONT, fontSize: '15px', color: '#fff', stroke: '#000', strokeThickness: 4, align: 'center' }).setOrigin(0.5, 0).setDepth(50);
     this.banner = this.add.text(width / 2, height * 0.3, '', { fontFamily: PIXEL_FONT, fontSize: '22px', color: '#ffd54f', stroke: '#000', strokeThickness: 5, align: 'center', wordWrap: { width: width - 40 } }).setOrigin(0.5).setDepth(60).setAlpha(0);
@@ -417,7 +423,7 @@ export class BattleScene extends Phaser.Scene {
       finalScale = hasPixelSprite('monsters', u.sprite) ? art : isPack ? (u.isBoss ? scale * 1.0 : scale * 0.75) : scale;
     }
     const animated = key.startsWith('mob_anim_');
-    const sprite = this.add.image(0, 0, key, animated ? 0 : undefined).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B');
+    const sprite = this.add.image(0, 0, key, animated ? 0 : undefined).setScale(finalScale).setOrigin(origin.x, origin.y).setDepth(10).setFlipX(u.side === 'B').setTint(this.ambient);
     // Portrait: short names (full names are in the turn bar / skill pop-ups) so labels fit side by side.
     const shown = this.portrait && [...u.name].length > 9 ? `${[...u.name].slice(0, 8).join('')}…` : u.name;
     const label = this.add
@@ -659,8 +665,8 @@ export class BattleScene extends Phaser.Scene {
       }
       if (low) {
         const k = 0.5 + 0.5 * Math.sin(t * 6);
-        v.sprite.setTint(Phaser.Display.Color.GetColor(255, Math.round(150 + 80 * k), Math.round(150 + 80 * k)));
-      } else if (v.sprite.isTinted) v.sprite.clearTint();
+        v.sprite.setTint(mulColor(this.ambient, Phaser.Display.Color.GetColor(255, Math.round(150 + 80 * k), Math.round(150 + 80 * k))));
+      } else if (v.sprite.tintTopLeft !== this.ambient || v.sprite.tintFill) v.sprite.setTint(this.ambient);
     }
     if (dirty) this.drawBars();
     this.tickAwakenCue(t);
@@ -1173,7 +1179,7 @@ export class BattleScene extends Phaser.Scene {
             if (victim) v.shown = Math.max(0, v.shown - e.amount / victim.base.maxHp);
             this.drawBars();
             v.sprite.setTintFill(0xffffff);
-            this.time.delayedCall(70, () => v.sprite.clearTint());
+            this.time.delayedCall(70, () => v.sprite.setTint(this.ambient));
             // Hurt pose: the monster's flinch frame, or the hero's lean-back copy.
             if (v.animated) {
               v.sprite.setFrame(3);

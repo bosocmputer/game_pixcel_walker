@@ -193,13 +193,56 @@ function mode7(src: HTMLCanvasElement, w: number, h: number, nearRows: number, h
   return c;
 }
 
+/**
+ * Soft blur of a low-res canvas (for depth of field). Uses the canvas filter where the browser has
+ * it, otherwise a half-size smooth down/up-scale, which reads the same at this resolution.
+ */
+function softBlur(src: HTMLCanvasElement, radius: number): HTMLCanvasElement {
+  const [c, ctx] = canvas(src.width, src.height);
+  // Older Safari has no ctx.filter (the property is simply missing there).
+  if (typeof (ctx as { filter?: unknown }).filter === 'string') {
+    ctx.filter = `blur(${radius}px)`;
+    ctx.drawImage(src, 0, 0);
+    ctx.filter = 'none';
+    return c;
+  }
+  const [half, hctx] = canvas(src.width / 2, src.height / 2);
+  hctx.imageSmoothingEnabled = true;
+  hctx.drawImage(src, 0, 0, half.width, half.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(half, 0, 0, src.width, src.height);
+  return c;
+}
+
+/**
+ * Tilt-shift depth of field (the HD-2D look): the fighters' band stays sharp while the far floor
+ * near the horizon and the very front edge melt into blur. `stops` are [position 0..1, blur 0..1].
+ */
+function depthOfField(src: HTMLCanvasElement, stops: [number, number][], radius = 1.2): void {
+  const blurred = softBlur(src, radius);
+  const [mask, mctx] = canvas(src.width, src.height);
+  const g = mctx.createLinearGradient(0, 0, 0, src.height);
+  for (const [at, a] of stops) g.addColorStop(at, `rgba(0,0,0,${a})`);
+  mctx.fillStyle = g;
+  mctx.fillRect(0, 0, mask.width, mask.height);
+  const bctx = blurred.getContext('2d')!;
+  bctx.globalCompositeOperation = 'destination-in';
+  bctx.drawImage(mask, 0, 0);
+  const sctx = src.getContext('2d')!;
+  sctx.drawImage(blurred, 0, 0);
+}
+
 const HAZE: Record<StageLayer, Record<DayPart, string>> = {
   FIELD: { day: '#c8ecff', dusk: '#ff9a5a', night: '#23315e' },
   PIXEL: { day: '#5a2a8a', dusk: '#8a2a6a', night: '#3a1a60' },
   MYTH: { day: '#f2c230', dusk: '#ff8a3a', night: '#a0601a' },
   WORLD: { day: '#e8d070', dusk: '#ff9a5a', night: '#4a6a30' },
 };
-const NIGHT_TINT: Record<DayPart, [number, number]> = { day: [0x000000, 0], dusk: [0x3a1030, 0.2], night: [0x05082a, 0.45] };
+/**
+ * Time of day as a MULTIPLY light over the backdrop (0xffffff = no change). Multiplying keeps the
+ * contrast of the street art — a translucent dark overlay turned night into flat grey fog.
+ */
+const NIGHT_TINT: Record<DayPart, number> = { day: 0xffffff, dusk: 0xd9a9b4, night: 0x5b68b2 };
 
 export interface StageOpts {
   lat: number;
@@ -227,6 +270,8 @@ export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: numbe
   const sctx = sky.getContext('2d')!;
   sctx.imageSmoothingEnabled = false;
   paintSkyline(sctx, lw, skyH, part, Math.floor(Math.abs(o.lat * 1000 + o.lng * 1000)) % 997);
+  // Far away = soft: the skyline and sky sit behind the depth-of-field plane.
+  depthOfField(sky, [[0, 0.7], [1, 0.9]], 0.9);
   const skyKey = `stage_sky_${stamp}`;
   scene.textures.addCanvas(skyKey, sky);
   scene.add.image(0, 0, skyKey).setOrigin(0).setScale(LOW).setDepth(0).setScrollFactor(0);
@@ -244,6 +289,8 @@ export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: numbe
     fctx.fillStyle = '#3d5a3a';
     fctx.fillRect(0, 0, lw, floorH);
   }
+  // Sharp where the fighters stand, blurred toward the horizon and at the very front edge.
+  depthOfField(floor, [[0, 1], [0.3, 0.75], [0.5, 0], [0.78, 0], [0.92, 0.9], [1, 1]]);
   const floorKey = `stage_floor_${stamp}`;
   scene.textures.addCanvas(floorKey, floor);
   scene.add.image(0, horizonY, floorKey).setOrigin(0).setScale(LOW).setDepth(1).setScrollFactor(0);
@@ -257,7 +304,8 @@ export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: numbe
         const fw = img.width / 4;
         const [c, ctx] = canvas(fw, img.height);
         ctx.drawImage(img, 0, 0, fw, img.height, 0, 0, fw, img.height);
-        scene.textures.addCanvas(key, c);
+        // It stands on the horizon, beyond the focus plane: slightly soft like the skyline.
+        scene.textures.addCanvas(key, softBlur(c, 0.7));
       }
       // 32-bit pin art (2x res) → 2x on screen, the same size the 16-bit building had at 4x.
       scene.add.image(width * 0.72, horizonY + 6, key).setOrigin(0.5, 1).setScale(2).setDepth(2).setScrollFactor(0).setAlpha(0.95);
@@ -265,8 +313,10 @@ export function buildStage(scene: Phaser.Scene, o: StageOpts): { horizonY: numbe
   }
 
   // Time of day over everything behind the fighters.
-  const [tint, alpha] = NIGHT_TINT[part];
-  if (alpha > 0) scene.add.rectangle(0, 0, width, height, tint, alpha).setOrigin(0).setDepth(3).setScrollFactor(0);
+  const tint = NIGHT_TINT[part];
+  if (tint !== 0xffffff) {
+    scene.add.rectangle(0, 0, width, height, tint, 1).setOrigin(0).setDepth(3).setScrollFactor(0).setBlendMode(Phaser.BlendModes.MULTIPLY);
+  }
 
   scene.events.once('shutdown', () => {
     for (const k of [skyKey, floorKey]) if (scene.textures.exists(k)) scene.textures.remove(k);

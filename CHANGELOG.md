@@ -20,6 +20,16 @@
 
 ---
 
+## 2026-09-26 — รวมงาน 09-24 ถึง 09-26 เข้า main + push ทุก branch (Nong + Claude)
+**แก้ไข / เปลี่ยน**
+- merge `feature/art-32bit` (มี `chat` → `fresh-battle` → `admin-pins` → `battle-juice` อยู่ในตัว, 18 commit) เข้า `main` — ไม่มี conflict
+- push `main` และ feature branch ทุกอัน ขึ้น GitHub ให้ทีมดึงไปทำต่อ
+- ROADMAP: หัวข้อ "ส่งต่อทีม" อัปเดตเป็น 2026-09-26 (สรุป 5 เรื่องใหญ่ + จำนวนเทสต์ 125)
+**ไฟล์หลักที่แตะ:** `docs/ROADMAP.md`, `CHANGELOG.md`
+**ทดสอบ:** npm test ผ่าน 125/125 · typecheck ผ่าน
+**ค้าง / ข้อควรรู้:** ดึงแล้วรัน `npm install` · รหัสแอดมินแต่ละเครื่องแยกกัน: ตั้ง env `ADMIN_KEY` หรือเซิร์ฟเวอร์สุ่มให้ใน `apps/server/data/admin-key.txt` (ไม่อยู่ใน git, ดู README) ·
+รอบ 5 ฮีโร่ของแท้ทีมรับไปทำ · ยังห้าม deploy สาธารณะ (อวาตาร์ยังเป็น placeholder)
+
 ## 2026-09-26 — ร่างฮีโร่ 32-bit ต้นแบบ (ส่งต่อทีม) (Nong + Claude)
 **เพิ่ม**
 - `pixel-art/hero-32-pilot/build.py` — ร่างฮีโร่ของแท้ 64×96 "Walker ผู้ตื่นรู้": ฮู้ดตะเข็บเรือง [ระบบ] (หลังมีสัญลักษณ์), ผ้าพันคอลายล้านนา

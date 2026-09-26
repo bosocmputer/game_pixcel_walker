@@ -62,6 +62,10 @@ class Canvas2x:
     def get(self, x, y):
         return self.s.get(x * K, y * K)
 
+    def layer(self, name):
+        self.s.layer(name)
+        return self
+
     # --- textures: the box is scaled, the pattern runs at full 2x resolution ------------------
     def _box(self, x0, y0, x1, y1):
         return x0 * K, y0 * K, x1 * K + K - 1, y1 * K + K - 1

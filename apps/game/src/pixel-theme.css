@@ -227,10 +227,10 @@ button.ro-eq-tab.on { opacity: 1; height: 22px; }
 .in-deck { font-style: normal; font-size: 10px; background: var(--cyan); color: #fff; padding: 0 4px; margin-left: 4px; font-family: 'Silkscreen', monospace; }
 .sk-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px 2px; }
 .sk-help { font-size: 11px; margin: 4px 2px; }
-.deck-slot { display: grid !important; grid-template-columns: 24px 1fr; align-items: center; gap: 4px; position: relative; }
+.deck-slot { display: grid !important; grid-template-columns: 48px 1fr; align-items: center; gap: 4px; position: relative; }
 .deck-slot > span { display: grid; min-width: 0; }
 .deck-slot b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ds-ico { width: 24px; height: 24px; image-rendering: pixelated; }
+.ds-ico { width: 48px; height: 48px; image-rendering: pixelated; }
 .ds-cd { position: absolute; left: 2px; top: 50%; margin-top: -12px; width: 24px; height: 24px; display: grid; place-items: center; background: rgba(28, 26, 40, .6); color: #fff; font: 700 16px 'Silkscreen', monospace; font-style: normal; text-shadow: 2px 2px 0 #1c1a28; }
 .deck-slot.cd { opacity: 1 !important; }
 .sheet .ro-eq-title { padding-right: 56px; }
@@ -378,7 +378,8 @@ button.hs-card.sel { background: #fff6d0; box-shadow: 0 0 0 2px #f2c230, inset 0
 .sl-all { width: 100%; margin-top: 8px; }
 .sl-list { display: grid; gap: 4px; margin-top: 4px; }
 .sl-row { display: grid; grid-template-columns: 32px 1fr auto auto; gap: 6px; align-items: center; padding: 3px 6px; background: #efe4c8; border: 2px solid var(--ink); }
-.sl-ico { width: 32px; height: 32px; image-rendering: pixelated; }
+/* 32-bit icons are 48 px: show them 1:1 (a 32 px box would squash every third pixel). */
+.sl-ico { width: 48px; height: 48px; image-rendering: pixelated; }
 .sl-info { display: grid; min-width: 0; }
 .sl-info b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sl-price { font-size: 12px; white-space: nowrap; }
@@ -548,4 +549,5 @@ body.in-home .hud .ad-bar { display: none; }
   .deck-slot { grid-template-columns: 1fr !important; justify-items: center; text-align: center; padding: 2px !important; }
   .deck-slot > span b { display: none; }
   .deck-slot small { font-size: 10px; }
+  .ds-ico { width: 24px; height: 24px; }   /* phones: 48 px art on a 2-3x screen = still every pixel */
 }

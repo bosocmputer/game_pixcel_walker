@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
-Skill icons for Pixel Walker — 24x24 tiles, same family as the item icons and UI kit.
+Skill icons for Pixel Walker — tiles designed on a 24x24 grid, drawn 32-bit at 48x48 (kit2x
+re-raster + bevel on the tile + 2 px ink outline on the motif; 2026-09-26, MASTER_SPEC §5C).
+Same family as the item icons and UI kit.
 Background tile colour = element, white/light motif on top, gold bolt badge = reactive skill.
 
     python pixel-art/skill-icons/build.py
@@ -16,6 +18,9 @@ sys.path.insert(0, os.path.join(ROOT, ".claude", "skills", "pixel-art-studio", "
 from pixelstudio import Sprite, ramp  # noqa: E402
 from PIL import Image, ImageDraw  # noqa: E402
 
+sys.path.insert(0, os.path.join(ROOT, "pixel-art"))
+from kit2x import K, Canvas2x, bevel  # noqa: E402
+
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "skills")
 INK = "#1c1a28"
 W = "#f6f0e1"      # motif light
@@ -29,20 +34,24 @@ ELEMENT = {
 
 
 def tile(element, reactive=False):
-    s = Sprite(24, 24)
+    s = Canvas2x(24, 24)
     r = ramp(ELEMENT[element], 5, hue_shift=16)
     s.rect(1, 1, 22, 22, r[1])
     s.rect(2, 2, 21, 21, r[2])
     s.line(2, 2, 21, 2, r[3]); s.line(2, 2, 2, 21, r[3])      # lit top-left
     s.line(2, 21, 21, 21, r[0]); s.line(21, 2, 21, 21, r[0])  # shaded bottom-right
     s.line(1, 0, 22, 0, INK); s.line(1, 23, 22, 23, INK); s.line(0, 1, 0, 22, INK); s.line(23, 1, 23, 22, INK)
+    for off, col in ((10, r[3]), (13, r[3]), (15, r[4])):          # glassy diagonal sheen, top-left corner (32-bit)
+        s.s.line(4, 4 + off, 4 + off, 4, col, only=r[2])
     s.layer("motif")
     return s, r, reactive
 
 
 def finish(t):
     s, r, reactive = t
-    # ink outline around the motif only (motif layer), then merge
+    # ink outline around the motif only (motif layer): 2 px so it reads on the coloured tile
+    bevel(s.s, light=0.25, dark=0.15, skip=(INK,))
+    s.outline(INK, where="outside")
     s.outline(INK, where="outside")
     if reactive:
         s.layer("badge")
@@ -192,7 +201,8 @@ def focus():
 
 def first_aid():
     t = tile("NEUTRAL"); s = t[0]
-    s.rect(5, 5, 18, 18, W); s.rect(10, 7, 13, 16, "#e53935"); s.rect(7, 10, 16, 13, "#e53935")
+    # green cross: the red cross is a protected emblem (same rule as the hospital pin)
+    s.rect(5, 5, 18, 18, W); s.rect(10, 7, 13, 16, "#2e9e52"); s.rect(7, 10, 16, 13, "#2e9e52")
     s.line(5, 18, 18, 18, W2); s.line(18, 5, 18, 18, W2)
     return finish(t)
 
@@ -408,15 +418,15 @@ def main():
         s = fn()
         s.save_png(os.path.join(OUT, f"{name}.png"))
         out[name] = s.composite(1)
-    Z, cols = 6, 7
-    cell = 24 * Z + 14
+    Z, cols = 3, 7
+    cell = 48 * Z + 14
     rows = (len(out) + cols - 1) // cols
     sheet = Image.new("RGBA", (cols * cell, rows * (cell + 12)), (236, 230, 214, 255))
     d = ImageDraw.Draw(sheet)
     for i, (n, im) in enumerate(out.items()):
         x, y = (i % cols) * cell + 7, (i // cols) * (cell + 12) + 6
-        sheet.alpha_composite(im.resize((24 * Z, 24 * Z), Image.NEAREST), (x, y))
-        d.text((x, y + 24 * Z + 1), n, fill=(30, 30, 40, 255))
+        sheet.alpha_composite(im.resize((48 * Z, 48 * Z), Image.NEAREST), (x, y))
+        d.text((x, y + 48 * Z + 1), n, fill=(30, 30, 40, 255))
     sheet.save(os.path.join(HERE, "preview.png"))
     print("OK", len(out), "skill icons")
 

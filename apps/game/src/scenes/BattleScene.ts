@@ -1321,7 +1321,8 @@ export class BattleScene extends Phaser.Scene {
         break;
       }
       case 'MISS':
-        this.popup(e.target, 'MISS', '#b0bec5', false, delay);
+        // Parry: the Knight turns the blow aside
+        this.popup(e.target, e.parry ? 'ปัด!' : 'MISS', e.parry ? '#ffd54f' : '#b0bec5', !!e.parry, delay);
         this.time.delayedCall(delay, () => sfx('miss'));
         break;
       case 'HEAL':

@@ -115,7 +115,7 @@ function unit(id: string, level: number, classId: ClassId, alloc: Partial<Stats>
   return { id, name: id, row: back ? 'BACK' : 'FRONT', sprite: 'h', level, classId, deck, autoPotion: true, items: { ...kit }, stats: statsFromDerived(d, { dex: stats.dex, luk: stats.luk, vit: stats.vit }) };
 }
 const trio = (lv: number) => [
-  unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, ['power_smash', 'focus', 'shield_bash', 'taunt', 'guardian', 'iron_wall']),
+  unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, ['power_smash', 'rend_power', 'rend_speed', 'rend_magick', 'taunt', 'parry']),
   unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, ['power_smash', 'stone_throw', 'fireball', 'chain_lightning', 'frost_nova', 'mana_shield']),
   unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, ['power_smash', 'stone_throw', 'holy_heal', 'blessing_of_light', 'smite', 'divine_grace']),
 ];

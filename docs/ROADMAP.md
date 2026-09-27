@@ -151,6 +151,13 @@ _(ใส่ชื่อคนที่รับงานไว้หลังห
 
 ## 🗺️ ถัดไป (เรียงตามความสำคัญ)
 
+### ⚔️ ระบบอาชีพแนว FFT (เริ่ม 2026-09-27, MASTER_SPEC §6) — Nong + Claude · branch `feature/fft-classes`
+เจ้าของเลือกสกิลในหน้า "คลังอาชีพ FFT" แล้ว · ทำทีละอาชีพ · เลือกได้ครั้งเดียวที่ Lv.10 (บททดสอบอาชีพเดิม)
+- [x] Knight — Rend ×3 · Taunt · Parry · trait Iron Blood
+- [ ] White Mage (แทน Cleric) · [ ] Black Mage (แทน Sorcerer) · [ ] Archer (แทน Ranger) · [ ] Thief (แทน Assassin)
+- [ ] Monk · [ ] Time Mage · [ ] Summoner · [ ] Geomancer · [ ] Dragoon · [ ] Samurai · [ ] Ninja · [ ] Bard · [ ] Dancer
+- [ ] ย้ายเซฟผู้เล่นจากอาชีพเดิม 4 อาชีพเป็นอาชีพ FFT ตอนแปลงแต่ละอาชีพ
+
 ### 🎨 ภาพแนว Sword of Convallaria (ตัดสินใจ 2026-09-26, MASTER_SPEC §5D — แทนแผน 32-bit ด้านล่าง) — Nong + Claude
 เจ้าของเกมอยากได้ภาพเหมือน SoC ที่สุด · วิเคราะห์จากภาพหน้าจอจริงแล้ว ภาพแบบ SoC มาจาก 5 ชั้น: สไปรต์ · ฉาก diorama มุมเฉียง · **แสง** · เอฟเฟกต์เรืองแสง · UI/พอร์ตเทรต
 **ก่อนวาดอะไรต้องอ่าน learned card 007** (`.claude/skills/pixel-art-studio/references/learned/007-pixel-walker-art-bible.md`)

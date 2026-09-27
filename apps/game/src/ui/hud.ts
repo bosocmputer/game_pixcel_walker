@@ -632,6 +632,7 @@ function charPanel(s: SaveData): string {
         <div class="mut-prog">${bar(prog.share, MUTATION_THRESHOLD, 'mut')}<small>${prog.stat.toUpperCase()} ${(prog.share * 100).toFixed(0)}%</small></div></div>`;
   return `<h2>${esc(s.name)} <small>Lv.${s.level} ${esc(CLASSES[s.classId].nameTh)}</small></h2>
     <p class="muted">${esc(CLASSES[s.classId].passive.name)}: ${esc(mut ? 'ถูกแทนที่ด้วย Mutation' : CLASSES[s.classId].passive.description)}</p>
+    ${CLASSES[s.classId].traitNote && !mut ? `<p class="muted">${esc(CLASSES[s.classId].traitNote!.nameTh)} (${esc(CLASSES[s.classId].traitNote!.name)}): ${esc(CLASSES[s.classId].traitNote!.description)}</p>` : ''}
     ${charTab === 'skill' ? charSkillWindow(s) : charEquipWindow(s)}
     ${charTab === 'equip' ? `<p class="muted">แตะช่องอุปกรณ์เพื่อถอด/สวมของในกระเป๋า · ${s.unspentPoints ? `มี Status Point <b class="accent">${s.unspentPoints}</b> — กด + ที่ค่าสถานะ` : 'เก็บเลเวลเพื่อรับ Status Point'}</p>` : ''}
     ${mutText}
@@ -666,7 +667,8 @@ function trialPanel(): string {
       const k = CLASSES[c];
       return `<button class="choice" data-class="${c}"><b>${esc(k.nameTh)} (${esc(k.nameEn)})</b>
         <span>${esc(k.role)} · ${k.mainStats.map((x) => x.toUpperCase()).join('/')}</span>
-        <span>${esc(k.passive.name)}: ${esc(k.passive.description)}</span></button>`;
+        <span>${esc(k.passive.name)}: ${esc(k.passive.description)}</span>
+        ${k.traitNote ? `<span>${esc(k.traitNote.nameTh)} (${esc(k.traitNote.name)}): ${esc(k.traitNote.description)}</span>` : ''}</button>`;
     })
     .join('');
   return `<h2>${uiIcon('star')}วิหารแห่งการทดสอบ</h2>

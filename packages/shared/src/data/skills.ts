@@ -65,6 +65,36 @@ export const SKILLS: Record<string, SkillDef> = {
     effects: [{ kind: 'SHIELD', pctMaxHp: 0.5, turns: 3 }],
   }),
 
+  // ---------------------------------------------------------------- Knight (FFT jobs, 2026-09-27)
+  rend_power: S({
+    id: 'rend_power', name: 'Rend Power', nameTh: 'ทำลายพลัง', description: '100% ATK และลด ATK ศัตรู 30% 3 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 30, cooldown: 3, mp: 12, target: 'ENEMY', priority: 1,
+    effects: [
+      { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1 } },
+      { kind: 'BUFF', stat: 'atk', pct: -0.3, turns: 3 },
+    ],
+  }),
+  rend_magick: S({
+    id: 'rend_magick', name: 'Rend Magick', nameTh: 'ทำลายเวท', description: '100% ATK และลด MATK ศัตรู 25% 3 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 12, target: 'ENEMY', priority: 1,
+    effects: [
+      { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1 } },
+      { kind: 'BUFF', stat: 'matk', pct: -0.25, turns: 3 },
+    ],
+  }),
+  rend_speed: S({
+    id: 'rend_speed', name: 'Rend Speed', nameTh: 'ทำลายความเร็ว', description: '100% ATK และทำให้ช้าลง 30% 3 เทิร์น',
+    kind: 'ACTIVE', element: 'NEUTRAL', rate: 25, cooldown: 3, mp: 12, target: 'ENEMY', priority: 1,
+    effects: [
+      { kind: 'DAMAGE', type: 'PHYSICAL', scaling: { atk: 1 } },
+      { kind: 'STATUS', status: 'SLOW', turns: 3, potency: 0.3 },
+    ],
+  }),
+  parry: S({
+    id: 'parry', name: 'Parry', nameTh: 'ปัดป้อง', description: 'ถูกโจมตีกายภาพ: 25% ปัดทิ้ง ไม่เสียเลือด',
+    kind: 'REACTIVE', trigger: 'PARRY', element: 'NEUTRAL', rate: 25, cooldown: 0, mp: 0, target: 'SELF', effects: [],
+  }),
+
   // ---------------------------------------------------------------- Sorcerer
   fireball: S({
     id: 'fireball', name: 'Fireball', nameTh: 'ลูกไฟทำลายล้าง', description: 'ศัตรูทุกตัว 150% MATK ไฟ + 30% ติดไฟ 2 เทิร์น',

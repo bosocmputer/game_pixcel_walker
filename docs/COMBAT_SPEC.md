@@ -143,6 +143,12 @@ Two layers, both synchronous so the result stays deterministic:
 | `OnAllyHit` / low HP | `ON_LOW_HP` | `damage()` when HP crosses 30% | the damaged unit (once) |
 | dodge | `ON_DODGE` | `strike()` on MISS | the dodger |
 | `OnDeath` | `ON_ALLY_DEATH` | `damage()` on HP 0 | every surviving ally (rage buffs, emergency shields, vengeance strike on the killer) |
+| parry (FFT Knight) | `PARRY` | `strike()` before the hit roll, physical only | the target — the strike becomes a `MISS { parry: true }` |
+
+**Class traits** (FFT jobs, MASTER_SPEC §6) are always-on and live on the class, not in the deck
+(`ClassDef.traits`, copied to `CombatUnit.traits`; a mutation removes them like the class passive). They use
+no RNG. `allyTurnHeal` (Knight · Iron Blood): at the start of every allied unit's turn the owner recovers
+`VIT × vit` HP, at most `capPct × maxHp`, as a `RECOVER` event.
 
 A trigger is just a `REACTIVE` skill in the deck: `reactiveRoll(unit, trigger)` scans the deck, rolls each
 matching skill's launch rate (same formula as Layer 1, `oncePerBattle` respected) and executes it with

@@ -168,10 +168,18 @@ Browser นับก้าวเบื้องหลังไม่ได้ �
 - ลำดับการเปลี่ยน: ✅ รอบ 1 มอน+บอส 32 ตัว · ✅ รอบ 2 หมุด/ไอคอนสถานะ/บ้าน · ✅ รอบ 3 ไอคอนไอเทม+สกิล · ✅ รอบ 4 UI + เอฟเฟกต์ · รอบ 5 ฮีโร่ของแท้ (ผม/ชุด/อาวุธ/ทุกท่า)
 - ระหว่างทางเกมมีภาพ 16-bit กับ 32-bit ปนกัน — ปกติ
 
-## 6. คลาส
-- เริ่มเป็น **Novice** → **Class Trial ที่ Lv.10** ณ "วิหารแห่งการทดสอบ" (สวนสาธารณะ) ด่านเดี่ยว → เลือกได้ **ครั้งเดียว**
-- Knight (VIT), Sorcerer (INT), Assassin (AGI/STR), Cleric (INT/VIT), Ranger (DEX)
-- Passive และสกิลตาม PDF — ข้อมูลอยู่ที่ `data/classes.ts`, `data/skills.ts`
+## 6. คลาส (อัปเดต 2026-09-27 — ระบบอาชีพแนว FFT War of the Lions)
+- เริ่มเป็น **Novice** → **Class Trial ที่ Lv.10** ณ "วิหารแห่งการทดสอบ" (สวนสาธารณะ) ด่านเดี่ยว → เลือกได้ **ครั้งเดียว** (เจ้าของยืนยัน 2026-09-27)
+- **อาชีพชุดใหม่ตาม FFT WotL** — เจ้าของเลือกสกิลเองในหน้า "คลังอาชีพ FFT" (artifact) ทำ **ทีละอาชีพ**:
+  Squire (= Novice), Knight, Archer, Monk, White Mage, Black Mage, Time Mage, Summoner, Thief, Geomancer, Dragoon,
+  Samurai, Ninja, Bard, Dancer · **ไม่เอา**: Chemist, Mystic, Orator, Arithmetician · ยังไม่ตัดสิน: Mime, Dark Knight, Onion Knight, อาชีพตัวละครในเรื่อง
+- ไม่มีคำสั่งรอง (secondary) · Reaction/Support = สกิลในเด็คของอาชีพนั้นเท่าที่เจ้าของเลือก · Movement ส่วนใหญ่ไม่ใช้ (ไฟต์ไม่มีช่องเดิน)
+- อาชีพหนึ่งมี: passive ค่าพลัง (`passive.modifiers`) + **trait ในไฟต์** (`traits`, ไม่ใช้ RNG) + ชุดสกิล (Novice 4 + ของอาชีพ, ใส่เด็คได้ 6)
+- **Knight (เสร็จ 2026-09-27)**: Rend Power (100% ATK + ATK ศัตรู −30% 3 เทิร์น) · Rend Magick (−25% MATK) · Rend Speed (ช้าลง 30% 3 เทิร์น)
+  · ยั่วยุ (Taunt เดิม) · Parry (reactive 25% ปัดการโจมตีกายภาพทิ้ง) · passive เดิม DEF +25% HP +20% ·
+  **trait Iron Blood (เลือดเหล็ก)**: ทุกครั้งที่ฝ่ายเราได้เทิร์น ฟื้น HP = VIT × 0.2 (สูงสุด 2% Max HP ต่อครั้ง)
+- อาชีพเดิมที่ยังไม่ได้แปลงเป็นแบบ FFT ใช้ชุดเดิมไปก่อน: Sorcerer (→ Black Mage), Cleric (→ White Mage), Ranger (→ Archer), Assassin (→ Thief)
+- ข้อมูลอยู่ที่ `data/classes.ts`, `data/skills.ts`
 
 ## 7. Extreme Mutation (ปรับสมดุลแล้ว)
 - เงื่อนไข: **Level ≥ 20** และ **Stat เดียว ≥ 80%** ของแต้มที่ลงเองทั้งหมด

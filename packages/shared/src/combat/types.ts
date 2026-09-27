@@ -32,6 +32,8 @@ export interface CombatStats {
   blockReduce: number;
   /** multiplier on healing done */
   healPower: number;
+  /** Primary VIT (players; drives the Knight's Iron Blood regen). */
+  vit?: number;
 }
 
 export type StatusId = 'STUN' | 'FREEZE' | 'POISON' | 'BURN' | 'BLEED' | 'SLOW' | 'TAUNTING' | 'ROOT';
@@ -112,7 +114,16 @@ export type Effect =
  * ON_LOW_HP    — your HP fell below 30% → effects on self (once per battle)
  * ON_ALLY_DEATH— an ally died → effects (rage, shields, vengeance)
  */
-export type TriggerKind = 'COVER' | 'ASSIST' | 'COUNTER' | 'ON_DODGE' | 'ON_LOW_HP' | 'ON_ALLY_DEATH';
+export type TriggerKind = 'COVER' | 'ASSIST' | 'COUNTER' | 'ON_DODGE' | 'ON_LOW_HP' | 'ON_ALLY_DEATH' | 'PARRY';
+
+/**
+ * Always-on class traits (FFT-style jobs, MASTER_SPEC §6). Replaced by a mutation like the class passive.
+ * allyTurnHeal — at the start of every allied unit's turn (own turn included) the unit recovers
+ *                VIT × vit HP, at most capPct × max HP per tick (Knight: Iron Blood).
+ */
+export interface ClassTraits {
+  allyTurnHeal?: { vit: number; capPct: number };
+}
 
 export interface SkillDef {
   id: string;
@@ -176,6 +187,8 @@ export interface CombatUnit {
   bag: Record<string, number> | null;
   /** Awakening gauge 0..AWAKEN_MAX (players only). */
   awaken: number;
+  /** Always-on class traits (none for monsters or mutated characters). */
+  traits: ClassTraits;
   /** Player character that can Awaken (side A with a class, not a dummy). */
   awakenable: boolean;
 }
@@ -237,7 +250,7 @@ export type CombatEvent =
   | { type: 'TURN'; unit: string }
   | { type: 'SKIP'; unit: string; reason: StatusId }
   | { type: 'SKILL'; unit: string; skill: string; targets: string[]; reactive?: TriggerKind; mp?: number }
-  | { type: 'MISS'; source: string; target: string }
+  | { type: 'MISS'; source: string; target: string; parry?: boolean }
   | { type: 'DAMAGE'; source: string; target: string; amount: number; crit: boolean; block: boolean; element: Element }
   | { type: 'HEAL'; source: string; target: string; amount: number }
   | { type: 'STATUS'; target: string; status: StatusId; turns: number }
@@ -281,5 +294,6 @@ export function statsFromDerived(d: DerivedStats, extra: { dex: number; luk: num
     block: Math.min(0.45, extra.vit * 0.0015 + (extra.shield ? 0.15 : 0)),
     blockReduce: 0.5,
     healPower: d.healPower,
+    vit: extra.vit,
   };
 }

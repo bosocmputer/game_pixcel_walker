@@ -106,7 +106,7 @@ describe('party dungeon mechanics', () => {
 describe('dungeon balance', () => {
   const novice = (id: string, lv: number) => unit(id, lv, 'NOVICE', { str: lv * 2, vit: lv * 2 }, starterGear, NOVICE_DECK, { red_potion: 3 });
   const kit = { red_potion: 5, blue_elixir: 3 };
-  const knight = (lv: number) => unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, midGear, ['power_smash', 'focus', 'shield_bash', 'taunt', 'guardian', 'iron_wall'], kit);
+  const knight = (lv: number) => unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, midGear, ['power_smash', 'rend_power', 'rend_speed', 'rend_magick', 'taunt', 'parry'], kit);
   const sorcerer = (lv: number) => unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, midGear, ['power_smash', 'focus', 'fireball', 'chain_lightning', 'frost_nova', 'mana_shield'], kit);
   const cleric = (lv: number) => unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, midGear, ['power_smash', 'focus', 'holy_heal', 'blessing_of_light', 'smite', 'divine_grace'], kit);
 

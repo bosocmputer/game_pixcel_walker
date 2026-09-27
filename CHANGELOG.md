@@ -20,6 +20,24 @@
 
 ---
 
+## 2026-09-27 — ระบบอาชีพแนว FFT: อาชีพแรก Knight (Nong + Claude)
+**เพิ่ม**
+- **คลังอาชีพ FFT** (artifact ส่วนตัวของเจ้าของ): อาชีพ + สกิลทุกหมวดของ FFT War of the Lions ให้เจ้าของติ๊กเลือกและเขียนโน้ต
+  เจ้าของเลือกแล้ว 15 อาชีพ ไม่เอา Chemist/Mystic/Orator/Arithmetician — ทำทีละอาชีพ (MASTER_SPEC §6)
+- **Knight แบบ FFT**: Rend Power / Rend Magick / Rend Speed (ตีแล้วลดค่าพลังศัตรู) · Taunt · **Parry** (reactive ใหม่ `PARRY`:
+  ปัดการโจมตีกายภาพทิ้งก่อนทอยโดน 25%) · **Iron Blood** (trait ใหม่: ทุกเทิร์นของฝ่ายเรา ฟื้น HP = VIT × 0.2 สูงสุด 2% Max HP)
+- engine: `ClassDef.traits` → `CombatUnit.traits` (mutation ลบออกเหมือน passive) · `CombatStats.vit` · ดีบัฟ BUFF ที่ติดมากับการโจมตีต้องโดนก่อน
+- ไอคอนสกิลใหม่ 4 อัน (`pixel-art/skill-icons`): Rend ×3 (ดาบ + ลูกศรลงสีตามค่าที่ลด) · Parry (ดาบไขว้ + ประกาย)
+- UI: บททดสอบอาชีพและหน้าตัวละครแสดง trait · ไฟต์แสดง "ปัด!" สีทองตอน Parry
+**แก้ไข / เปลี่ยน**
+- ชุดสกิล Knight เปลี่ยนจาก Shield Bash/Guardian/Iron Wall เป็นชุด FFT (สกิลเก่ายังอยู่ใน SKILLS; เด็คเก่าถูกกรองอัตโนมัติ)
+- เทสต์สมดุล (บอส/ดันเจี้ยน/เรื่อง) ใช้เด็ค Knight ชุดใหม่
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/knight.test.ts (ใหม่), rules/*.test.ts}`,
+`apps/game/src/{ui/hud.ts, scenes/BattleScene.ts}`, `pixel-art/skill-icons/build.py`, `docs/{MASTER_SPEC.md §6, COMBAT_SPEC.md}`
+**ทดสอบ:** npm test ผ่าน 131/131 (Knight 6 ใหม่) · typecheck ผ่าน · ปรับตัวเลข Iron Blood ลงจาก VIT × 0.6 เพราะ Knight เดี่ยวชนะบอสเกินเกณฑ์
+**ค้าง / ข้อควรรู้:** อาชีพถัดไปตามลำดับที่เสนอ: White Mage → Black Mage → Archer → Thief → Monk → Time Mage → Summoner → Geomancer →
+Dragoon → Samurai → Ninja → Bard → Dancer · ท่าต่อสู้ของอาชีพใช้ชุดดาบเดิมไปก่อน
+
 ## 2026-09-27 — ช่องภาพท่าต่อสู้ 96×96 ตามขนาดจริงของ SoC (Nong + Claude)
 **แก้ไข / เปลี่ยน**
 - `manifest.battle_cell` ขยายจาก 72×72 เป็น **96×96 จุดยึดเท้า (48, 84)**

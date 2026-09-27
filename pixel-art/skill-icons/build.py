@@ -398,6 +398,45 @@ def hunter_mark():
     return finish(t)
 
 
+# ---- FFT Knight (Arts of War, 2026-09-27): a blade + a falling arrow in the colour of the stat it breaks
+
+def down_arrow(s, cx, top, c, h=9):
+    for y in range(top, top + h - 3):
+        s.px(cx, y, c); s.px(cx + 1, y, c)
+    y = top + h - 3
+    for k, w in enumerate((3, 2, 1)):
+        s.line(cx - w + 1, y + k, cx + w, y + k, c)
+
+
+def rend(color):
+    t = tile("NEUTRAL"); s = t[0]
+    sword(s, 4, 18, 8)
+    down_arrow(s, 16, 5, color, 12)
+    return finish(t)
+
+
+def rend_power():
+    return rend("#ff6b5a")
+
+
+def rend_magick():
+    return rend("#b98cff")
+
+
+def rend_speed():
+    return rend("#7ee08a")
+
+
+def parry():
+    t = tile("NEUTRAL", True); s = t[0]
+    for k in range(11):                     # the enemy blade, grey, coming down from the top-left
+        s.px(5 + k, 4 + k, "#b8c0c8"); s.px(6 + k, 4 + k, "#8a94a0")
+    sword(s, 5, 18, 9)                      # our blade catches it
+    for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
+        s.px(11 + dx, 11 + dy, GOLD[3])     # spark where the blades meet
+    return finish(t)
+
+
 ICONS = {
     "basic_attack": basic_attack, "quick_strike": quick_strike, "power_smash": power_smash, "stone_throw": stone_throw,
     "sweep_kick": sweep_kick, "dirty_trick": dirty_trick, "fire_spark": fire_spark, "aqua_splash": aqua_splash,
@@ -408,6 +447,7 @@ ICONS = {
     "shadow_step": shadow_step, "poison_blade": poison_blade, "shadow_assist": shadow_assist, "evasion_mastery": evasion_mastery,
     "holy_heal": holy_heal, "blessing_of_light": blessing_of_light, "smite": smite, "divine_grace": divine_grace,
     "snipe_shot": snipe_shot, "multi_shot": multi_shot, "covering_fire": covering_fire, "hunter_mark": hunter_mark,
+    "rend_power": rend_power, "rend_magick": rend_magick, "rend_speed": rend_speed, "parry": parry,
 }
 
 

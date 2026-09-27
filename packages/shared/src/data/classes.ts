@@ -1,4 +1,5 @@
 import type { ClassId, Modifiers, StatKey } from '../types';
+import type { ClassTraits } from '../combat/types';
 
 export interface ClassDef {
   id: ClassId;
@@ -8,6 +9,9 @@ export interface ClassDef {
   mainStats: StatKey[];
   passive: { id: string; name: string; description: string; modifiers: Modifiers };
   skills: string[];
+  /** Always-on combat traits of the class (shown with the passive). */
+  traits?: ClassTraits;
+  traitNote?: { name: string; nameTh: string; description: string };
 }
 
 export const CLASS_CHANGE_LEVEL = 10;
@@ -50,7 +54,14 @@ export const CLASSES: Record<ClassId, ClassDef> = {
       description: 'DEF +25% และ HP Max +20%',
       modifiers: { pct: { def: 0.25, maxHp: 0.2 } },
     },
-    skills: ['shield_bash', 'taunt', 'guardian', 'iron_wall'],
+    // FFT Knight (owner's picks 2026-09-27): Rend Power/Magick/Speed + Parry, plus a taunt and Iron Blood
+    skills: ['rend_power', 'rend_magick', 'rend_speed', 'taunt', 'parry'],
+    traits: { allyTurnHeal: { vit: 0.2, capPct: 0.02 } },
+    traitNote: {
+      name: 'Iron Blood',
+      nameTh: 'เลือดเหล็ก',
+      description: 'ทุกครั้งที่ฝ่ายเราได้เทิร์น ฟื้น HP = VIT × 0.2 (สูงสุด 2% Max HP ต่อครั้ง)',
+    },
   },
   SORCERER: {
     id: 'SORCERER',

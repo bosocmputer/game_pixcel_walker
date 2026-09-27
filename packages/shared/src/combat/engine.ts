@@ -10,6 +10,7 @@
  */
 import { MONSTERS, monsterDeck, type BossSkill } from '../data/monsters';
 import { BASIC_ATTACK, SKILLS } from '../data/skills';
+import { CLASSES } from '../data/classes';
 import { CONSUMABLES } from '../data/items';
 import { createRng, type Rng } from '../rules/rng';
 import { mitigate } from '../rules/stats';
@@ -99,6 +100,8 @@ function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
     bag: s.items ? { ...s.items } : null,
     awaken: Math.max(0, Math.min(AWAKEN_MAX, s.awaken ?? 0)),
     awakenable: side === 'A' && !!s.classId && !s.passive,
+    // A mutation replaces the class passive (MASTER_SPEC §7) — traits included.
+    traits: s.classId && !s.mutation ? { ...(CLASSES[s.classId]?.traits ?? {}) } : {},
   };
 }
 
@@ -212,7 +215,7 @@ export function stat(u: CombatUnit, key: keyof CombatStats): number {
     pct += b.pct ?? 0;
     flat += b.flat ?? 0;
   }
-  let v = u.base[key] * (1 + pct) + flat;
+  let v = (u.base[key] ?? 0) * (1 + pct) + flat;
   if (key === 'speed') {
     const slow = u.statuses.find((s) => s.id === 'SLOW');
     if (slow) v *= 1 - slow.potency;
@@ -341,6 +344,7 @@ function takeTurn(c: Combat, u: CombatUnit) {
   }
   push(c, { type: 'TURN', unit: u.id });
   for (const k of Object.keys(u.cooldowns)) u.cooldowns[k] = Math.max(0, (u.cooldowns[k] ?? 0) - 1);
+  allyTurnRegen(c, u);
 
   // 1. Status phase — damage over time, then hard crowd control.
   for (const s of [...u.statuses]) {
@@ -396,6 +400,18 @@ function takeTurn(c: Combat, u: CombatUnit) {
   }
   useSkill(c, u, chosen);
   endTurn(u);
+}
+
+/** Iron Blood & co: allies of the unit whose turn starts recover a little HP (no RNG). */
+function allyTurnRegen(c: Combat, u: CombatUnit) {
+  for (const a of alliesOf(c, u)) {
+    const r = a.traits.allyTurnHeal;
+    if (!r || a.hp >= a.base.maxHp) continue;
+    const want = Math.max(1, Math.round((a.base.vit ?? 0) * r.vit));
+    const amount = Math.min(want, Math.max(1, Math.round(a.base.maxHp * r.capPct)), a.base.maxHp - a.hp);
+    a.hp += amount;
+    push(c, { type: 'RECOVER', unit: a.id, amount });
+  }
 }
 
 /** The unit's next unused input whose turn has come (consumed on read). */
@@ -543,7 +559,7 @@ function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
 function effectReceivers(u: CombatUnit, sk: SkillDef, e: Effect, targets: CombatUnit[], landed: Set<CombatUnit>): CombatUnit[] {
   if ('self' in e && e.self) return [u];
   const offensive = sk.effects.some((x) => x.kind === 'DAMAGE');
-  if (offensive && e.kind === 'STATUS') return [...landed].filter(alive); // debuffs need a hit
+  if (offensive && (e.kind === 'STATUS' || e.kind === 'BUFF')) return [...landed].filter(alive); // debuffs need a hit
   return targets;
 }
 
@@ -578,6 +594,14 @@ function strike(
   covered: boolean,
 ): boolean {
   const element = sk.element === 'NEUTRAL' ? (u.side === 'B' ? u.element : 'NEUTRAL') : sk.element;
+  if (!sk.unavoidable && e.type === 'PHYSICAL' && t !== u) {
+    const parry = reactiveRoll(c, t, 'PARRY');
+    if (parry) {
+      push(c, { type: 'SKILL', unit: t.id, skill: parry.id, targets: [u.id], reactive: 'PARRY' });
+      push(c, { type: 'MISS', source: u.id, target: t.id, parry: true });
+      return false;
+    }
+  }
   if (!sk.unavoidable && e.type !== 'TRUE') {
     const hitChance = Math.max(0.05, Math.min(1, stat(u, 'hit') - stat(t, 'dodge')));
     if (c.rng() >= hitChance) {

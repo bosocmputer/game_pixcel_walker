@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DECK_SIZE, assignDeckSlot, clearDeckSlot } from '../index';
+import { CLASSES, DECK_SIZE, assignDeckSlot, classSkillPool, classStarterDeck, clearDeckSlot, type ClassId } from '../index';
 
 describe('skill deck slots', () => {
   const deck = ['power_smash', 'stone_throw', 'counter_jab'];
@@ -25,5 +25,18 @@ describe('skill deck slots', () => {
 
   it('clears a slot and closes the gap', () => {
     expect(clearDeckSlot(deck, 0)).toEqual(['stone_throw', 'counter_jab']);
+  });
+});
+
+describe('class starter deck (admin class switch)', () => {
+  it('puts the class kit first, fills with Novice skills, and stays inside the class pool', () => {
+    for (const id of Object.keys(CLASSES) as ClassId[]) {
+      const deck = classStarterDeck(id);
+      expect(deck.length).toBeLessThanOrEqual(DECK_SIZE);
+      expect(new Set(deck).size).toBe(deck.length);
+      for (const s of deck) expect(classSkillPool(id)).toContain(s);
+      if (id !== 'NOVICE') expect(deck.slice(0, Math.min(DECK_SIZE, CLASSES[id].skills.length))).toEqual(CLASSES[id].skills.slice(0, DECK_SIZE));
+    }
+    expect(classStarterDeck('DRAGOON')).toHaveLength(DECK_SIZE); // 3 class skills + 3 Novice fillers
   });
 });

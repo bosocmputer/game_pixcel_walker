@@ -8,6 +8,7 @@ import {
   STAT_KEYS,
   CLASS_CHANGE_LEVEL,
   canChangeClass,
+  classStarterDeck,
   deathGoldLoss,
   durabilityAfterBattle,
   gainExp,
@@ -36,7 +37,8 @@ import {
   type Rng,
   type StatKey,
 } from '@pw/shared';
-import { derivedOf, mutationOf, regen, store, type SaveData } from '../state/store';
+import { LOADOUT_SIZE, derivedOf, mutationOf, regen, store, type SaveData } from '../state/store';
+import { admin } from './admin';
 import { landmarksAround } from './world';
 
 export const BOSS_RADIUS_M = 50;
@@ -131,6 +133,20 @@ export function changeClass(classId: ClassId): boolean {
   if (!canChangeClass(s.classId, s.level)) return false;
   store.update((x) => {
     x.classId = classId;
+    clampVitals(x);
+  });
+  return true;
+}
+
+/**
+ * Admin test tool: switch to any class at any level (skips the Lv.10 trial and the choose-once rule)
+ * and load that class's skills into the deck. Only works while admin mode is on.
+ */
+export function adminSetClass(classId: ClassId): boolean {
+  if (!admin.isAdmin || !CLASSES[classId]) return false;
+  store.update((x) => {
+    x.classId = classId;
+    x.loadout = classId === 'NOVICE' ? [] : classStarterDeck(classId, LOADOUT_SIZE);
     clampVitals(x);
   });
   return true;

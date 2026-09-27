@@ -157,6 +157,7 @@ _(ใส่ชื่อคนที่รับงานไว้หลังห
 - [x] White Mage (แทน Cleric, id เดิม) · [x] Black Mage (แทน Sorcerer, id เดิม) · [x] Archer (แทน Ranger, id เดิม) · [x] Thief (แทน Assassin, id เดิม)
 - [x] Monk (id ใหม่ `MONK`) · [x] Time Mage (id ใหม่ `TIME_MAGE`) · [x] Summoner (id ใหม่ `SUMMONER`) · [x] Geomancer (id ใหม่ `GEOMANCER`) · [x] Dragoon (id ใหม่ `DRAGOON`) · [x] Samurai (id ใหม่ `SAMURAI`) · [x] Ninja (id ใหม่ `NINJA`) · [x] Bard (id ใหม่ `BARD`) · [x] Dancer (id ใหม่ `DANCER`)
 - อาชีพเดิม 4 อาชีพคง id เดิมไว้ (CLERIC = White Mage ฯลฯ) — เซฟเก่าไม่ต้องย้าย
+- [x] แอดมินเปลี่ยนอาชีพได้ตลอด (ตั้งค่า → โหมดแอดมิน → เปลี่ยนอาชีพ (ทดสอบ)) ไว้เทสต์ทุกอาชีพ
 - [ ] รอเจ้าของ: เล่นจริงแล้วปรับตัวเลข (จับตา Dragoon/Samurai + White Mage ที่แรงกว่าอาชีพอื่น) · ท่าต่อสู้/อาวุธแยกตามอาชีพ (ตอนนี้ทุกอาชีพใช้ชุดดาบเดียวกัน)
 - [ ] ยังไม่ได้เลือกสกิล: Chemist · Orator · Mystic · Arithmetician · ภาพสัตว์อัญเชิญของ Summoner
 

@@ -3,9 +3,11 @@
  * (gate / shop / service), name it, then tap the map (or use your own spot) to place it. The list
  * below shows every pin with delete. The admin key is entered in Settings. State: game/admin.ts.
  */
-import { MONSTERS, PIN_KINDS, PIN_KIND_BY_ID, PIN_LABEL_MAX, gateLayer, gateRank, haversine, shopForLandmark, type LandmarkKind, LANDMARK_BOSS } from '@pw/shared';
+import { CLASSES, MONSTERS, PIN_KINDS, PIN_KIND_BY_ID, PIN_LABEL_MAX, gateLayer, gateRank, haversine, shopForLandmark, type LandmarkKind, LANDMARK_BOSS } from '@pw/shared';
 import { admin } from '../game/admin';
-import { bus } from '../game/bus';
+import { bus, toast } from '../game/bus';
+import { adminSetClass } from '../game/rules';
+import { store } from '../state/store';
 import { walk } from '../game/walk';
 import { esc, el } from './dom';
 import { uiIcon } from './pixel';
@@ -114,11 +116,23 @@ export function wireAdminWindow(body: HTMLElement, rerender: () => void, close: 
   );
 }
 
-/** Settings row: enter / leave admin mode. */
+/** FFT job order for the admin class switch (Squire = Novice first). */
+const ADMIN_CLASS_ORDER: (keyof typeof CLASSES)[] = [
+  'NOVICE', 'KNIGHT', 'RANGER', 'MONK', 'CLERIC', 'SORCERER', 'TIME_MAGE', 'SUMMONER',
+  'ASSASSIN', 'GEOMANCER', 'DRAGOON', 'SAMURAI', 'NINJA', 'BARD', 'DANCER',
+];
+
+/** Settings row: enter / leave admin mode (and, while in it, the test class switch). */
 export function adminSettingsHtml(): string {
   if (admin.isAdmin) {
+    const cur = store.s.classId;
+    const classes = ADMIN_CLASS_ORDER.filter((id) => CLASSES[id])
+      .map((id) => `<button type="button" class="btn ${id === cur ? 'primary' : ''}" data-adclass="${id}">${esc(CLASSES[id].nameTh)}</button>`)
+      .join('');
     return `<div class="row"><b>โหมดแอดมิน</b><span class="spacer"></span><span class="good">เปิดอยู่</span>
-      <button class="btn" data-adlogout>ออก</button></div>`;
+      <button class="btn" data-adlogout>ออก</button></div>
+      <div class="ad-classes"><b>เปลี่ยนอาชีพ (ทดสอบ)</b> <small class="muted">ไม่ต้องผ่านบททดสอบ · ใส่สกิลอาชีพให้ในชุดอัตโนมัติ</small>
+        <div class="ad-class-list">${classes}</div></div>`;
   }
   return `<form class="row ad-login" data-adlogin autocomplete="off"><b>โหมดแอดมิน</b><span class="spacer"></span>
     <input type="password" placeholder="รหัสแอดมิน" aria-label="รหัสแอดมิน" />
@@ -136,6 +150,12 @@ export function wireAdminSettings(body: HTMLElement) {
     });
   }
   body.querySelector('[data-adlogout]')?.addEventListener('click', () => admin.logout());
+  body.querySelectorAll<HTMLElement>('[data-adclass]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const id = b.dataset.adclass as keyof typeof CLASSES;
+      if (adminSetClass(id)) toast(`[แอดมิน] เปลี่ยนเป็น ${CLASSES[id].nameTh} (${CLASSES[id].nameEn}) แล้ว`, 'good');
+    }),
+  );
 }
 
 /** Map HUD bits: shows the PIN button for admins and the "tap the map" banner while placing. */

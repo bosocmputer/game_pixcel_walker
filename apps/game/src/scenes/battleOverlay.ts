@@ -6,7 +6,7 @@ import Phaser from 'phaser';
 import type { CombatUnit } from '@pw/shared';
 
 /** Frame order of assets/ui/status.png (pixel-art/status-icons/build.py). */
-export const STATUS_ICONS = ['STUN', 'FREEZE', 'POISON', 'BURN', 'BLEED', 'SLOW', 'TAUNTING', 'ROOT', 'SHIELD'] as const;
+export const STATUS_ICONS = ['STUN', 'FREEZE', 'POISON', 'BURN', 'BLEED', 'SLOW', 'TAUNTING', 'ROOT', 'SHIELD', 'REGEN', 'STOP', 'HASTE', 'HIDDEN'] as const;
 /** 32-bit icons (24 px) drawn 1:1. */
 export const STATUS_PX = 24;
 

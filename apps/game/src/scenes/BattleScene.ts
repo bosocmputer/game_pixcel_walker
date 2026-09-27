@@ -137,6 +137,7 @@ function loopFrame(t: number, ms: number[]): number {
 
 const STATUS_TH: Record<string, string> = {
   STUN: 'มึน!', FREEZE: 'แข็ง!', POISON: 'ติดพิษ', BURN: 'ติดไฟ', BLEED: 'เลือดไหล', SLOW: 'ช้าลง', TAUNTING: 'ยั่วยุ!', ROOT: 'ถูกรัด!',
+  STOP: 'หยุดเวลา!', HASTE: 'เร่งเวลา!', HIDDEN: 'ล่องหน!',
 };
 
 export class BattleScene extends Phaser.Scene {
@@ -730,6 +731,10 @@ export class BattleScene extends Phaser.Scene {
         dirty = true;
       }
       if (now < v.actUntil || u.hp <= 0) continue;
+      // Vanish: a hidden ninja shows as a faint shimmer until it acts again
+      const hidden = u.statuses.some((s) => s.id === 'HIDDEN');
+      if (hidden && v.sprite.alpha > 0.45) v.sprite.setAlpha(0.4);
+      else if (!hidden && v.sprite.alpha > 0.3 && v.sprite.alpha < 0.5) v.sprite.setAlpha(1);
       const low = pct < 0.25 && !u.passive;
       if (v.animated) {
         v.sprite.setScale(v.baseX, v.baseY).setFrame(Math.floor(now / (low ? 220 : 480) + v.phase) % 2);
@@ -1320,10 +1325,81 @@ export class BattleScene extends Phaser.Scene {
         }
         break;
       }
-      case 'MISS':
-        // Parry: the Knight turns the blow aside
-        this.popup(e.target, e.parry ? 'ปัด!' : 'MISS', e.parry ? '#ffd54f' : '#b0bec5', !!e.parry, delay);
+      case 'MISS': {
+        // Parry: the Knight turns the blow aside · Perfect Dodge: the Thief jumps clear
+        const text = e.parry ? 'ปัด!' : e.evade ? 'หลบ!' : 'MISS';
+        this.popup(e.target, text, e.parry ? '#ffd54f' : e.evade ? '#80deea' : '#b0bec5', !!(e.parry || e.evade), delay);
         this.time.delayedCall(delay, () => sfx('miss'));
+        if (e.evade && e.by === 'kawarimi') this.logSwap(e.target, delay);
+        else if (e.evade) this.jumpAway(e.target, e.source, delay);
+        break;
+      }
+      case 'JUMP': {
+        // Jump: the dragoon springs out of the fight and hangs up in the sky until it lands
+        const v = this.views.get(e.unit);
+        if (!v) break;
+        this.time.delayedCall(delay, () => {
+          v.actUntil = this.time.now + 60_000;
+          this.tweens.killTweensOf(v.sprite);
+          v.sprite.setScale(v.baseX * 1.1, v.baseY * 0.85);
+          this.tweens.add({ targets: v.sprite, y: v.home.y - 320, alpha: 0, scaleX: v.baseX, scaleY: v.baseY, duration: 300 / this.speed, ease: 'Quad.easeIn' });
+          this.tweens.add({ targets: v.label, alpha: 0.35, duration: 200 });
+          sfx('warp');
+        });
+        this.popup(e.unit, 'กระโดด!', '#ffa94d', true, delay);
+        break;
+      }
+      case 'LAND': {
+        // ...and dives straight down onto its target, then walks back home
+        const v = this.views.get(e.unit);
+        const tv = this.views.get(e.target);
+        if (!v) break;
+        const dir = tv && tv.home.x > v.home.x ? 1 : -1;
+        const fall = 170 / this.speed;
+        const spot = tv ? { x: tv.home.x - dir * 14, y: tv.home.y } : v.home;
+        this.time.delayedCall(delay, () => {
+          this.tweens.killTweensOf(v.sprite);
+          v.sprite.setPosition(spot.x, spot.y - 320).setAlpha(1);
+          this.tweens.add({ targets: v.label, alpha: 1, duration: 200 });
+          this.tweens.add({
+            targets: v.sprite,
+            y: spot.y,
+            duration: fall,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+              this.shake(160, 0.008);
+              v.sprite.setScale(v.baseX * 1.15, v.baseY * 0.8);
+              this.tweens.add({ targets: v.sprite, scaleX: v.baseX, scaleY: v.baseY, duration: 180, ease: 'Back.easeOut' });
+              this.tweens.add({
+                targets: v.sprite,
+                x: v.home.x,
+                y: v.home.y,
+                delay: 260 / this.speed,
+                duration: 280 / this.speed,
+                ease: 'Quad.easeInOut',
+                onComplete: () => (v.actUntil = 0),
+              });
+            },
+          });
+        });
+        lead = fall;
+        break;
+      }
+      case 'MP':
+        // Critical: Recover MP
+        // Critical: Recover MP (+) · Osafune burns it (−)
+        this.popup(e.unit, `${e.amount > 0 ? '+' : '−'}${Math.abs(e.amount)} MP`, e.amount > 0 ? '#74c0fc' : '#9775fa', e.amount >= 50, delay);
+        if (e.amount > 0) this.fx('heal', e.unit, delay, { ground: true, scale: 0.8 });
+        break;
+      case 'QUICK':
+        // Quick: the ally steps out of turn order
+        this.popup(e.unit, 'ได้เทิร์นเพิ่ม!', '#b197fc', true, delay);
+        this.fx('buff', e.unit, delay, { ground: true });
+        break;
+      case 'STEAL':
+        // Steal Gil: coins fly out of the monster (paid when the fight is won)
+        this.popup(e.target, `+${e.gold} G`, '#ffd740', true, delay, -14);
+        this.time.delayedCall(delay, () => sfx('coin'));
         break;
       case 'HEAL':
         this.popup(e.target, `+${e.amount}`, '#69f0ae', false, delay);
@@ -1376,6 +1452,25 @@ export class BattleScene extends Phaser.Scene {
         this.popup(e.unit, `+${e.amount}`, '#69f0ae');
         this.fx('heal', e.unit, 0, { ground: true, scale: 0.7 });
         break;
+      case 'REVIVE': {
+        // Arise: the fallen ally gets back up (undoes the collapse from DEATH)
+        const v = this.views.get(e.unit);
+        const u = this.d.combat.units.find((x) => x.id === e.unit);
+        if (v && u) {
+          this.time.delayedCall(delay, () => {
+            this.tweens.killTweensOf(v.sprite);
+            this.tweens.add({ targets: v.sprite, angle: 0, alpha: 1, duration: 320, ease: 'Back.easeOut' });
+            this.tweens.add({ targets: v.label, alpha: 1, duration: 300 });
+            v.actUntil = this.time.now + 400;
+            v.shown = v.ghost = e.hp / u.base.maxHp;
+            this.drawBars();
+            this.popup(e.unit, 'ฟื้นคืนชีพ!', '#fff59d', true);
+            this.fx('heal', e.unit, 0, { ground: true, scale: 1.3 });
+            sfx('heal');
+          });
+        }
+        break;
+      }
       case 'BLOCK_ULT':
         this.popup(e.unit, 'BLOCK!', '#4dabf7', true);
         this.fx('shield', e.unit, delay, { scale: 1.2 });
@@ -1543,6 +1638,7 @@ export class BattleScene extends Phaser.Scene {
         this.worldBossStartHp && boss
           ? { remainingHp: Math.max(0, Math.round(boss.hp)), damage: Math.round(this.worldBossStartHp - boss.hp), maxHp: boss.base.maxHp }
           : undefined,
+      stolenGold: this.stolenGold(),
     });
 
     if (this.req.kind === 'TRIAL' && result === 'WIN' && this.req.trialClass) {
@@ -1550,6 +1646,46 @@ export class BattleScene extends Phaser.Scene {
       toast(`ยินดีด้วย! คุณคือ ${CLASSES[this.req.trialClass].nameTh} แล้ว`, 'good');
     }
     this.showResult(outcome, windowOver);
+  }
+
+  /** Perfect Dodge: a quick hop away from the attacker and back (the shadow follows in tickVisuals). */
+  private jumpAway(unitId: string, fromId: string, delay: number) {
+    const v = this.views.get(unitId);
+    if (!v) return;
+    const src = this.views.get(fromId);
+    const dir = src && src.home.x < v.home.x ? 1 : -1;
+    this.time.delayedCall(delay, () => {
+      this.tweens.add({ targets: v.sprite, x: v.home.x + dir * 22, duration: 140, yoyo: true, hold: 60, ease: 'Quad.easeOut' });
+      this.tweens.add({ targets: v.sprite, y: v.home.y - 16, duration: 110, yoyo: true, ease: 'Sine.easeOut', repeat: 1 });
+    });
+  }
+
+  /** Kawarimi: a puff of smoke, a wooden log takes the blow, and the ninja pops back. */
+  private logSwap(unitId: string, delay: number) {
+    const v = this.views.get(unitId);
+    if (!v) return;
+    this.time.delayedCall(delay, () => {
+      const h = this.hgt(v);
+      const log = this.add.graphics().setDepth(v.sprite.depth + 1);
+      const w = Math.max(10, h * 0.28);
+      log.fillStyle(0x6b4520, 1).fillRect(-w / 2, -h * 0.55, w, h * 0.55);
+      log.fillStyle(0x8a5a2b, 1).fillRect(-w / 2 + 2, -h * 0.55, w * 0.35, h * 0.55);
+      log.fillStyle(0xc9a66b, 1).fillEllipse(0, -h * 0.55, w, w * 0.45);
+      log.setPosition(v.home.x, v.home.y);
+      this.fx('smoke', unitId, 0, { ground: true, scale: 0.9 });
+      v.sprite.setAlpha(0);
+      this.tweens.add({ targets: log, angle: 18, y: v.home.y + 2, delay: 240 / this.speed, duration: 160, ease: 'Quad.easeIn' });
+      this.tweens.add({ targets: log, alpha: 0, delay: 520 / this.speed, duration: 200, onComplete: () => log.destroy() });
+      this.time.delayedCall(520 / this.speed, () => v.sprite.setAlpha(1));
+    });
+  }
+
+  /** Gold I stole this run (Steal Gil), across every wave. */
+  private stolenGold(): number {
+    const evs = this.currentArchived ? this.allEvents : this.allEvents.concat(this.d.combat.events);
+    let gold = 0;
+    for (const e of evs) if (e.type === 'STEAL' && e.unit === this.meId) gold += e.gold;
+    return gold;
   }
 
   /** Collects events from every wave played in this arena run. */

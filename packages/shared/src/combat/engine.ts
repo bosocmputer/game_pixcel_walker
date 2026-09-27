@@ -17,6 +17,7 @@ import { mitigate } from '../rules/stats';
 import { AWAKEN_GAIN_DEAL, AWAKEN_GAIN_TAKE, AWAKEN_MAX, AWAKEN_MULT, AWAKEN_SKILL, LINK_MULT } from './awaken';
 import type { Element } from '../types';
 import {
+  GOOD_STATUSES,
   DECK_SIZE,
   type AwakenGrade,
   type CombatConfig,
@@ -41,7 +42,8 @@ export const AUTO_MP_POTION = 0.25;
 /** Training dummies measure % max-HP damage-over-time against this HP. */
 export const DUMMY_REFERENCE_HP = 1000;
 const DEFAULT_MAX_ROUNDS = 60;
-const HARD_CC: StatusId[] = ['STUN', 'FREEZE', 'ROOT'];
+const HARD_CC: StatusId[] = ['STUN', 'FREEZE', 'ROOT', 'STOP'];
+const isHarmful = (s: StatusId) => !GOOD_STATUSES.includes(s);
 
 export interface Combat {
   seed: number;
@@ -70,6 +72,10 @@ export interface Combat {
 // Setup
 
 function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
+  // A mutation replaces the class passive (MASTER_SPEC §7) — traits included.
+  const traits = s.classId && !s.mutation ? { ...(CLASSES[s.classId]?.traits ?? {}) } : {};
+  const base = { ...s.stats };
+  if (traits.hitBonus) base.hit += traits.hitBonus;
   return {
     id: s.id,
     name: s.name,
@@ -82,7 +88,7 @@ function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
     classId: s.classId ?? null,
     mutation: s.mutation ?? null,
     monsterId: s.monsterId ?? null,
-    base: { ...s.stats },
+    base,
     hp: Math.max(1, Math.min(s.stats.maxHp, s.hp ?? s.stats.maxHp)),
     mp: Math.min(s.stats.maxMp, s.mp ?? s.stats.maxMp),
     shield: null,
@@ -94,14 +100,14 @@ function makeUnit(s: UnitSetup, side: 'A' | 'B', rng: Rng): CombatUnit {
     initiative: rng(),
     turnsTaken: 0,
     usedOnce: [],
-    flags: { miracleUsed: false, ultimateBlocked: false, phase: 0, enraged: false },
+    flags: { miracleUsed: false, ultimateBlocked: false, phase: 0, enraged: false, robbed: false },
+    jump: null,
     autoPotion: !!s.autoPotion,
     passive: !!s.passive,
     bag: s.items ? { ...s.items } : null,
     awaken: Math.max(0, Math.min(AWAKEN_MAX, s.awaken ?? 0)),
     awakenable: side === 'A' && !!s.classId && !s.passive,
-    // A mutation replaces the class passive (MASTER_SPEC §7) — traits included.
-    traits: s.classId && !s.mutation ? { ...(CLASSES[s.classId]?.traits ?? {}) } : {},
+    traits,
   };
 }
 
@@ -202,8 +208,11 @@ export function bossAtkScale(monsterId: string, partySize: number): number {
 export const alive = (u: CombatUnit) => u.hp > 0;
 export const getUnit = (c: Combat, id: string) => c.units.find((u) => u.id === id);
 export const sideOf = (c: Combat, side: 'A' | 'B') => c.units.filter((u) => u.side === side && alive(u));
-const foesOf = (c: Combat, u: CombatUnit) => sideOf(c, u.side === 'A' ? 'B' : 'A');
-const alliesOf = (c: Combat, u: CombatUnit) => sideOf(c, u.side);
+// A jumping dragoon is up in the sky: out of reach of foes and allies alike (it still counts for win/lose).
+// A Vanished (HIDDEN) ninja can't be picked by foes either.
+const foesOf = (c: Combat, u: CombatUnit) =>
+  sideOf(c, u.side === 'A' ? 'B' : 'A').filter((x) => !x.jump && !x.statuses.some((s) => s.id === 'HIDDEN'));
+const alliesOf = (c: Combat, u: CombatUnit) => sideOf(c, u.side).filter((x) => !x.jump);
 const hasStatus = (u: CombatUnit, s: StatusId) => u.statuses.some((x) => x.id === s);
 const push = (c: Combat, e: CombatEvent) => c.events.push(e);
 
@@ -216,6 +225,8 @@ export function stat(u: CombatUnit, key: keyof CombatStats): number {
     flat += b.flat ?? 0;
   }
   let v = (u.base[key] ?? 0) * (1 + pct) + flat;
+  if (key === 'atk' && u.traits.rageAtk) v *= 1 + u.traits.rageAtk * (1 - u.hp / u.base.maxHp);
+  if (key === 'atk' && u.traits.atkPerTurn) v *= 1 + Math.min(u.traits.atkPerTurn.max, u.turnsTaken * u.traits.atkPerTurn.per);
   if (key === 'speed') {
     const slow = u.statuses.find((s) => s.id === 'SLOW');
     if (slow) v *= 1 - slow.potency;
@@ -232,14 +243,16 @@ function bossUltimate(u: CombatUnit): BossSkill | null {
 }
 
 export function skillMpCost(u: CombatUnit, sk: SkillDef): number {
-  return sk.mp * (u.mutation === 'PURE_MAGE' ? 3 : u.mutation === 'PURE_STRENGTH' ? 2 : 1);
+  const mult = u.mutation === 'PURE_MAGE' ? 3 : u.mutation === 'PURE_STRENGTH' ? 2 : 1;
+  return Math.ceil(sk.mp * mult * (u.traits.mpCostMult ?? 1));
 }
 
 /** Final launch rate (%) = base + element bonus (gear/outfit, phase) + wave modifier. */
 export function launchRate(c: Combat, u: CombatUnit, sk: SkillDef): number {
   const own = (u.rateBonus[sk.element] ?? 0) + (u.rateBonus.ALL ?? 0);
   const env = (c.modifier?.rateBonus?.[sk.element] ?? 0) + (c.modifier?.rateBonus?.ALL ?? 0);
-  return Math.max(0, Math.min(100, sk.rate + own + env));
+  const luck = sk.lukRate ? Math.min(sk.lukRate.max - sk.rate, (u.base.luk ?? 0) * sk.lukRate.per) : 0;
+  return Math.max(0, Math.min(100, sk.rate + Math.max(0, luck) + own + env));
 }
 
 function conditionMet(c: Combat, u: CombatUnit, sk: SkillDef): boolean {
@@ -252,6 +265,14 @@ function conditionMet(c: Combat, u: CombatUnit, sk: SkillDef): boolean {
       return alliesOf(c, u).some((a) => a.hp < a.base.maxHp * 0.6);
     case 'ENEMY_COUNT_2PLUS':
       return foesOf(c, u).length >= 2;
+    case 'ALLY_DEAD':
+      return !!deadAlly(c, u);
+    case 'ALLY_DEBUFFED':
+      return alliesOf(c, u).some((a) => a.statuses.some((s) => isHarmful(s.id)));
+    case 'HAS_ALLY':
+      return !!strongestAlly(c, u, false);
+    case 'ALLY_MP_BELOW_50':
+      return alliesOf(c, u).some((a) => a.base.maxMp > 0 && a.mp < a.base.maxMp * 0.5);
     default:
       return true;
   }
@@ -316,6 +337,8 @@ function startRound(c: Combat) {
     .filter(alive)
     .sort((a, b) => stat(b, 'speed') - stat(a, 'speed') || b.initiative - a.initiative)
     .map((u) => u.id);
+  // Haste: a second turn at the end of the round.
+  for (const id of [...c.queue]) if (getUnit(c, id)?.statuses.some((s) => s.id === 'HASTE')) c.queue.push(id);
   c.queueIndex = 0;
 }
 
@@ -344,9 +367,27 @@ function takeTurn(c: Combat, u: CombatUnit) {
   }
   push(c, { type: 'TURN', unit: u.id });
   for (const k of Object.keys(u.cooldowns)) u.cooldowns[k] = Math.max(0, (u.cooldowns[k] ?? 0) - 1);
+  // Jump: the dragoon comes down on its target (a new one if it fell meanwhile) — the whole turn.
+  if (u.jump) {
+    const j = u.jump;
+    u.jump = null;
+    const target = getUnit(c, j.target);
+    const sk = SKILLS[j.skill]!;
+    const t = target && alive(target) ? target : pickTarget(c, u, sk.target);
+    push(c, { type: 'LAND', unit: u.id, target: t?.id ?? j.target });
+    if (t) useSkill(c, u, sk, { target: t, landing: true });
+    return endTurn(u);
+  }
   allyTurnRegen(c, u);
+  if (u.traits.turnMpAura) mpAura(c, u, u.traits.turnMpAura);
 
-  // 1. Status phase — damage over time, then hard crowd control.
+  // 1. Status phase — regeneration, damage over time, then hard crowd control.
+  const regen = u.statuses.find((s) => s.id === 'REGEN');
+  if (regen && u.hp < u.base.maxHp) {
+    const amount = Math.min(Math.max(1, Math.round(u.base.maxHp * regen.potency)), u.base.maxHp - u.hp);
+    u.hp += amount;
+    push(c, { type: 'RECOVER', unit: u.id, amount });
+  }
   for (const s of [...u.statuses]) {
     if (s.id !== 'POISON' && s.id !== 'BURN' && s.id !== 'BLEED') continue;
     const pct = s.id === 'BURN' ? 0 : u.isBoss ? Math.min(0.01, s.potency) : s.potency;
@@ -406,11 +447,21 @@ function takeTurn(c: Combat, u: CombatUnit) {
 function allyTurnRegen(c: Combat, u: CombatUnit) {
   for (const a of alliesOf(c, u)) {
     const r = a.traits.allyTurnHeal;
-    if (!r || a.hp >= a.base.maxHp) continue;
+    if (!r || a.hp >= a.base.maxHp || (r.ownTurnOnly && a !== u)) continue;
     const want = Math.max(1, Math.round((a.base.vit ?? 0) * r.vit));
     const amount = Math.min(want, Math.max(1, Math.round(a.base.maxHp * r.capPct)), a.base.maxHp - a.hp);
     a.hp += amount;
     push(c, { type: 'RECOVER', unit: a.id, amount });
+  }
+}
+
+/** Dancer: the whole party gets a little MP back on each of the dancer's turns. */
+function mpAura(c: Combat, u: CombatUnit, pct: number) {
+  for (const a of alliesOf(c, u)) {
+    const amount = Math.min(a.base.maxMp - a.mp, Math.max(1, Math.round(a.base.maxMp * pct)));
+    if (amount <= 0) continue;
+    a.mp += amount;
+    push(c, { type: 'MP', unit: a.id, amount });
   }
 }
 
@@ -472,6 +523,15 @@ function resolveTargets(c: Combat, u: CombatUnit, sk: SkillDef): CombatUnit[] {
       return [[...alliesOf(c, u)].sort((a, b) => a.hp / a.base.maxHp - b.hp / b.base.maxHp)[0]!];
     case 'ALL_ENEMIES':
       return foesOf(c, u);
+    case 'DEAD_ALLY': {
+      const d = deadAlly(c, u);
+      return d ? [d] : [];
+    }
+    case 'ALLY_STRONGEST':
+    case 'OTHER_ALLY': {
+      const a = strongestAlly(c, u, sk.target === 'ALLY_STRONGEST');
+      return a ? [a] : [];
+    }
     default: {
       const t = pickTarget(c, u, sk.target);
       return t ? [t] : [];
@@ -486,18 +546,26 @@ interface UseOpts {
   reactive?: TriggerKind;
   /** Force the primary target (assists / counters / vengeance). */
   target?: CombatUnit;
+  /** Jump landing: the MP and cooldown were paid at take-off. */
+  landing?: boolean;
 }
 
 function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
-  const mpSpent = opts.reactive ? 0 : skillMpCost(u, sk);
-  if (!opts.reactive) {
+  const mpSpent = opts.reactive || opts.landing ? 0 : skillMpCost(u, sk);
+  if (!opts.reactive && !opts.landing) {
     u.mp -= mpSpent;
     if (sk.cooldown > 0 && u.mutation !== 'PURE_MAGE') u.cooldowns[sk.id] = sk.cooldown + 1;
   }
   const offensive = sk.effects.some((e) => e.kind === 'DAMAGE');
   let targets = opts.target && offensive ? [opts.target] : resolveTargets(c, u, sk);
-  targets = targets.filter(alive);
+  if (sk.target !== 'DEAD_ALLY') targets = targets.filter(alive);
   if (!targets.length) return;
+  if (sk.jump && !opts.landing) {
+    u.jump = { skill: sk.id, target: targets[0]!.id };
+    push(c, { type: 'SKILL', unit: u.id, skill: sk.id, targets: [targets[0]!.id], mp: mpSpent || undefined });
+    push(c, { type: 'JUMP', unit: u.id, target: targets[0]!.id });
+    return;
+  }
 
   let coveredId: string | null = null;
   // Cover trigger: a single declared target may be protected by an ally (before any roll).
@@ -515,6 +583,16 @@ function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
 
   push(c, { type: 'SKILL', unit: u.id, skill: sk.id, targets: targets.map((t) => t.id), reactive: opts.reactive, mp: mpSpent || undefined });
 
+  // First Strike (Monk): a foe stepping in for a melee blow gets hit first — and may not survive to swing.
+  if (offensive && !opts.reactive && !sk.ranged && !sk.unavoidable) {
+    for (const t of targets) {
+      if (t.side === u.side || !alive(t) || !alive(u)) continue;
+      const fs = reactiveRoll(c, t, 'FIRST_STRIKE');
+      if (fs) useSkill(c, t, fs, { reactive: 'FIRST_STRIKE', target: u });
+    }
+    if (!alive(u)) return;
+  }
+
   const landed = new Set<CombatUnit>();
   for (const effect of sk.effects) {
     if (effect.kind === 'DAMAGE') {
@@ -523,23 +601,36 @@ function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
         : targets;
       chainTargets.forEach((t, i) => {
         const falloff = effect.chain ? 1 - effect.chain.falloff * i : 1;
-        for (let h = 0; h < (effect.hits ?? 1); h++) {
+        const lo = effect.hits ?? 1;
+        const n = effect.hitsMax ? lo + Math.floor(c.rng() * (effect.hitsMax - lo + 1)) : lo;
+        for (let h = 0; h < n; h++) {
           if (!alive(t) || !alive(u)) break;
           if (strike(c, u, t, effect, sk, falloff, t.id === coveredId)) landed.add(t);
         }
       });
     } else {
-      const receivers = effect.kind === 'STATUS' || effect.kind === 'BUFF' ? effectReceivers(u, sk, effect, targets, landed) : targets;
+      const receivers =
+        effect.kind === 'STATUS' || effect.kind === 'BUFF' || effect.kind === 'STEAL_GOLD' || effect.kind === 'RESTORE_MP'
+          ? effectReceivers(u, sk, effect, targets, landed)
+          : targets;
       for (const t of receivers) applySupport(c, u, t, effect);
     }
   }
 
   if (offensive && !opts.reactive && landed.size) {
-    // Counter: each target that was hit may strike back.
+    // Counter: each target that was hit may strike back; then its on-hit reactions (Regenerate).
     for (const t of landed) {
       if (!alive(t) || !alive(u)) continue;
       const counter = reactiveRoll(c, t, 'COUNTER');
       if (counter) useSkill(c, t, counter, { reactive: 'COUNTER', target: u });
+      // Magick Counter: a spell that hit is answered with a spell
+      if (alive(t) && alive(u) && sk.effects.some((e) => e.kind === 'DAMAGE' && e.type === 'MAGIC')) {
+        const mc = reactiveRoll(c, t, 'MAGIC_COUNTER');
+        if (mc) useSkill(c, t, mc, { reactive: 'MAGIC_COUNTER', target: u });
+      }
+      if (!alive(t)) continue;
+      const onHit = reactiveRoll(c, t, 'ON_HIT');
+      if (onHit) useSkill(c, t, onHit, { reactive: 'ON_HIT' });
     }
     // Assist: one ally of the attacker may follow up on the same target.
     const primary = [...landed].find(alive);
@@ -559,7 +650,8 @@ function useSkill(c: Combat, u: CombatUnit, sk: SkillDef, opts: UseOpts = {}) {
 function effectReceivers(u: CombatUnit, sk: SkillDef, e: Effect, targets: CombatUnit[], landed: Set<CombatUnit>): CombatUnit[] {
   if ('self' in e && e.self) return [u];
   const offensive = sk.effects.some((x) => x.kind === 'DAMAGE');
-  if (offensive && (e.kind === 'STATUS' || e.kind === 'BUFF')) return [...landed].filter(alive); // debuffs need a hit
+  if (e.kind === 'STEAL_GOLD') return [...landed]; // the purse can be grabbed on a killing blow too
+  if (offensive && (e.kind === 'STATUS' || e.kind === 'BUFF' || e.kind === 'RESTORE_MP')) return [...landed].filter(alive); // debuffs need a hit
   return targets;
 }
 
@@ -594,6 +686,15 @@ function strike(
   covered: boolean,
 ): boolean {
   const element = sk.element === 'NEUTRAL' ? (u.side === 'B' ? u.element : 'NEUTRAL') : sk.element;
+  if (!sk.unavoidable && e.type !== 'TRUE' && t.side !== u.side) {
+    // Perfect Dodge (Thief): slips out of any blow or spell
+    const evade = reactiveRoll(c, t, 'EVADE');
+    if (evade) {
+      push(c, { type: 'SKILL', unit: t.id, skill: evade.id, targets: [u.id], reactive: 'EVADE' });
+      push(c, { type: 'MISS', source: u.id, target: t.id, evade: true, by: evade.id });
+      return false;
+    }
+  }
   if (!sk.unavoidable && e.type === 'PHYSICAL' && t !== u) {
     const parry = reactiveRoll(c, t, 'PARRY');
     if (parry) {
@@ -661,13 +762,43 @@ function strike(
   return true;
 }
 
+/** The first fallen ally on the unit's side (not a summon): Raise's target. */
+/** Haste / Quick pick the hardest hitter among the living allies (never dummies or summons). */
+function strongestAlly(c: Combat, u: CombatUnit, includeSelf: boolean): CombatUnit | undefined {
+  const power = (a: CombatUnit) => Math.max(stat(a, 'atk'), stat(a, 'matk'));
+  return alliesOf(c, u)
+    .filter((a) => (includeSelf || a !== u) && !a.passive && !/^s\d+$/.test(a.id))
+    .sort((a, b) => power(b) - power(a))[0];
+}
+
+function deadAlly(c: Combat, u: CombatUnit): CombatUnit | undefined {
+  return c.units.find((a) => a.side === u.side && a !== u && !alive(a) && !a.passive && !/^s\d+$/.test(a.id));
+}
+
 function applySupport(c: Combat, u: CombatUnit, t: CombatUnit, e: Effect) {
+  if (e.kind === 'REVIVE') {
+    if (alive(t)) return;
+    t.hp = Math.max(1, Math.round(t.base.maxHp * e.pctHp));
+    t.statuses = [];
+    t.buffs = [];
+    t.shield = null;
+    push(c, { type: 'REVIVE', unit: t.id, by: u.id, hp: t.hp });
+    return;
+  }
+  if (e.kind === 'STEAL_GOLD') {
+    const top = t.monsterId ? MONSTERS[t.monsterId]?.gold[1] ?? 0 : 0;
+    if (t.flags.robbed || top <= 0) return;
+    t.flags.robbed = true;
+    push(c, { type: 'STEAL', unit: u.id, target: t.id, gold: Math.max(1, Math.round(top * e.pct)) });
+    return;
+  }
   if (!alive(t)) return;
   switch (e.kind) {
     case 'HEAL': {
       let raw = e.flat ?? 0;
       for (const [k, v] of Object.entries(e.scaling)) raw += stat(u, k as keyof CombatStats) * (v ?? 0);
       heal(c, u, t, raw * stat(u, 'healPower'));
+      if (e.mpPct) t.mp = Math.min(t.base.maxMp, t.mp + Math.round(t.base.maxMp * e.mpPct));
       break;
     }
     case 'STATUS': {
@@ -692,7 +823,19 @@ function applySupport(c: Combat, u: CombatUnit, t: CombatUnit, e: Effect) {
       break;
     }
     case 'CLEANSE':
-      t.statuses = t.statuses.filter((s) => s.id === 'TAUNTING');
+      t.statuses = t.statuses.filter((s) => !isHarmful(s.id));
+      break;
+    case 'RESTORE_MP': {
+      const next = Math.max(0, Math.min(t.base.maxMp, t.mp + Math.round(t.base.maxMp * e.pct)));
+      const amount = Math.round(next - t.mp);
+      if (!amount) break;
+      t.mp = next;
+      push(c, { type: 'MP', unit: t.id, amount });
+      break;
+    }
+    case 'QUICK':
+      c.queue.splice(c.queueIndex, 0, t.id);
+      push(c, { type: 'QUICK', unit: t.id, by: u.id });
       break;
     default:
       break;
@@ -728,6 +871,18 @@ function damage(c: Combat, src: CombatUnit, t: CombatUnit, amount: number, opts:
   }
   const before = t.hp;
   t.hp = Math.max(0, t.hp - dmg);
+
+  // Dragonheart: may rise again instead of falling
+  if (!alive(t)) {
+    const heart = reactiveRoll(c, t, 'ON_DEATH');
+    const revive = heart?.effects.find((e) => e.kind === 'REVIVE');
+    if (heart && revive && revive.kind === 'REVIVE') {
+      t.hp = Math.max(1, Math.round(t.base.maxHp * revive.pctHp));
+      push(c, { type: 'SKILL', unit: t.id, skill: heart.id, targets: [t.id], reactive: 'ON_DEATH' });
+      push(c, { type: 'REVIVE', unit: t.id, by: t.id, hp: t.hp });
+      return;
+    }
+  }
 
   if (!alive(t)) {
     t.statuses = [];

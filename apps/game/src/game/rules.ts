@@ -1,5 +1,6 @@
 /** Client-side game actions that combine shared rules with the local save. */
 import {
+  CLASSES,
   CONSUMABLES,
   EQUIPMENT,
   LANDMARK_BOSS,
@@ -35,7 +36,7 @@ import {
   type Rng,
   type StatKey,
 } from '@pw/shared';
-import { derivedOf, regen, store, type SaveData } from '../state/store';
+import { derivedOf, mutationOf, regen, store, type SaveData } from '../state/store';
 import { landmarksAround } from './world';
 
 export const BOSS_RADIUS_M = 50;
@@ -384,6 +385,8 @@ export function applyBattleOutcome(opts: {
   kind: 'FIELD' | 'BOSS' | 'TRIAL' | 'DUNGEON';
   worldBoss?: { remainingHp: number; damage: number; maxHp: number };
   spawn?: { id: string; expiresAt: number };
+  /** Gold this player took with Steal Gil (Thief) — paid on a win only, so steal-and-flee can't farm it. */
+  stolenGold?: number;
 }): BattleOutcome {
   const outcome: BattleOutcome = {
     result: opts.result === 'ONGOING' ? 'FLED' : opts.result,
@@ -407,8 +410,10 @@ export function applyBattleOutcome(opts: {
 
     if (outcome.result === 'WIN') {
       const dropRate = d.dropRate;
+      // Poach (Thief trait): extra monster material; a mutation drops class traits.
+      const poach = mutationOf(s) ? 0 : CLASSES[s.classId]?.traits?.poach ?? 0;
       for (const id of opts.defeated) {
-        const l = rollLoot(id, opts.rng, dropRate);
+        const l = rollLoot(id, opts.rng, dropRate, poach);
         outcome.loot.exp += l.exp;
         outcome.loot.gold += l.gold;
         for (const [item, n] of Object.entries(l.items)) outcome.loot.items[item] = (outcome.loot.items[item] ?? 0) + n;
@@ -418,6 +423,7 @@ export function applyBattleOutcome(opts: {
         outcome.loot.exp = Math.round(outcome.loot.exp * share);
         outcome.loot.gold = Math.round(outcome.loot.gold * share);
       }
+      outcome.loot.gold += Math.max(0, Math.round(opts.stolenGold ?? 0));
       // EXP comes only from monsters; Novices get +10% until the class change (Fresh Legs).
       if (s.classId === 'NOVICE' && s.level < CLASS_CHANGE_LEVEL) outcome.loot.exp = Math.round(outcome.loot.exp * 1.1);
       if (opts.spawn) s.killedSpawns[opts.spawn.id] = opts.spawn.expiresAt;

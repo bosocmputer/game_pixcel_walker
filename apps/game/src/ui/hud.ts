@@ -573,6 +573,7 @@ function charSkillWindow(s: SaveData): string {
     deck,
     pool: learnableSkills(s),
     selected: skillSlot,
+    mpMult: mutationOf(s) ? 1 : CLASSES[s.classId]?.traits?.mpCostMult ?? 1,
     presets: (DECK_PRESETS[s.classId] ?? []).map((p) => ({
       id: p.id,
       nameTh: p.nameTh,

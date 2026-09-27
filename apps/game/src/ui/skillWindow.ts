@@ -8,6 +8,7 @@ import { esc } from './dom';
 
 const TRIGGER_TH: Record<string, string> = {
   COVER: 'รับแทนเพื่อน', ASSIST: 'ตามตีซ้ำ', COUNTER: 'สวนกลับ', ON_DODGE: 'เมื่อหลบได้', ON_LOW_HP: 'เมื่อ HP ต่ำ', ON_ALLY_DEATH: 'เมื่อเพื่อนตาย',
+  PARRY: 'ปัดการโจมตี', ON_HIT: 'เมื่อถูกโจมตี', MAGIC_COUNTER: 'เมื่อถูกเวทโจมตี', EVADE: 'หลบทุกการโจมตี', FIRST_STRIKE: 'ศัตรูเข้าประชิด', ON_DEATH: 'เมื่อตาย',
 };
 export const ELEMENT_TH: Record<string, string> = {
   NEUTRAL: 'ไม่มีธาตุ', FIRE: 'ไฟ', WATER: 'น้ำ', LIGHTNING: 'สายฟ้า', EARTH: 'ดิน', HOLY: 'ศักดิ์สิทธิ์', SHADOW: 'เงา',
@@ -17,11 +18,11 @@ export function skillIcon(id: string, cls = 'sk-ico'): string {
   return `<img class="${cls}" src="/assets/skills/${esc(id)}.png" alt="" draggable="false" />`;
 }
 
-/** "35% · CD 1 · 8 MP" or "ตอบโต้: สวนกลับ · 25%". */
-export function skillMeta(sk: SkillDef): string {
+/** "35% · CD 1 · 8 MP" or "ตอบโต้: สวนกลับ · 25%". mpMult = the class's MP cost trait (Summoner: Halve MP). */
+export function skillMeta(sk: SkillDef, mpMult = 1): string {
   return sk.kind === 'REACTIVE'
     ? `ตอบโต้: ${TRIGGER_TH[sk.trigger ?? ''] ?? ''} · ${sk.rate}%`
-    : `${sk.rate}% · CD ${sk.cooldown} · ${sk.mp} MP`;
+    : `${sk.rate}% · CD ${sk.cooldown} · ${Math.ceil(sk.mp * mpMult)} MP`;
 }
 
 /** Tab strip for the character window title bar. */
@@ -38,6 +39,8 @@ export interface SkillWindowModel {
   pool: string[];
   selected: number | null;
   presets: { id: string; nameTh: string; description: string; on: boolean }[];
+  /** MP cost multiplier from the class trait (Halve MP). */
+  mpMult?: number;
 }
 
 export function skillWindowHtml(m: SkillWindowModel): string {
@@ -60,7 +63,7 @@ export function skillWindowHtml(m: SkillWindowModel): string {
       return `<button type="button" class="pick sk-pick ${id === cur ? 'on' : ''}" data-skpick="${id}">
         ${skillIcon(id, 'pick-ico')}
         <span><b>${esc(sk.nameTh)}${inDeck && id !== cur ? ' <em class="in-deck">ในชุด</em>' : ''}</b>
-          <small>${esc(skillMeta(sk))} · ${ELEMENT_TH[sk.element] ?? sk.element}</small>
+          <small>${esc(skillMeta(sk, m.mpMult))} · ${ELEMENT_TH[sk.element] ?? sk.element}</small>
           <small class="desc">${esc(sk.description)}</small></span>
       </button>`;
     };

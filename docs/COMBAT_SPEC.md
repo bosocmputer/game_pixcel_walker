@@ -144,11 +144,55 @@ Two layers, both synchronous so the result stays deterministic:
 | dodge | `ON_DODGE` | `strike()` on MISS | the dodger |
 | `OnDeath` | `ON_ALLY_DEATH` | `damage()` on HP 0 | every surviving ally (rage buffs, emergency shields, vengeance strike on the killer) |
 | parry (FFT Knight) | `PARRY` | `strike()` before the hit roll, physical only | the target — the strike becomes a `MISS { parry: true }` |
+| on hit (FFT White Mage) | `ON_HIT` | after the action, per target hit, after its COUNTER | the target (effects on self, e.g. Regenerate) |
+| spell hit (FFT Black Mage) | `MAGIC_COUNTER` | after the action, per target hit by a skill with MAGIC damage | the target — strikes the caster back (Magick Counter) |
+| foe starts a melee skill on this unit (FFT Monk) | `FIRST_STRIKE` | in `useSkill()`, after the foe's SKILL event and before its effects (not `ranged`, not `unavoidable`) | the target — hits the attacker first; a KO cancels the attack (First Strike) |
+| any enemy blow or spell (FFT Thief) | `EVADE` | in `strike()`, before PARRY and the hit roll (not TRUE damage, not `unavoidable`) | the target — the strike becomes `MISS {evade}` (Perfect Dodge) |
+
+New effect/target/status (White Mage): target `DEAD_ALLY` + condition `ALLY_DEAD` + effect `REVIVE { pctHp }` (Arise;
+emits `REVIVE`; summons are never raised); condition `ALLY_DEBUFFED`; status `REGEN` (heals `potency × maxHp` at the start
+of the bearer's turn as `RECOVER`). `CLEANSE` removes harmful statuses only (`GOOD_STATUSES` = TAUNTING, REGEN stay).
 
 **Class traits** (FFT jobs, MASTER_SPEC §6) are always-on and live on the class, not in the deck
 (`ClassDef.traits`, copied to `CombatUnit.traits`; a mutation removes them like the class passive). They use
 no RNG. `allyTurnHeal` (Knight · Iron Blood): at the start of every allied unit's turn the owner recovers
-`VIT × vit` HP, at most `capPct × maxHp`, as a `RECOVER` event.
+`VIT × vit` HP, at most `capPct × maxHp`, as a `RECOVER` event. `hitBonus` (Archer · Concentration) is added to
+`base.hit` when the unit is made. `allyTurnHeal.ownTurnOnly` (Monk · Lifefont) limits the tick to the owner's
+own turns.
+
+Time Mage: `HASTE` (good status) — `startRound` appends the unit to the end of the queue a second time, so it acts twice
+per round while the status lasts (it ticks on each of those turns). `STOP` is hard CC like STUN. `QUICK` effect inserts the
+target at the current queue position (it acts next) and emits `QUICK {unit, by}`. Targets `ALLY_STRONGEST` / `OTHER_ALLY`
+pick the living ally with the highest ATK or MATK (dummies and summons excluded); condition `HAS_ALLY` needs such an ally
+besides the caster.
+
+Summoner: trait `mpCostMult` multiplies `skillMpCost` (rounded up; a mutation removes it). Effect `RESTORE_MP {pct}` refills
+`pct × maxMp` and emits `MP {unit, amount}`.
+
+Dragoon: a skill with `jump: true` does not resolve on use — it stores `unit.jump = {skill, target}` and emits `SKILL` + `JUMP`.
+While `jump` is set the unit is left out of `foesOf`/`alliesOf` (nobody can target, heal or buff it) but still counts for
+win/lose. At the start of its next turn (right after `TURN`, before statuses) it emits `LAND` and uses the skill on the stored
+target (or a fresh pick if that one fell) without paying MP/cooldown again; that is the whole turn. Trigger `ON_DEATH`
+(Dragonheart): rolled when damage would kill the unit; a REVIVE effect puts it back at `pctHp` (events `SKILL` + `REVIVE`, no
+`DEATH`). Trait `rageAtk`: `stat(atk) × (1 + rageAtk × (1 − hp / maxHp))`.
+
+Samurai: `SkillDef.lukRate {per, max}` adds `LUK × per` % to the launch/reactive rate, capped at `max` % (Shirahadori; players carry
+`CombatStats.luk`). Trait `atkPerTurn {per, max}`: `stat(atk) × (1 + min(max, turnsTaken × per))`. `RESTORE_MP` with a negative
+`pct` burns MP (Osafune — only on targets the strike hit); the `MP` event then has a negative amount.
+
+Ninja: status `HIDDEN` (good) — `foesOf` leaves the unit out, so foes cannot pick it; it ends with the unit's own next turn.
+`MISS.by` names the reaction behind an `evade` (Kawarimi → the scene swaps the body for a log).
+
+Dancer: trait `turnMpAura` — at the start of the owner's turn every ally (self included) regains `pct × maxMp` (an `MP`
+event each). Condition `ALLY_MP_BELOW_50` (Bard · Seraph Song).
+
+DAMAGE `hitsMax` (Monk · Pummel): the hit count is rolled per target from `hits..hitsMax` (one RNG call, only for
+such skills). HEAL `mpPct` (Monk · Chakra): the healed unit also gets that share of max MP back (no event of its own). `poach` (Thief) is not a combat trait: `rollLoot(id, rng, dropRate, poach)`
+adds one of the monster's material drop with that chance (no roll when 0, so other players' loot is unchanged).
+
+`STEAL_GOLD` effect (Thief · Steal Gil): applies to targets the skill actually hit (a killing blow counts), once per
+monster (`flags.robbed`), and emits `STEAL {unit, target, gold}` with `gold = round(pct × monster gold max)`. The
+client adds the player's own STEAL gold to the loot **on a win only**.
 
 A trigger is just a `REACTIVE` skill in the deck: `reactiveRoll(unit, trigger)` scans the deck, rolls each
 matching skill's launch rate (same formula as Layer 1, `oncePerBattle` respected) and executes it with

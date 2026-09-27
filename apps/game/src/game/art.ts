@@ -578,6 +578,15 @@ const CLASS_COLORS: Record<string, string> = {
   ASSASSIN: '#3a3f48',
   CLERIC: '#f4f4fa',
   RANGER: '#2f9e44',
+  MONK: '#e8590c',
+  TIME_MAGE: '#7048e8',
+  SUMMONER: '#0ca678',
+  GEOMANCER: '#5c940d',
+  DRAGOON: '#c92a2a',
+  SAMURAI: '#862e9c',
+  NINJA: '#343a40',
+  BARD: '#e64980',
+  DANCER: '#f783ac',
 };
 
 export interface Appearance {

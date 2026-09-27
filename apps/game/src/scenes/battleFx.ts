@@ -49,6 +49,7 @@ const ELEMENT_BOLT: Record<Element, string> = {
 const STATUS_FX: Partial<Record<StatusId, [string, Sfx]>> = {
   STUN: ['stun', 'stun'], FREEZE: ['ice', 'ice'], POISON: ['poison', 'poison'], BURN: ['fire', 'fire'],
   BLEED: ['slash_red', 'slash'], SLOW: ['debuff', 'debuff'], ROOT: ['debuff', 'debuff'], TAUNTING: ['buff', 'buff'],
+  STOP: ['debuff', 'debuff'], HASTE: ['buff', 'buff'], HIDDEN: ['buff', 'buff'],
 };
 
 export interface FxAnchor {
@@ -120,6 +121,7 @@ export interface SkillLook {
 export function skillLook(skillId: string): SkillLook {
   const sk = SKILLS[skillId];
   if (!sk || skillId === 'basic_attack') return { cast: null, bolt: null, melee: true };
+  if (sk.jump) return { cast: null, bolt: null, melee: false }; // Dragoon Jump: the scene's JUMP/LAND events animate it
   const magic = sk.effects.some((e) => e.kind === 'DAMAGE' && e.type === 'MAGIC');
   const offensive = sk.effects.some((e) => e.kind === 'DAMAGE');
   const cast = sk.kind === 'REACTIVE' ? null : sk.element === 'HOLY' ? 'cast_holy' : sk.element === 'FIRE' ? 'cast_fire' : magic || !offensive ? 'cast' : null;

@@ -34,9 +34,18 @@ export interface CombatStats {
   healPower: number;
   /** Primary VIT (players; drives the Knight's Iron Blood regen). */
   vit?: number;
+  /** Primary LUK (players; drives the Samurai's Shirahadori). */
+  luk?: number;
 }
 
-export type StatusId = 'STUN' | 'FREEZE' | 'POISON' | 'BURN' | 'BLEED' | 'SLOW' | 'TAUNTING' | 'ROOT';
+/**
+ * STOP: time stands still (hard CC, Time Mage). HASTE: the unit acts twice per round while it lasts.
+ * HIDDEN: foes cannot target the unit until its own turn ends (Ninja · Vanish).
+ */
+export type StatusId = 'STUN' | 'FREEZE' | 'POISON' | 'BURN' | 'BLEED' | 'SLOW' | 'TAUNTING' | 'ROOT' | 'REGEN' | 'STOP' | 'HASTE' | 'HIDDEN';
+
+/** Statuses that help their bearer: CLEANSE keeps them. */
+export const GOOD_STATUSES: StatusId[] = ['TAUNTING', 'REGEN', 'HASTE', 'HIDDEN'];
 
 /** How well the player timed an Awakening press (combat/awaken.ts). */
 export type AwakenGrade = 'PERFECT' | 'GOOD' | 'MISS';
@@ -77,14 +86,21 @@ export type TargetRule =
   | 'ALL_ENEMIES'
   | 'SELF'
   | 'ALLY_LOWEST_HP'
-  | 'ALL_ALLIES';
+  | 'ALL_ALLIES'
+  | 'ALLY_STRONGEST' // the ally (self included) with the highest ATK or MATK (Haste)
+  | 'OTHER_ALLY' // the strongest ally other than the caster (Quick)
+  | 'DEAD_ALLY'; // a fallen ally (Raise)
 
 /** Extra conditions a skill needs to be a candidate for the launch roll. */
 export type SkillCondition =
   | 'SELF_HP_BELOW_60'
   | 'SELF_HP_BELOW_40'
   | 'ALLY_HP_BELOW_60'
-  | 'ENEMY_COUNT_2PLUS';
+  | 'ENEMY_COUNT_2PLUS'
+  | 'ALLY_DEAD'
+  | 'ALLY_DEBUFFED'
+  | 'HAS_ALLY'
+  | 'ALLY_MP_BELOW_50';
 
 export type Effect =
   | {
@@ -97,16 +113,29 @@ export type Effect =
       hits?: number;
       /** extra targets after the first, each dealing (1 - falloff × n) */
       chain?: { jumps: number; falloff: number };
+      /** Random hit count: hits..hitsMax per target (Monk · Pummel). */
+      hitsMax?: number;
       forceCrit?: boolean;
     }
-  | { kind: 'HEAL'; scaling: Partial<Record<keyof CombatStats, number>>; flat?: number }
+  /** mpPct: also restores that share of max MP (Monk · Chakra). */
+  | { kind: 'HEAL'; scaling: Partial<Record<keyof CombatStats, number>>; flat?: number; mpPct?: number }
   | { kind: 'STATUS'; status: StatusId; turns: number; chance?: number; potency?: number; self?: boolean }
   | { kind: 'BUFF'; stat: keyof CombatStats; pct?: number; flat?: number; turns: number; self?: boolean }
   | { kind: 'SHIELD'; pctMaxHp: number; turns: number }
-  | { kind: 'CLEANSE' };
+  | { kind: 'CLEANSE' }
+  /** bring a fallen ally back with this share of max HP */
+  | { kind: 'REVIVE'; pctHp: number }
+  /** Takes gold from a monster that was hit (once per monster): pct × its top gold roll. Paid on a win. */
+  | { kind: 'STEAL_GOLD'; pct: number }
+  /** The target takes an extra turn right after this one (Time Mage · Quick). */
+  | { kind: 'QUICK' }
+  /** Restores pct × max MP (Summoner · Critical: Recover MP); negative pct burns MP (Samurai · Osafune). */
+  | { kind: 'RESTORE_MP'; pct: number };
 
 /**
- * Reactive triggers (Layer 4, cross-party):
+ * Reactive triggers (Layer 4, cross-party). ON_HIT — you were hit by an attack → effects (usually on self),
+ * rolled after COUNTER (Regenerate). PARRY — see engine strike().
+ *
  * COVER        — an ally is the declared single target → take the hit instead (mitigated)
  * ASSIST       — an ally landed a hit → strike the same target out of turn
  * COUNTER      — you were hit → strike back
@@ -114,15 +143,28 @@ export type Effect =
  * ON_LOW_HP    — your HP fell below 30% → effects on self (once per battle)
  * ON_ALLY_DEATH— an ally died → effects (rage, shields, vengeance)
  */
-export type TriggerKind = 'COVER' | 'ASSIST' | 'COUNTER' | 'ON_DODGE' | 'ON_LOW_HP' | 'ON_ALLY_DEATH' | 'PARRY';
+export type TriggerKind = 'COVER' | 'ASSIST' | 'COUNTER' | 'ON_DODGE' | 'ON_LOW_HP' | 'ON_ALLY_DEATH' | 'PARRY' | 'ON_HIT' | 'MAGIC_COUNTER' | 'EVADE' | 'FIRST_STRIKE' | 'ON_DEATH';
 
 /**
  * Always-on class traits (FFT-style jobs, MASTER_SPEC §6). Replaced by a mutation like the class passive.
  * allyTurnHeal — at the start of every allied unit's turn (own turn included) the unit recovers
  *                VIT × vit HP, at most capPct × max HP per tick (Knight: Iron Blood).
+ *                ownTurnOnly: only on the unit's own turns (Monk: Lifefont).
+ * hitBonus     — added to the unit's hit chance (Archer: Concentration).
+ * mpCostMult   — multiplies every skill's MP cost (Summoner: Halve MP).
+ * rageAtk      — ATK × (1 + rageAtk × share of HP lost) (Dragoon: Dragon Blood).
+ * atkPerTurn   — ATK +x per own turn taken, up to `max` (Samurai: Bushido).
+ * turnMpAura   — at the start of each own turn every ally (self included) regains that share of max MP (Dancer).
+ * poach        — chance per defeated monster of one extra monster material (Thief: Poach). Loot only.
  */
 export interface ClassTraits {
-  allyTurnHeal?: { vit: number; capPct: number };
+  allyTurnHeal?: { vit: number; capPct: number; ownTurnOnly?: boolean };
+  hitBonus?: number;
+  mpCostMult?: number;
+  rageAtk?: number;
+  atkPerTurn?: { per: number; max: number };
+  turnMpAura?: number;
+  poach?: number;
 }
 
 export interface SkillDef {
@@ -134,6 +176,8 @@ export interface SkillDef {
   element: Element;
   /** Base activation rate in % (Layer 1 launch roll / reactive roll). */
   rate: number;
+  /** Extra rate per point of LUK, capped at `lukRate.max` % (Samurai · Shirahadori). */
+  lukRate?: { per: number; max: number };
   /** Cooldown in the owner's turns (0 = none). */
   cooldown: number;
   mp: number;
@@ -144,6 +188,8 @@ export interface SkillDef {
   condition?: SkillCondition;
   trigger?: TriggerKind;
   /** Cannot miss or be blocked (boss ultimates). */
+  /** Dragoon Jump: leaves the field this turn, the effects land on the unit's next turn. */
+  jump?: boolean;
   unavoidable?: boolean;
   /** Reactive triggers that may fire only once per battle. */
   oncePerBattle?: boolean;
@@ -178,7 +224,10 @@ export interface CombatUnit {
   initiative: number;
   turnsTaken: number;
   usedOnce: string[];
-  flags: { miracleUsed: boolean; ultimateBlocked: boolean; phase: number; enraged: boolean };
+  /** robbed: a Thief already took this monster's gold (Steal Gil works once per monster). */
+  flags: { miracleUsed: boolean; ultimateBlocked: boolean; phase: number; enraged: boolean; robbed: boolean };
+  /** Dragoon Jump in progress: the unit is up in the sky (nobody can target it) and dives on its next turn. */
+  jump: { skill: string; target: string } | null;
   /** Party-side consumables this unit may auto-use (players only). */
   autoPotion: boolean;
   /** Never acts (training dummies). */
@@ -250,7 +299,8 @@ export type CombatEvent =
   | { type: 'TURN'; unit: string }
   | { type: 'SKIP'; unit: string; reason: StatusId }
   | { type: 'SKILL'; unit: string; skill: string; targets: string[]; reactive?: TriggerKind; mp?: number }
-  | { type: 'MISS'; source: string; target: string; parry?: boolean }
+  /** evade = Perfect Dodge-style reaction; `by` = the reaction skill (the scene draws Kawarimi as a log swap). */
+  | { type: 'MISS'; source: string; target: string; parry?: boolean; evade?: boolean; by?: string }
   | { type: 'DAMAGE'; source: string; target: string; amount: number; crit: boolean; block: boolean; element: Element }
   | { type: 'HEAL'; source: string; target: string; amount: number }
   | { type: 'STATUS'; target: string; status: StatusId; turns: number }
@@ -261,6 +311,13 @@ export type CombatEvent =
   | { type: 'SUMMON'; unit: string; by: string }
   | { type: 'WAVE'; wave: number; total: number; modifier: string | null }
   | { type: 'RECOVER'; unit: string; amount: number }
+  | { type: 'REVIVE'; unit: string; by: string; hp: number }
+  | { type: 'STEAL'; unit: string; target: string; gold: number }
+  | { type: 'QUICK'; unit: string; by: string }
+  | { type: 'MP'; unit: string; amount: number }
+  /** Jump: the dragoon leaps out of the fight; LAND = it dives back down (the strike follows). */
+  | { type: 'JUMP'; unit: string; target: string }
+  | { type: 'LAND'; unit: string; target: string }
   | { type: 'ITEM'; unit: string; item: string; amount: number }
   | { type: 'DEATH'; unit: string }
   /** Awakening Strike begins (the DAMAGE follows). */
@@ -295,5 +352,6 @@ export function statsFromDerived(d: DerivedStats, extra: { dex: number; luk: num
     blockReduce: 0.5,
     healPower: d.healPower,
     vit: extra.vit,
+    luk: extra.luk,
   };
 }

@@ -2,7 +2,7 @@ export const STAT_KEYS = ['str', 'agi', 'vit', 'int', 'dex', 'luk'] as const;
 export type StatKey = (typeof STAT_KEYS)[number];
 export type Stats = Record<StatKey, number>;
 
-export type ClassId = 'NOVICE' | 'KNIGHT' | 'SORCERER' | 'ASSASSIN' | 'CLERIC' | 'RANGER';
+export type ClassId = 'NOVICE' | 'KNIGHT' | 'SORCERER' | 'ASSASSIN' | 'CLERIC' | 'RANGER' | 'MONK' | 'TIME_MAGE' | 'SUMMONER' | 'GEOMANCER' | 'DRAGOON' | 'SAMURAI' | 'NINJA' | 'BARD' | 'DANCER';
 
 export type MutationId =
   | 'PURE_TANK'

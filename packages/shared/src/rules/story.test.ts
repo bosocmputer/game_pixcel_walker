@@ -116,8 +116,8 @@ function unit(id: string, level: number, classId: ClassId, alloc: Partial<Stats>
 }
 const trio = (lv: number) => [
   unit('k', lv, 'KNIGHT', { str: lv * 2 + 5, vit: lv * 2 + 10, agi: 10 }, ['power_smash', 'rend_power', 'rend_speed', 'rend_magick', 'taunt', 'parry']),
-  unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, ['power_smash', 'stone_throw', 'fireball', 'chain_lightning', 'frost_nova', 'mana_shield']),
-  unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, ['power_smash', 'stone_throw', 'holy_heal', 'blessing_of_light', 'smite', 'divine_grace']),
+  unit('s', lv, 'SORCERER', { int: lv * 3, vit: lv }, ['power_smash', 'fire', 'firaga', 'thunder', 'blizzaga', 'magick_counter']),
+  unit('c', lv, 'CLERIC', { int: lv * 2, vit: lv * 2 }, ['power_smash', 'cure', 'curaga', 'raise', 'protect', 'holy']),
 ];
 function winRate(party: UnitSetup[], bossId: string, runs = 100): number {
   let wins = 0;

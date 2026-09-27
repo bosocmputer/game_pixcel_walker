@@ -20,6 +20,141 @@
 
 ---
 
+## 2026-09-27 — ระบบอาชีพแนว FFT: Dancer (Nong + Claude) — อาชีพสุดท้ายในรอบนี้
+**เพิ่ม**
+- **Dancer / นักระบำ** — อาชีพใหม่ id `DANCER` (แถวหลัง) ตามโน้ตเจ้าของ: Mincing Minuet · Polka (ลด ATK + MATK) · Slow Dance · Forbidden Dance ·
+  ใจสลาย (ถูกตี 30% สวนศัตรูทุกตัว) · ฟื้น MP ให้ทีมทุกเทิร์น (trait `turnMpAura`) · ไอคอน 5 อัน
+- ป๊อปอัป MP เล็กลง (ตัวใหญ่เฉพาะ ≥ 50) เพราะออร่า MP ขึ้นทุกเทิร์น
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/dancer.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, scenes/BattleScene.ts}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Dancer 5 + สมดุล 1 ใหม่) · ร่างแรกช่วยทีมน้อยไป (Knight 20% → 23%) → เพิ่มพลังระบำ = 46%
+**ค้าง / ข้อควรรู้:** ครบทุกอาชีพที่เจ้าของเลือกในหน้า "คลังอาชีพ FFT" แล้ว — ที่เหลือ (Chemist, Orator, Mystic, Arithmetician) เจ้าของยังไม่ได้เลือกสกิล
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Bard (Nong + Claude)
+**เพิ่ม**
+- **Bard / กวีนักร้อง** — อาชีพใหม่ id `BARD` (แถวหลัง) ตามโน้ตเจ้าของ: Seraph Song (MP) · Life's Anthem (HP) · Rousing Melody (ความเร็ว) ·
+  Battle Chant (ATK + MATK) · เพลงปลอบใจ (ถูกตี 30% ฮีลทีม) · passive Encore · ไอคอน 5 อัน
+- engine: condition `ALLY_MP_BELOW_50`
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/bard.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/game/art.ts`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Bard 5 + สมดุล 1 ใหม่)
+**ค้าง / ข้อควรรู้:** -
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Ninja (Nong + Claude)
+**เพิ่ม**
+- **Ninja / นินจา** — อาชีพใหม่ id `NINJA` ตามโน้ตเจ้าของ: Shuriken · Bomb · Shadow Clone (แยกร่างโจมตี) · Vanish (ล่องหน) · Kawarimi (หลบ 30% กลายเป็นขอนไม้) ·
+  passive Ninja Arts (หลบหลีก + ความเร็ว) · ไอคอนสกิล 5 อัน + ไอคอนสถานะ "ล่องหน"
+- engine: สถานะ `HIDDEN` · `MISS.by` · ฉากต่อสู้: ท่าสลับร่างเป็นขอนไม้ + ควัน, ตัวจางตอนล่องหน
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/ninja.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, scenes/BattleScene.ts, scenes/battleOverlay.ts, scenes/battleFx.ts}`, `pixel-art/{skill-icons,status-icons}/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Ninja 5 ใหม่)
+**ค้าง / ข้อควรรู้:** -
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Samurai (Nong + Claude)
+**เพิ่ม**
+- **Samurai / ซามูไร** — อาชีพใหม่ id `SAMURAI` ตามโน้ตเจ้าของ: Kotetsu · Osafune (เผา MP) · Ama-no-Murakumo · Shirahadori (โอกาสตามค่า LUK) ·
+  วิถีซามูไร (ATK +3% ทุกเทิร์นตัวเอง สูงสุด +30%) · ไอคอน 4 อัน
+- engine: `CombatStats.luk` · `SkillDef.lukRate` · trait `atkPerTurn` · `RESTORE_MP` ค่าลบ = เผา MP (ป๊อปอัป "−X MP" สีม่วง)
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/samurai.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, scenes/BattleScene.ts}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Samurai 6 ใหม่)
+**ค้าง / ข้อควรรู้:** สายโจมตีหมู่ (Samurai, Dragoon) + White Mage ผ่านปั๊มน้ำ 92–93% สูงกว่าสายเดี่ยว (~50–73%) — ดันเจี้ยนนี้มีมอนหลายตัวต่อเวฟ
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Dragoon (Nong + Claude)
+**เพิ่ม**
+- **Dragoon / อัศวินมังกร** — อาชีพใหม่ id `DRAGOON` ตามโน้ตเจ้าของ: Jump (กระโดดขึ้นฟ้า ไม่มีใครโจมตีได้ แล้วพุ่งลงแทงเทิร์นถัดไป) ·
+  Dragon's Faith (ATK + คริ +50%) · Dragonheart (ตายแล้ว 30% ฟื้น HP 30%) · passive Dragon Blood (ATK เพิ่มตาม HP ที่เสีย ×0.5) · ไอคอน 3 อัน
+- engine: สกิล `jump` + event `JUMP`/`LAND` · trigger `ON_DEATH` · trait `rageAtk`
+- ฉากต่อสู้: ท่ากระโดดหายขึ้นฟ้า → พุ่งลงใส่เป้าหมาย (จอสั่น) → เดินกลับที่
+- ไอคอน Ifrit: ตาสีดำ (INK) ถูกกลืนหาย เปลี่ยนเป็นแดงเข้ม
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/dragoon.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, scenes/BattleScene.ts, scenes/battleFx.ts, ui/skillWindow.ts}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Dragoon 7 ใหม่) · ร่างแรก (Jump 240%) เดี่ยวปั๊มน้ำ 44% → ลดเหลือ 200% CD 3 + Faith ATK +15% = 28%
+**ค้าง / ข้อควรรู้:** Dragoon คู่ White Mage ผ่านปั๊มน้ำ 92% สูงกว่าอาชีพอื่น (~50–73%) — ถ้าเล่นจริงแล้วแรงไปให้ลด Dragon Blood หรือ Jump
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Geomancer (Nong + Claude)
+**เพิ่ม**
+- **Geomancer / นักธรณี** — อาชีพใหม่ id `GEOMANCER`: Tanglevine · Sinkhole · Sandstorm · Snowstorm · Wind Blast (เวทธรณีใช้ทั้ง ATK และ MATK
+  + ผลธรรมชาติคนละแบบ) · Nature's Wrath (สวนกลับ) · passive Attack Boost ATK +15% · ไอคอนสกิลใหม่ 6 อัน
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, data/skills.ts, data/classes.ts, combat/geomancer.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/game/art.ts`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Geomancer 5 ใหม่ + เพิ่มในเทสต์ "ลงปั๊มน้ำคนเดียวไม่ได้")
+**ค้าง / ข้อควรรู้:** FFT เปลี่ยนเวทตามพื้นที่ยืน — เกมเรามีข้อมูล terrain จากแผนที่จริงอยู่แล้ว วันหลังอาจให้เวทธรณีแรงขึ้นตามพื้นที่ที่เจอมอนสเตอร์
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Summoner (Nong + Claude)
+**เพิ่ม**
+- **Summoner / นักอัญเชิญ** — อาชีพใหม่ id `SUMMONER` (แถวหลัง): Moogle (ฮีลทีม) · Shiva · Ramuh · Ifrit · Bahamut (เวทหมู่) · Critical: Recover MP ·
+  passive Halve MP (ใช้ MP ครึ่งเดียว) · ไอคอนสกิลใหม่ 6 อัน
+- engine: trait `mpCostMult` · effect `RESTORE_MP` + event `MP` (ป๊อปอัป "+X MP") · หน้าต่างสกิลแสดง MP หลังลดตาม trait
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/summoner.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, scenes/BattleScene.ts, ui/skillWindow.ts, ui/hud.ts}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Summoner 5 + สมดุล 1 ใหม่) · เดี่ยวผ่านก็อบลิน 35% · คู่ Knight ลงปั๊มน้ำ 54%
+**ค้าง / ข้อควรรู้:** ยังไม่มีภาพสัตว์อัญเชิญโผล่ในฉากต่อสู้ (ตอนนี้เห็นแค่เอฟเฟกต์ธาตุ) — ถ้าจะทำต้องวาดเพิ่ม
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Time Mage (Nong + Claude)
+**เพิ่ม**
+- **Time Mage / นักเวทกาลเวลา** — อาชีพใหม่ id `TIME_MAGE` (แถวหลัง): Haste · Hastega · Slow · Slowga · Stop · Quick · Graviga (โจมตีหมู่ + มึน ตามโน้ตเจ้าของ) ·
+  passive Swiftness ความเร็ว +15% · ไอคอนสกิลใหม่ 7 อัน
+- engine: สถานะใหม่ `HASTE` (เล่น 2 ครั้งต่อรอบ) และ `STOP` (หยุดนิ่ง) + ไอคอนสถานะ · effect `QUICK` + event `QUICK` ("ได้เทิร์นเพิ่ม!") ·
+  target `ALLY_STRONGEST` / `OTHER_ALLY` · condition `HAS_ALLY`
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/timemage.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, scenes/BattleScene.ts, scenes/battleOverlay.ts, scenes/battleFx.ts}`, `pixel-art/{skill-icons,status-icons}/build.py`
+**ทดสอบ:** npm test + typecheck ผ่าน (Time Mage 6 + สมดุล 1 ใหม่) · ร่างแรก Haste 1 รอบช่วยทีมน้อยไป (Knight+TM 34%) → 2 รอบ + Quick CD 3 = 65%
+**ค้าง / ข้อควรรู้:** Slow/Slowga ยังแค่เลื่อนลำดับเล่น (เหมือน Rend Speed) — ถ้าอยากให้แรงแบบ FFT ต้องทำให้ SLOW เสียเทิร์นด้วย
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Monk (Nong + Claude)
+**เพิ่ม**
+- **Monk / นักพรต** — อาชีพใหม่ id `MONK` (ขึ้นในวิหารแห่งการทดสอบ Lv.10 เอง): Pummel (1–4 หมัด) · Aurablast · Chakra (ฟื้น HP+MP ทั้งทีม) ·
+  Purification · First Strike (reactive ใหม่ `FIRST_STRIKE` ต่อยก่อนศัตรูที่เข้าประชิด) · passive Brawler ATK +10% ·
+  trait Lifefont (แบบ Iron Blood แต่เด้งเฉพาะเทิร์นตัวเอง ตามโน้ตเจ้าของ) · ไอคอนสกิลใหม่ 5 อัน · สีอาชีพส้ม
+- engine: DAMAGE `hitsMax` (จำนวนฮิตสุ่ม) · HEAL `mpPct` (ฟื้น MP) · `allyTurnHeal.ownTurnOnly`
+- เทสต์สมดุลใหม่: Monk/Thief ลงปั๊มน้ำร้างคนเดียวไม่ผ่าน (< 40%) แต่คู่กับ White Mage ผ่านได้
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{types.ts, combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/monk.test.ts (ใหม่), rules/dungeons.test.ts}`,
+`apps/game/src/{game/art.ts, ui/skillWindow.ts}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test ผ่าน 161/161 (Monk 6 + สมดุล 1 ใหม่) · typecheck ผ่าน · ร่างแรก Monk เดี่ยวผ่านปั๊มน้ำ 77% → ลด First Strike/Chakra/Lifefont/Brawler เหลือ 12.5%
+**ค้าง / ข้อควรรู้:** ชุดตัวละครในฉากต่อสู้ยังเป็นชุดดาบเดียวกันทุกอาชีพ (Monk ยังถือดาบตามอุปกรณ์)
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Thief (Nong + Claude)
+**เพิ่ม**
+- **Thief / โจร** (แทน Assassin, id `ASSASSIN` เดิม) ตามโน้ตเจ้าของ: Steal Gil (ขโมยทอง ได้เมื่อชนะ) · Vanish (แรงตามความเร็ว หลบไม่ได้) ·
+  Steal Heart (ทำให้ช้า) · Double Attack · Perfect Dodge (reactive ใหม่ `EVADE` 20% หลบได้ทั้งกายภาพและเวท + ท่ากระโดดหลบในฉากต่อสู้) ·
+  Poach (trait: ชนะแล้ว 30% ได้ขยะมอนสเตอร์เพิ่มตัวละ 1 ชิ้น) · ไอคอนสกิลใหม่ 5 อัน
+- effect ใหม่ `STEAL_GOLD` + event `STEAL` (ป๊อปอัป "+X G") · `rollLoot` รับพารามิเตอร์ `poach`
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, rules/loot.ts, combat/thief.test.ts (ใหม่)}`,
+`apps/game/src/{scenes/BattleScene.ts, game/rules.ts, ui/skillWindow.ts}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test ผ่าน 154/154 (Thief 7 ใหม่) · typecheck ผ่าน
+**ค้าง / ข้อควรรู้:** ทองที่ขโมยและ Poach คิดที่ client (พรีวิว) — ตอนทำรางวัลฝั่ง server ต้องย้ายไปด้วย
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Archer (Nong + Claude)
+**เพิ่ม**
+- **Archer** (แทน Ranger, id `RANGER` เดิม) ตามโน้ตเจ้าของ: Aim (คริแน่นอน) · Arrow Rain (ทุกตัวเท่าโจมตีธรรมดา) · Double Shot · Adrenaline Rush ·
+  passive Concentration ความแม่นยำ +50% (trait `hitBonus`) · ไอคอนสกิลใหม่ 4 อัน
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/archer.test.ts (ใหม่)}`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test ผ่าน 147/147 (Archer 6 ใหม่) · typecheck ผ่าน · ไอคอนสายฟ้าของ Black Mage วาดใหม่เป็นรูปทรงเต็ม
+**ค้าง / ข้อควรรู้:** ยังไม่มีเทสต์สมดุลของ Archer เดี่ยว/ปาร์ตี้ (เดิม Ranger ก็ไม่มี)
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: Black Mage (Nong + Claude)
+**เพิ่ม**
+- **Black Mage** (แทน Sorcerer, id `SORCERER` เดิม): Fire/Thunder/Blizzard + Firaga/Thundaga/Blizzaga + Magick Counter (reactive ใหม่ `MAGIC_COUNTER`)
+  · passive Arcane Strength MATK +10% · ไอคอนสกิลใหม่ 7 อัน
+**แก้ไข / เปลี่ยน**
+- passive เดิมของ Sorcerer (Mana Affinity) ไม่มีผลจริง แทนด้วย Arcane Strength แล้วลดพลังเวทพื้นฐานให้สมดุลเท่าเดิม
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/blackmage.test.ts (ใหม่)}`,
+`apps/game/src/ui/skillWindow.ts`, `pixel-art/skill-icons/build.py`
+**ทดสอบ:** npm test ผ่าน 141/141 (Black Mage 4 ใหม่) · typecheck ผ่าน · ก็อบลิน Lv.12 เดี่ยว 48% / คู่ White Mage 100%
+**ค้าง / ข้อควรรู้:** -
+
+## 2026-09-27 — ระบบอาชีพแนว FFT: White Mage (Nong + Claude)
+**เพิ่ม**
+- **White Mage** (แทน Cleric, id `CLERIC` เดิม): Cure · Curaga · Arise (ชุบชีวิต HP เต็ม) · Protectja · Esuna · Holy · Regenerate ·
+  passive Arcane Defense (MDEF +20% การรักษา +30%)
+- engine: เป้า `DEAD_ALLY` + ผล `REVIVE` + เงื่อนไข `ALLY_DEAD`/`ALLY_DEBUFFED` · สถานะ `REGEN` · reactive `ON_HIT` · Esuna/CLEANSE ไม่ลบสถานะดี
+- ไฟต์: ตัวที่ถูกชุบชีวิตลุกขึ้นมาใหม่ + "ฟื้นคืนชีพ!" · ไอคอนสถานะ Regen · ไอคอนสกิลใหม่ 7 อัน · ป้ายตอบโต้ "ปัดการโจมตี"/"เมื่อถูกโจมตี" ในหน้าสกิล
+**ไฟล์หลักที่แตะ:** `packages/shared/src/{combat/types.ts, combat/engine.ts, data/skills.ts, data/classes.ts, combat/whitemage.test.ts (ใหม่)}`,
+`apps/game/src/{scenes/BattleScene.ts, scenes/battleOverlay.ts, ui/skillWindow.ts}`, `pixel-art/{skill-icons,status-icons}/build.py`
+**ทดสอบ:** npm test ผ่าน 137/137 (White Mage 6 ใหม่) · typecheck ผ่าน · เทสต์สมดุลใช้เด็ค White Mage แล้วยังผ่านเกณฑ์
+**ค้าง / ข้อควรรู้:** -
+
 ## 2026-09-27 — ระบบอาชีพแนว FFT: อาชีพแรก Knight (Nong + Claude)
 **เพิ่ม**
 - **คลังอาชีพ FFT** (artifact ส่วนตัวของเจ้าของ): อาชีพ + สกิลทุกหมวดของ FFT War of the Lions ให้เจ้าของติ๊กเลือกและเขียนโน้ต

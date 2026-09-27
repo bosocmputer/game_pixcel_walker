@@ -22,7 +22,7 @@ from kit2x import K, Canvas2x, bevel  # noqa: E402
 
 OUT = os.path.join(ROOT, "apps", "game", "public", "assets", "ui", "status.png")
 # Keep in sync with STATUS_ICONS in apps/game/src/scenes/battleOverlay.ts
-STATUS = ["STUN", "FREEZE", "POISON", "BURN", "BLEED", "SLOW", "TAUNTING", "ROOT", "SHIELD"]
+STATUS = ["STUN", "FREEZE", "POISON", "BURN", "BLEED", "SLOW", "TAUNTING", "ROOT", "SHIELD", "REGEN", "STOP", "HASTE", "HIDDEN"]
 S = 12
 INK = "#0c0818"
 
@@ -113,8 +113,38 @@ def shield():
     return s
 
 
+def regen():
+    s = badge("#5fe08a")
+    s.rect(5, 3, 6, 8, "#8ff0a8"); s.rect(3, 5, 8, 6, "#8ff0a8")    # plus
+    s.px(5, 3, "#e8ffe8"); s.px(3, 5, "#e8ffe8")
+    s.px(9, 2, "#c8ffd8"); s.px(2, 9, "#c8ffd8")                    # sparkles
+    return s
+
+
+def stop():
+    s = badge("#b197fc")
+    s.circle(5, 5, 3, "#e5dbff")                                     # clock face
+    s.line(5, 3, 5, 5, "#e5dbff"); s.line(5, 5, 7, 5, "#e5dbff")     # frozen hands
+    return s
+
+
+def haste():
+    s = badge("#ffd43b")
+    for k, x in enumerate((3, 6)):                                   # double chevron: act twice
+        s.line(x, 3, x + 2, 5, "#fff3bf"); s.line(x + 2, 6, x, 8, "#fff3bf")
+    return s
+
+
+def hidden():
+    s = badge("#868e96")
+    for x, y in ((3, 4), (5, 3), (7, 4), (4, 6), (6, 6), (8, 6), (5, 8), (7, 8)):   # a faded, dotted silhouette
+        s.px(x, y, "#dee2e6")
+    return s
+
+
 DRAW = {"STUN": stun, "FREEZE": freeze, "POISON": poison, "BURN": burn, "BLEED": bleed, "SLOW": slow,
-        "TAUNTING": taunting, "ROOT": root, "SHIELD": shield}
+        "TAUNTING": taunting, "ROOT": root, "SHIELD": shield, "REGEN": regen,
+        "STOP": stop, "HASTE": haste, "HIDDEN": hidden}
 
 
 def main():

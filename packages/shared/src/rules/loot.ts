@@ -1,3 +1,4 @@
+import { MATERIALS } from '../data/items';
 import { MONSTERS, type Terrain } from '../data/monsters';
 import { EXP_RATE } from './progression';
 import { chance, pick, randInt, type Rng } from './rng';
@@ -8,8 +9,12 @@ export interface Loot {
   items: Record<string, number>;
 }
 
-/** Rolls rewards for a defeated monster. dropRate multiplies item chances (capped at 100%). */
-export function rollLoot(monsterId: string, rng: Rng, dropRate = 1): Loot {
+/**
+ * Rolls rewards for a defeated monster. dropRate multiplies item chances (capped at 100%).
+ * poach (Thief trait): chance of one extra piece of the monster's material. No roll when 0,
+ * so other classes keep the same RNG sequence.
+ */
+export function rollLoot(monsterId: string, rng: Rng, dropRate = 1, poach = 0): Loot {
   const m = MONSTERS[monsterId];
   if (!m) throw new Error(`Unknown monster ${monsterId}`);
   const items: Record<string, number> = {};
@@ -21,6 +26,8 @@ export function rollLoot(monsterId: string, rng: Rng, dropRate = 1): Loot {
       items[d.itemId] = (items[d.itemId] ?? 0) + qty;
     }
   }
+  const junk = m.drops.find((d) => MATERIALS[d.itemId]);
+  if (poach > 0 && junk && chance(rng, poach)) items[junk.itemId] = (items[junk.itemId] ?? 0) + 1;
   return { exp: Math.round(m.exp * EXP_RATE), gold: randInt(rng, m.gold[0], m.gold[1]), items };
 }
 

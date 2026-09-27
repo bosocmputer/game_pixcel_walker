@@ -45,8 +45,11 @@ import {
   animFrameCount,
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
+  avatarAction,
+  battleOrigin,
   isAvatarPackLoaded,
   USE_AVATAR_PACK,
+  type BattleAnim,
 } from '../game/avatar';
 import { bus, toast, type BattleRequest } from '../game/bus';
 import { paperdollOf } from '../game/paperdoll';
@@ -105,6 +108,24 @@ interface UnitView {
   hurtKey: string | null;
   /** Heroes: the weapon they visibly hold decides swing, reach and impact (null = monster). */
   weapon: { type: WeaponType | 'FIST'; element: Element } | null;
+  /** Avatar-pack sword heroes: the battle set (placeholder art) — resting loop, strike, cast. Empty = none. */
+  battleIdle: string[];
+  idleMs: number[];
+  attackKeys: string[];
+  attackHit: number;
+  castKeys: string[];
+}
+
+/** Frame of a looping animation at time `t` (ms), given each frame's duration. */
+function loopFrame(t: number, ms: number[]): number {
+  const total = ms.reduce((a, b) => a + b, 0);
+  if (!total) return 0;
+  let r = ((t % total) + total) % total;
+  for (let i = 0; i < ms.length; i++) {
+    r -= ms[i]!;
+    if (r < 0) return i;
+  }
+  return 0;
 }
 
 const STATUS_TH: Record<string, string> = {
@@ -382,6 +403,32 @@ export class BattleScene extends Phaser.Scene {
     this.drawBars();
   }
 
+  /**
+   * The avatar pack's battle set for one paperdoll (textures + timings), or null when the pack has none.
+   * PLACEHOLDER art (a Sword of Convallaria costume with our head) — never ship publicly.
+   */
+  private battleSet(doll: Paperdoll) {
+    const gender = doll.appearance?.gender ?? 'male';
+    const style = doll.appearance?.hairStyle ?? '';
+    const make = (anim: BattleAnim) =>
+      Array.from({ length: animFrameCount(gender, style, anim) }, (_, i) => {
+        const k = `hero_${JSON.stringify(doll)}_${anim}_${i}`;
+        if (!this.textures.exists(k)) this.textures.addCanvas(k, heroCanvas(doll, 'side', i, anim));
+        return k;
+      });
+    const idle = make('battle_idle');
+    if (!idle.length) return null;
+    const attack = make('battle_attack');
+    return {
+      idle,
+      idleMs: avatarAction('battle_idle')?.frame_ms ?? idle.map(() => 150),
+      attack,
+      attackHit: avatarAction('battle_attack')?.hit_frame ?? Math.floor(attack.length / 2),
+      hurt: make('battle_injured')[0] ?? null,
+      cast: make('battle_cast'),
+    };
+  }
+
   /** Whole-number display scale for 32-bit art: 1 on phones / narrow screens, 2 on wide ones. */
   private artScale(): number {
     return this.portrait || this.scale.width < 900 ? 1 : 2;
@@ -411,7 +458,12 @@ export class BattleScene extends Phaser.Scene {
     }
     const isHero = !!ally || u.side === 'A';
     const isPack = USE_AVATAR_PACK && isAvatarPackLoaded();
-    const origin = isHero && isPack ? { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y } : { x: 0.5, y: 1 };
+    const weapon = isHero ? weaponStyle(doll?.weapon) : null;
+    // Sword heroes rest, strike, cast and flinch with the pack's battle set (placeholder art).
+    const battle = doll && isPack && weapon?.type === 'SWORD' ? this.battleSet(doll) : null;
+    if (battle) key = battle.idle[0]!;
+    const packOrigin = (battle && battleOrigin()) || { x: AVATAR_ORIGIN_X, y: AVATAR_ORIGIN_Y };
+    const origin = isHero && isPack ? packOrigin : { x: 0.5, y: 1 };
     // 32-bit art (2026-09-26) is shown at a whole-number scale only (1x phones, 2x wide screens) —
     // a fractional scale makes some art pixels 1 px and others 2 px wide.
     const art = this.artScale();
@@ -433,8 +485,7 @@ export class BattleScene extends Phaser.Scene {
     const bars = this.add.graphics().setDepth(11);
     // Hand-drawn slash frames (wind-up / strike / follow-through) for avatar-pack heroes.
     const slashKeys: string[] = [];
-    const weapon = isHero ? weaponStyle(doll?.weapon) : null;
-    if (doll && isPack && weapon?.type === 'SWORD') {
+    if (doll && isPack && weapon?.type === 'SWORD' && !battle) {
       const frames = animFrameCount(doll.appearance?.gender ?? 'male', doll.appearance?.hairStyle ?? '', 'slash');
       for (let i = 0; i < frames; i++) {
         const slashKey = `hero_${JSON.stringify(doll)}_slash_${i}`;
@@ -463,8 +514,13 @@ export class BattleScene extends Phaser.Scene {
       status: new StatusRow(this),
       depth: 10,
       animated,
-      hurtKey: animated ? null : flinchTexture(this, key, u.side === 'A' ? 1 : -1),
+      hurtKey: animated ? null : battle?.hurt ?? flinchTexture(this, key, u.side === 'A' ? 1 : -1),
       weapon,
+      battleIdle: battle?.idle ?? [],
+      idleMs: battle?.idleMs ?? [],
+      attackKeys: battle?.attack ?? [],
+      attackHit: battle?.attackHit ?? 3,
+      castKeys: battle?.cast ?? [],
     };
     this.views.set(u.id, v);
     return v;
@@ -659,6 +715,11 @@ export class BattleScene extends Phaser.Scene {
       const low = pct < 0.25 && !u.passive;
       if (v.animated) {
         v.sprite.setScale(v.baseX, v.baseY).setFrame(Math.floor(now / (low ? 220 : 480) + v.phase) % 2);
+      } else if (v.battleIdle.length) {
+        // the drawn loop breathes by itself (faster when low on HP)
+        const k = v.battleIdle[loopFrame((now + v.phase * 1000) * (low ? 1.6 : 1), v.idleMs)]!;
+        v.sprite.setScale(v.baseX, v.baseY);
+        if (v.sprite.texture.key !== k) v.sprite.setTexture(k);
       } else {
         const b = Math.sin(t * (low ? 7 : 2.4) + v.phase) * (low ? 0.035 : 0.022);
         v.sprite.setScale(v.baseX * (1 - b * 0.4), v.baseY * (1 + b));
@@ -977,7 +1038,14 @@ export class BattleScene extends Phaser.Scene {
     const baseScaleY = attacker.baseY;
     attacker.actUntil = Math.max(attacker.actUntil, this.time.now + delay + windupMs + approachMs + strikePauseMs + returnMs + 40);
     // Anticipation: lean back and crouch before springing forward.
+    /** Battle set: anticipation, wind-up, raise, strike (hit frame), follow-through, recover. */
+    const seq = attacker.attackKeys;
+    const drawn = seq.length > attacker.attackHit + 1;
+    const show = (i: number) => {
+      if (drawn) attacker.sprite.setTexture(seq[Math.min(i, seq.length - 1)]!);
+    };
     this.time.delayedCall(delay, () => {
+      show(0);
       attacker.sprite.setScale(attacker.baseX * 1.08, attacker.baseY * 0.9);
       this.tweens.add({ targets: attacker.sprite, x: from.x - direction * 7, duration: windupMs, ease: 'Quad.easeOut' });
     });
@@ -995,6 +1063,8 @@ export class BattleScene extends Phaser.Scene {
         attacker.sprite.setDepth(20).setScale(attacker.baseX * 0.94, attacker.baseY * 1.08);
         // Wind up the sword on the way in; the strike frame lands with the hit.
         if (slashing) attacker.sprite.setTexture(attacker.slashKeys[0]!);
+        show(1);
+        if (drawn) this.time.delayedCall(approachMs * 0.5, () => show(attacker.attackHit - 1));
       },
       onUpdate: () => {
         const p = outbound.progress;
@@ -1006,6 +1076,8 @@ export class BattleScene extends Phaser.Scene {
       onComplete: () => {
         if (slashing) attacker.sprite.setTexture(attacker.slashKeys[1]!);
         else if (attacker.animated) attacker.sprite.setFrame(2);
+        show(attacker.attackHit);
+        if (drawn) this.time.delayedCall(strikePauseMs * 0.5, () => show(attacker.attackHit + 1));
         // The drawn slash brings its own trail; only the procedural hero needs the effect.
         if (!slashing) {
           const at = { x: landing.x, y: landing.y, h: attacker.sprite.displayHeight };
@@ -1030,6 +1102,7 @@ export class BattleScene extends Phaser.Scene {
       ease: 'Quad.easeIn',
       onStart: () => {
         if (slashing) attacker.sprite.setTexture(attacker.slashKeys[2]!);
+        show(attacker.attackHit + 2);
       },
       onUpdate: () => {
         const p = inbound.progress;
@@ -1040,7 +1113,7 @@ export class BattleScene extends Phaser.Scene {
       },
       onComplete: () => {
         attacker.sprite.setPosition(from.x, from.y).setAngle(baseAngle).setScale(attacker.baseX, attacker.baseY).setDepth(attacker.depth);
-        if (slashing) attacker.sprite.setTexture(attacker.idleKey);
+        if (slashing || drawn) attacker.sprite.setTexture(attacker.idleKey);
         else if (attacker.animated) attacker.sprite.setFrame(0);
       },
     });
@@ -1112,7 +1185,16 @@ export class BattleScene extends Phaser.Scene {
         if (look.cast) {
           this.fx(look.cast, e.unit, delay, { ground: true, scale: u.isBoss ? 1.2 : 1 });
           this.time.delayedCall(delay, () => sfx('cast'));
-          if (!look.melee && v.slashKeys.length) {
+          if (!look.melee && v.castKeys.length) {
+            // Battle set: the sword-held casting pose, one frame after another, then rest.
+            this.time.delayedCall(delay, () => {
+              v.actUntil = Math.max(v.actUntil, this.time.now + 460);
+              v.castKeys.forEach((k, i) => this.time.delayedCall(i * 110, () => v.sprite.setTexture(k)));
+              this.time.delayedCall(440, () => {
+                if (v.castKeys.includes(v.sprite.texture.key)) v.sprite.setTexture(v.idleKey);
+              });
+            });
+          } else if (!look.melee && v.slashKeys.length) {
             this.time.delayedCall(delay, () => {
               v.actUntil = Math.max(v.actUntil, this.time.now + 460);
               v.sprite.setTexture(v.slashKeys[0]!);
@@ -1184,7 +1266,7 @@ export class BattleScene extends Phaser.Scene {
             if (v.animated) {
               v.sprite.setFrame(3);
               this.time.delayedCall(240, () => v.sprite.setFrame(0));
-            } else if (v.hurtKey && v.sprite.texture.key === v.idleKey) {
+            } else if (v.hurtKey && (v.sprite.texture.key === v.idleKey || v.battleIdle.includes(v.sprite.texture.key))) {
               v.sprite.setTexture(v.hurtKey);
               this.time.delayedCall(240, () => {
                 if (v.sprite.texture.key === v.hurtKey) v.sprite.setTexture(v.idleKey);

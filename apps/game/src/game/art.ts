@@ -5,7 +5,7 @@
  * masks and get automatic bevel shading + selective outlines, the classic 16-bit look.
  */
 import { TILE, type TileId } from '@pw/shared';
-import { isAvatarPackLoaded, renderAvatarFrame, USE_AVATAR_PACK, type Gender, type AvatarAnim } from './avatar';
+import { isAvatarPackLoaded, renderAvatarFrame, USE_AVATAR_PACK, type Gender, type AvatarAnim, type BattleAnim } from './avatar';
 import { OUTFIT_DYES } from './gear';
 import { pixelSprite } from './sprites';
 export { USE_AVATAR_PACK, type Gender } from './avatar';
@@ -620,7 +620,7 @@ export const AURA_COLORS: Record<string, string> = {
  * One rendered frame of a paperdoll. `pose` picks the standing or sword-slash animation (avatar
  * pack only — the procedural 16×24 hero has no such art and keeps its walking frame).
  */
-export type HeroPose = 'walk' | 'idle' | 'slash';
+export type HeroPose = 'walk' | 'idle' | 'slash' | BattleAnim;
 
 export function heroCanvas(p: Paperdoll, facing: Facing = 'down', frame = 0, pose: HeroPose = 'walk'): HTMLCanvasElement {
   const ap = p.appearance ?? DEFAULT_APPEARANCE;

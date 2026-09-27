@@ -19,6 +19,8 @@ export interface AvatarAnimFrame {
   weapon?: string;
   /** Slash frames only: the trail, drawn behind the body. */
   fx?: string;
+  /** Battle frames: the body already wears its (placeholder) costume — no outfit is painted on it. */
+  dressed?: boolean;
 }
 
 export interface AvatarStyle {
@@ -31,8 +33,11 @@ export interface AvatarStyle {
     walk_back: AvatarAnimFrame[];
     idle: AvatarAnimFrame[];
     slash?: AvatarAnimFrame[];
-  };
+  } & Partial<Record<BattleAnim, AvatarAnimFrame[]>>;
 }
+
+/** Battle set (placeholder costume, manifest.battle_cell sized): rest, move, strike, hurt, crouch, cast. */
+export type BattleAnim = 'battle_idle' | 'battle_walk' | 'battle_attack' | 'battle_injured' | 'battle_crouch' | 'battle_cast';
 
 /** manifest.actions.<name>: how a one-shot action plays. */
 export interface AvatarAction {
@@ -69,6 +74,8 @@ export interface AvatarManifest {
   outfits?: { id: string; label_th: string; label_en: string; gender: string; recolor: boolean; frames: string[] }[];
   outfit_rule?: string;
   actions?: Record<string, AvatarAction>;
+  /** Bigger cell of the battle_* frames (swings and lunges reach past 48×64); anchor = feet. */
+  battle_cell?: { w: number; h: number; anchor: [number, number] };
 }
 
 export const AVATAR_CELL_W = 48;
@@ -198,12 +205,14 @@ function rawPixels(src: string): ImageData | null {
   if (hit) return hit;
   const img = imageCache.get(src);
   if (!img) return null;
+  // Walk/idle/slash layers are 48×64; battle frames use the bigger manifest.battle_cell.
+  const w = img.naturalWidth || AVATAR_CELL_W, h = img.naturalHeight || AVATAR_CELL_H;
   const c = document.createElement('canvas');
-  c.width = AVATAR_CELL_W;
-  c.height = AVATAR_CELL_H;
+  c.width = w;
+  c.height = h;
   const ctx = c.getContext('2d', { willReadFrequently: true })!;
   ctx.drawImage(img, 0, 0);
-  const data = ctx.getImageData(0, 0, AVATAR_CELL_W, AVATAR_CELL_H);
+  const data = ctx.getImageData(0, 0, w, h);
   rawCache.set(src, data);
   return data;
 }
@@ -219,26 +228,27 @@ export function compositeAvatar(
   hairColorIdx: number,
   gear: GearLook = {},
   baseUrl = '/assets/avatar',
-  action?: { hand?: string; weapon?: string; fx?: string },
+  action?: { hand?: string; weapon?: string; fx?: string; dressed?: boolean },
 ): HTMLCanvasElement {
   const cacheKey = `${bodyPath}|${hairPath}|${skinIdx}|${hairColorIdx}|${gearKey(gear)}|${action?.weapon ?? ''}`;
   const existing = canvasCache.get(cacheKey);
   if (existing) return existing;
 
-  const canvas = document.createElement('canvas');
-  canvas.width = AVATAR_CELL_W;
-  canvas.height = AVATAR_CELL_H;
-  const ctx = canvas.getContext('2d');
   const body = rawPixels(`${baseUrl}/${bodyPath}`);
+  const canvas = document.createElement('canvas');
+  canvas.width = body?.width ?? AVATAR_CELL_W;
+  canvas.height = body?.height ?? AVATAR_CELL_H;
+  const ctx = canvas.getContext('2d');
   if (!ctx || !body) return canvas;
 
   const skinTones = getSkinTones();
   const rampKeys = getHairRampKeys();
   const hairRamp = getHairColorRamps()[rampKeys[hairColorIdx] ?? rampKeys[0] ?? 'black'] ?? ['#000000'];
   // Outfit frames are named after the body frame they cover (HANDOFF.md), never after the anim index.
-  const outfitId = packOutfitId(gear.chest);
+  // A dressed battle body keeps its own costume (no outfit layer exists for it).
+  const outfitId = action?.dressed ? null : packOutfitId(gear.chest);
   const outfit = outfitId ? rawPixels(`${baseUrl}/outfit/${outfitId}/${bodyPath.split('/').pop()}`) : null;
-  const out = ctx.createImageData(AVATAR_CELL_W, AVATAR_CELL_H);
+  const out = ctx.createImageData(body.width, body.height);
   composeAvatar(body, rawPixels(`${baseUrl}/${hairPath}`), out, {
     skin: skinTones[skinIdx] ?? skinTones[0]!,
     hairRamp,
@@ -247,13 +257,20 @@ export function compositeAvatar(
     hand: action?.hand ? rawPixels(`${baseUrl}/${action.hand}`) : null,
     packWeapon: action?.weapon ? rawPixels(`${baseUrl}/${action.weapon}`) : null,
     fx: action?.fx ? rawPixels(`${baseUrl}/${action.fx}`) : null,
+    dressed: action?.dressed,
   });
   ctx.putImageData(out, 0, 0);
   canvasCache.set(cacheKey, canvas);
   return canvas;
 }
 
-export type AvatarAnim = 'walk_front' | 'walk_back' | 'idle' | 'slash';
+export type AvatarAnim = 'walk_front' | 'walk_back' | 'idle' | 'slash' | BattleAnim;
+
+/** Sprite origin (0..1) for battle_* frames: the feet anchor inside manifest.battle_cell. */
+export function battleOrigin(): { x: number; y: number } | null {
+  const c = manifest?.battle_cell;
+  return c ? { x: c.anchor[0] / c.w, y: c.anchor[1] / c.h } : null;
+}
 
 /** Timing of a one-shot action from the manifest (slash: wind-up / strike / follow-through). */
 export function avatarAction(name: string): AvatarAction | null {
@@ -296,8 +313,10 @@ export function renderAvatarFrame(
 
   const frames = style.anims[anim] ?? style.anims.walk_front;
   const frame = frames[frameIdx % frames.length]!;
-  // Slash frames carry their own sword, fist and trail layers.
-  const action = frame.weapon || frame.hand || frame.fx ? { hand: frame.hand, weapon: frame.weapon, fx: frame.fx } : undefined;
+  // Slash and battle frames carry their own sword (and fist / trail) layers.
+  const action = frame.weapon || frame.hand || frame.fx || frame.dressed
+    ? { hand: frame.hand, weapon: frame.weapon, fx: frame.fx, dressed: frame.dressed }
+    : undefined;
 
   return compositeAvatar(frame.body, frame.hair, skinIdx, hairColorIdx, { ...gear, gender }, '/assets/avatar', action);
 }

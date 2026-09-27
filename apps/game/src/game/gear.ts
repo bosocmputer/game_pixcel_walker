@@ -608,6 +608,8 @@ export function composeAvatar(
     hand?: Pixels | null;
     packWeapon?: Pixels | null;
     fx?: Pixels | null;
+    /** Battle frames whose body already wears a costume: no clothes are painted on it. */
+    dressed?: boolean;
   },
 ) {
   const cls = classify(body);
@@ -633,7 +635,9 @@ export function composeAvatar(
   // 2. Clothes under the hair: a pack outfit is drawn as-is (it already covers legs and feet),
   //    everything else is painted from the body's own pixels.
   const packOutfit = packOutfitId(opts.gear.chest) ? opts.outfit : null;
-  if (packOutfit) {
+  if (opts.dressed) {
+    // the costume is part of the body frame
+  } else if (packOutfit) {
     blitLayer(p, packOutfit);
   } else {
     paintLegwear(p, a, opts.gear);

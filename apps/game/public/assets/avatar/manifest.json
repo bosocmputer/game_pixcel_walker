@@ -200,6 +200,132 @@
             "weapon": "weapon/W01_short_sword/slash_2.png",
             "fx": "fx/slash/slash_2.png"
           }
+        ],
+        "battle_idle": [
+          {
+            "body": "battle/body/idle_0.png",
+            "hair": "hair/male/M01_short_messy/battle_idle_0.png",
+            "weapon": "battle/weapon/idle_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_1.png",
+            "hair": "hair/male/M01_short_messy/battle_idle_1.png",
+            "weapon": "battle/weapon/idle_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_2.png",
+            "hair": "hair/male/M01_short_messy/battle_idle_2.png",
+            "weapon": "battle/weapon/idle_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_3.png",
+            "hair": "hair/male/M01_short_messy/battle_idle_3.png",
+            "weapon": "battle/weapon/idle_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_walk": [
+          {
+            "body": "battle/body/walk_0.png",
+            "hair": "hair/male/M01_short_messy/battle_walk_0.png",
+            "weapon": "battle/weapon/walk_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_1.png",
+            "hair": "hair/male/M01_short_messy/battle_walk_1.png",
+            "weapon": "battle/weapon/walk_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_2.png",
+            "hair": "hair/male/M01_short_messy/battle_walk_2.png",
+            "weapon": "battle/weapon/walk_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_3.png",
+            "hair": "hair/male/M01_short_messy/battle_walk_3.png",
+            "weapon": "battle/weapon/walk_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_attack": [
+          {
+            "body": "battle/body/attack_0.png",
+            "hair": "hair/male/M01_short_messy/battle_attack_0.png",
+            "weapon": "battle/weapon/attack_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_1.png",
+            "hair": "hair/male/M01_short_messy/battle_attack_1.png",
+            "weapon": "battle/weapon/attack_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_2.png",
+            "hair": "hair/male/M01_short_messy/battle_attack_2.png",
+            "weapon": "battle/weapon/attack_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_3.png",
+            "hair": "hair/male/M01_short_messy/battle_attack_3.png",
+            "weapon": "battle/weapon/attack_3.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_4.png",
+            "hair": "hair/male/M01_short_messy/battle_attack_4.png",
+            "weapon": "battle/weapon/attack_4.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_5.png",
+            "hair": "hair/male/M01_short_messy/battle_attack_5.png",
+            "weapon": "battle/weapon/attack_5.png",
+            "dressed": true
+          }
+        ],
+        "battle_injured": [
+          {
+            "body": "battle/body/injured_0.png",
+            "hair": "hair/male/M01_short_messy/battle_injured_0.png",
+            "weapon": "battle/weapon/injured_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_crouch": [
+          {
+            "body": "battle/body/crouch_0.png",
+            "hair": "hair/male/M01_short_messy/battle_crouch_0.png",
+            "weapon": "battle/weapon/crouch_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_cast": [
+          {
+            "body": "battle/body/cast_0.png",
+            "hair": "hair/male/M01_short_messy/battle_cast_0.png",
+            "weapon": "battle/weapon/cast_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_1.png",
+            "hair": "hair/male/M01_short_messy/battle_cast_1.png",
+            "weapon": "battle/weapon/cast_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_2.png",
+            "hair": "hair/male/M01_short_messy/battle_cast_2.png",
+            "weapon": "battle/weapon/cast_2.png",
+            "dressed": true
+          }
         ]
       }
     },
@@ -255,11 +381,11 @@
             "hair": "hair/male/M02_shaggy_bangs/wait_1.png"
           },
           {
-            "body": "body/wait_2.png",
+            "body": "body/wait_0.png",
             "hair": "hair/male/M02_shaggy_bangs/wait_2.png"
           },
           {
-            "body": "body/wait_3.png",
+            "body": "body/wait_1.png",
             "hair": "hair/male/M02_shaggy_bangs/wait_3.png"
           },
           {
@@ -308,6 +434,132 @@
             "hand": "hand/slash_2.png",
             "weapon": "weapon/W01_short_sword/slash_2.png",
             "fx": "fx/slash/slash_2.png"
+          }
+        ],
+        "battle_idle": [
+          {
+            "body": "battle/body/idle_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_idle_0.png",
+            "weapon": "battle/weapon/idle_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_idle_1.png",
+            "weapon": "battle/weapon/idle_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_idle_2.png",
+            "weapon": "battle/weapon/idle_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_3.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_idle_3.png",
+            "weapon": "battle/weapon/idle_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_walk": [
+          {
+            "body": "battle/body/walk_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_walk_0.png",
+            "weapon": "battle/weapon/walk_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_walk_1.png",
+            "weapon": "battle/weapon/walk_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_walk_2.png",
+            "weapon": "battle/weapon/walk_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_3.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_walk_3.png",
+            "weapon": "battle/weapon/walk_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_attack": [
+          {
+            "body": "battle/body/attack_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_attack_0.png",
+            "weapon": "battle/weapon/attack_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_attack_1.png",
+            "weapon": "battle/weapon/attack_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_attack_2.png",
+            "weapon": "battle/weapon/attack_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_3.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_attack_3.png",
+            "weapon": "battle/weapon/attack_3.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_4.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_attack_4.png",
+            "weapon": "battle/weapon/attack_4.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_5.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_attack_5.png",
+            "weapon": "battle/weapon/attack_5.png",
+            "dressed": true
+          }
+        ],
+        "battle_injured": [
+          {
+            "body": "battle/body/injured_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_injured_0.png",
+            "weapon": "battle/weapon/injured_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_crouch": [
+          {
+            "body": "battle/body/crouch_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_crouch_0.png",
+            "weapon": "battle/weapon/crouch_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_cast": [
+          {
+            "body": "battle/body/cast_0.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_cast_0.png",
+            "weapon": "battle/weapon/cast_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_1.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_cast_1.png",
+            "weapon": "battle/weapon/cast_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_2.png",
+            "hair": "hair/male/M02_shaggy_bangs/battle_cast_2.png",
+            "weapon": "battle/weapon/cast_2.png",
+            "dressed": true
           }
         ]
       }
@@ -402,6 +654,132 @@
             "weapon": "weapon/W01_short_sword/slash_2.png",
             "fx": "fx/slash/slash_2.png"
           }
+        ],
+        "battle_idle": [
+          {
+            "body": "battle/body/idle_0.png",
+            "hair": "hair/male/M03_short_neat/battle_idle_0.png",
+            "weapon": "battle/weapon/idle_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_1.png",
+            "hair": "hair/male/M03_short_neat/battle_idle_1.png",
+            "weapon": "battle/weapon/idle_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_2.png",
+            "hair": "hair/male/M03_short_neat/battle_idle_2.png",
+            "weapon": "battle/weapon/idle_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_3.png",
+            "hair": "hair/male/M03_short_neat/battle_idle_3.png",
+            "weapon": "battle/weapon/idle_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_walk": [
+          {
+            "body": "battle/body/walk_0.png",
+            "hair": "hair/male/M03_short_neat/battle_walk_0.png",
+            "weapon": "battle/weapon/walk_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_1.png",
+            "hair": "hair/male/M03_short_neat/battle_walk_1.png",
+            "weapon": "battle/weapon/walk_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_2.png",
+            "hair": "hair/male/M03_short_neat/battle_walk_2.png",
+            "weapon": "battle/weapon/walk_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_3.png",
+            "hair": "hair/male/M03_short_neat/battle_walk_3.png",
+            "weapon": "battle/weapon/walk_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_attack": [
+          {
+            "body": "battle/body/attack_0.png",
+            "hair": "hair/male/M03_short_neat/battle_attack_0.png",
+            "weapon": "battle/weapon/attack_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_1.png",
+            "hair": "hair/male/M03_short_neat/battle_attack_1.png",
+            "weapon": "battle/weapon/attack_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_2.png",
+            "hair": "hair/male/M03_short_neat/battle_attack_2.png",
+            "weapon": "battle/weapon/attack_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_3.png",
+            "hair": "hair/male/M03_short_neat/battle_attack_3.png",
+            "weapon": "battle/weapon/attack_3.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_4.png",
+            "hair": "hair/male/M03_short_neat/battle_attack_4.png",
+            "weapon": "battle/weapon/attack_4.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_5.png",
+            "hair": "hair/male/M03_short_neat/battle_attack_5.png",
+            "weapon": "battle/weapon/attack_5.png",
+            "dressed": true
+          }
+        ],
+        "battle_injured": [
+          {
+            "body": "battle/body/injured_0.png",
+            "hair": "hair/male/M03_short_neat/battle_injured_0.png",
+            "weapon": "battle/weapon/injured_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_crouch": [
+          {
+            "body": "battle/body/crouch_0.png",
+            "hair": "hair/male/M03_short_neat/battle_crouch_0.png",
+            "weapon": "battle/weapon/crouch_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_cast": [
+          {
+            "body": "battle/body/cast_0.png",
+            "hair": "hair/male/M03_short_neat/battle_cast_0.png",
+            "weapon": "battle/weapon/cast_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_1.png",
+            "hair": "hair/male/M03_short_neat/battle_cast_1.png",
+            "weapon": "battle/weapon/cast_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_2.png",
+            "hair": "hair/male/M03_short_neat/battle_cast_2.png",
+            "weapon": "battle/weapon/cast_2.png",
+            "dressed": true
+          }
         ]
       }
     },
@@ -494,6 +872,132 @@
             "hand": "hand/slash_2.png",
             "weapon": "weapon/W01_short_sword/slash_2.png",
             "fx": "fx/slash/slash_2.png"
+          }
+        ],
+        "battle_idle": [
+          {
+            "body": "battle/body/idle_0.png",
+            "hair": "hair/female/F01_low_ponytail/battle_idle_0.png",
+            "weapon": "battle/weapon/idle_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_1.png",
+            "hair": "hair/female/F01_low_ponytail/battle_idle_1.png",
+            "weapon": "battle/weapon/idle_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_2.png",
+            "hair": "hair/female/F01_low_ponytail/battle_idle_2.png",
+            "weapon": "battle/weapon/idle_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_3.png",
+            "hair": "hair/female/F01_low_ponytail/battle_idle_3.png",
+            "weapon": "battle/weapon/idle_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_walk": [
+          {
+            "body": "battle/body/walk_0.png",
+            "hair": "hair/female/F01_low_ponytail/battle_walk_0.png",
+            "weapon": "battle/weapon/walk_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_1.png",
+            "hair": "hair/female/F01_low_ponytail/battle_walk_1.png",
+            "weapon": "battle/weapon/walk_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_2.png",
+            "hair": "hair/female/F01_low_ponytail/battle_walk_2.png",
+            "weapon": "battle/weapon/walk_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_3.png",
+            "hair": "hair/female/F01_low_ponytail/battle_walk_3.png",
+            "weapon": "battle/weapon/walk_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_attack": [
+          {
+            "body": "battle/body/attack_0.png",
+            "hair": "hair/female/F01_low_ponytail/battle_attack_0.png",
+            "weapon": "battle/weapon/attack_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_1.png",
+            "hair": "hair/female/F01_low_ponytail/battle_attack_1.png",
+            "weapon": "battle/weapon/attack_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_2.png",
+            "hair": "hair/female/F01_low_ponytail/battle_attack_2.png",
+            "weapon": "battle/weapon/attack_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_3.png",
+            "hair": "hair/female/F01_low_ponytail/battle_attack_3.png",
+            "weapon": "battle/weapon/attack_3.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_4.png",
+            "hair": "hair/female/F01_low_ponytail/battle_attack_4.png",
+            "weapon": "battle/weapon/attack_4.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_5.png",
+            "hair": "hair/female/F01_low_ponytail/battle_attack_5.png",
+            "weapon": "battle/weapon/attack_5.png",
+            "dressed": true
+          }
+        ],
+        "battle_injured": [
+          {
+            "body": "battle/body/injured_0.png",
+            "hair": "hair/female/F01_low_ponytail/battle_injured_0.png",
+            "weapon": "battle/weapon/injured_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_crouch": [
+          {
+            "body": "battle/body/crouch_0.png",
+            "hair": "hair/female/F01_low_ponytail/battle_crouch_0.png",
+            "weapon": "battle/weapon/crouch_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_cast": [
+          {
+            "body": "battle/body/cast_0.png",
+            "hair": "hair/female/F01_low_ponytail/battle_cast_0.png",
+            "weapon": "battle/weapon/cast_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_1.png",
+            "hair": "hair/female/F01_low_ponytail/battle_cast_1.png",
+            "weapon": "battle/weapon/cast_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_2.png",
+            "hair": "hair/female/F01_low_ponytail/battle_cast_2.png",
+            "weapon": "battle/weapon/cast_2.png",
+            "dressed": true
           }
         ]
       }
@@ -588,6 +1092,132 @@
             "weapon": "weapon/W01_short_sword/slash_2.png",
             "fx": "fx/slash/slash_2.png"
           }
+        ],
+        "battle_idle": [
+          {
+            "body": "battle/body/idle_0.png",
+            "hair": "hair/female/F02_bun/battle_idle_0.png",
+            "weapon": "battle/weapon/idle_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_1.png",
+            "hair": "hair/female/F02_bun/battle_idle_1.png",
+            "weapon": "battle/weapon/idle_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_2.png",
+            "hair": "hair/female/F02_bun/battle_idle_2.png",
+            "weapon": "battle/weapon/idle_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_3.png",
+            "hair": "hair/female/F02_bun/battle_idle_3.png",
+            "weapon": "battle/weapon/idle_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_walk": [
+          {
+            "body": "battle/body/walk_0.png",
+            "hair": "hair/female/F02_bun/battle_walk_0.png",
+            "weapon": "battle/weapon/walk_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_1.png",
+            "hair": "hair/female/F02_bun/battle_walk_1.png",
+            "weapon": "battle/weapon/walk_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_2.png",
+            "hair": "hair/female/F02_bun/battle_walk_2.png",
+            "weapon": "battle/weapon/walk_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_3.png",
+            "hair": "hair/female/F02_bun/battle_walk_3.png",
+            "weapon": "battle/weapon/walk_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_attack": [
+          {
+            "body": "battle/body/attack_0.png",
+            "hair": "hair/female/F02_bun/battle_attack_0.png",
+            "weapon": "battle/weapon/attack_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_1.png",
+            "hair": "hair/female/F02_bun/battle_attack_1.png",
+            "weapon": "battle/weapon/attack_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_2.png",
+            "hair": "hair/female/F02_bun/battle_attack_2.png",
+            "weapon": "battle/weapon/attack_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_3.png",
+            "hair": "hair/female/F02_bun/battle_attack_3.png",
+            "weapon": "battle/weapon/attack_3.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_4.png",
+            "hair": "hair/female/F02_bun/battle_attack_4.png",
+            "weapon": "battle/weapon/attack_4.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_5.png",
+            "hair": "hair/female/F02_bun/battle_attack_5.png",
+            "weapon": "battle/weapon/attack_5.png",
+            "dressed": true
+          }
+        ],
+        "battle_injured": [
+          {
+            "body": "battle/body/injured_0.png",
+            "hair": "hair/female/F02_bun/battle_injured_0.png",
+            "weapon": "battle/weapon/injured_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_crouch": [
+          {
+            "body": "battle/body/crouch_0.png",
+            "hair": "hair/female/F02_bun/battle_crouch_0.png",
+            "weapon": "battle/weapon/crouch_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_cast": [
+          {
+            "body": "battle/body/cast_0.png",
+            "hair": "hair/female/F02_bun/battle_cast_0.png",
+            "weapon": "battle/weapon/cast_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_1.png",
+            "hair": "hair/female/F02_bun/battle_cast_1.png",
+            "weapon": "battle/weapon/cast_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_2.png",
+            "hair": "hair/female/F02_bun/battle_cast_2.png",
+            "weapon": "battle/weapon/cast_2.png",
+            "dressed": true
+          }
         ]
       }
     },
@@ -681,6 +1311,132 @@
             "weapon": "weapon/W01_short_sword/slash_2.png",
             "fx": "fx/slash/slash_2.png"
           }
+        ],
+        "battle_idle": [
+          {
+            "body": "battle/body/idle_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_idle_0.png",
+            "weapon": "battle/weapon/idle_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_1.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_idle_1.png",
+            "weapon": "battle/weapon/idle_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_2.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_idle_2.png",
+            "weapon": "battle/weapon/idle_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/idle_3.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_idle_3.png",
+            "weapon": "battle/weapon/idle_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_walk": [
+          {
+            "body": "battle/body/walk_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_walk_0.png",
+            "weapon": "battle/weapon/walk_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_1.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_walk_1.png",
+            "weapon": "battle/weapon/walk_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_2.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_walk_2.png",
+            "weapon": "battle/weapon/walk_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/walk_3.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_walk_3.png",
+            "weapon": "battle/weapon/walk_3.png",
+            "dressed": true
+          }
+        ],
+        "battle_attack": [
+          {
+            "body": "battle/body/attack_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_attack_0.png",
+            "weapon": "battle/weapon/attack_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_1.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_attack_1.png",
+            "weapon": "battle/weapon/attack_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_2.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_attack_2.png",
+            "weapon": "battle/weapon/attack_2.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_3.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_attack_3.png",
+            "weapon": "battle/weapon/attack_3.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_4.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_attack_4.png",
+            "weapon": "battle/weapon/attack_4.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/attack_5.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_attack_5.png",
+            "weapon": "battle/weapon/attack_5.png",
+            "dressed": true
+          }
+        ],
+        "battle_injured": [
+          {
+            "body": "battle/body/injured_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_injured_0.png",
+            "weapon": "battle/weapon/injured_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_crouch": [
+          {
+            "body": "battle/body/crouch_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_crouch_0.png",
+            "weapon": "battle/weapon/crouch_0.png",
+            "dressed": true
+          }
+        ],
+        "battle_cast": [
+          {
+            "body": "battle/body/cast_0.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_cast_0.png",
+            "weapon": "battle/weapon/cast_0.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_1.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_cast_1.png",
+            "weapon": "battle/weapon/cast_1.png",
+            "dressed": true
+          },
+          {
+            "body": "battle/body/cast_2.png",
+            "hair": "hair/female/F03_wavy_shoulder/battle_cast_2.png",
+            "weapon": "battle/weapon/cast_2.png",
+            "dressed": true
+          }
         ]
       }
     }
@@ -770,6 +1526,76 @@
       ],
       "weapon": "W01_short_sword",
       "note": "styles[i].anims.slash gives body + hair + hand + weapon + fx per frame. After the last frame go back to idle. Mirror the whole stack for left, like walking."
+    },
+    "battle_idle": {
+      "frames": 4,
+      "frame_ms": [
+        133,
+        167,
+        133,
+        167
+      ],
+      "hit_frame": null,
+      "note": "battle set (PLACEHOLDER, SoC HluciaGreativanM2set01 costume + our head): frames are battle_cell sized, body is already dressed (dressed: true), weapon is its own layer"
+    },
+    "battle_walk": {
+      "frames": 4,
+      "frame_ms": [
+        133,
+        133,
+        133,
+        133
+      ],
+      "hit_frame": null,
+      "note": "battle set (PLACEHOLDER, SoC HluciaGreativanM2set01 costume + our head): frames are battle_cell sized, body is already dressed (dressed: true), weapon is its own layer"
+    },
+    "battle_attack": {
+      "frames": 6,
+      "frame_ms": [
+        167,
+        200,
+        100,
+        100,
+        133,
+        133
+      ],
+      "hit_frame": 3,
+      "note": "battle set (PLACEHOLDER, SoC HluciaGreativanM2set01 costume + our head): frames are battle_cell sized, body is already dressed (dressed: true), weapon is its own layer"
+    },
+    "battle_injured": {
+      "frames": 1,
+      "frame_ms": [
+        600
+      ],
+      "hit_frame": null,
+      "note": "battle set (PLACEHOLDER, SoC HluciaGreativanM2set01 costume + our head): frames are battle_cell sized, body is already dressed (dressed: true), weapon is its own layer"
+    },
+    "battle_crouch": {
+      "frames": 1,
+      "frame_ms": [
+        200
+      ],
+      "hit_frame": null,
+      "note": "battle set (PLACEHOLDER, SoC HluciaGreativanM2set01 costume + our head): frames are battle_cell sized, body is already dressed (dressed: true), weapon is its own layer"
+    },
+    "battle_cast": {
+      "frames": 3,
+      "frame_ms": [
+        67,
+        100,
+        100
+      ],
+      "hit_frame": 1,
+      "note": "battle set (PLACEHOLDER, SoC HluciaGreativanM2set01 costume + our head): frames are battle_cell sized, body is already dressed (dressed: true), weapon is its own layer"
     }
+  },
+  "battle_cell": {
+    "w": 72,
+    "h": 72,
+    "anchor": [
+      36,
+      62
+    ],
+    "note": "battle_* frames use this bigger cell (sword swings and lunges); anchor = feet. PLACEHOLDER SoC art: never ship publicly."
   }
 }

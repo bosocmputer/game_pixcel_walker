@@ -1590,11 +1590,11 @@
     }
   },
   "battle_cell": {
-    "w": 72,
-    "h": 72,
+    "w": 96,
+    "h": 96,
     "anchor": [
-      36,
-      62
+      48,
+      84
     ],
     "note": "battle_* frames use this bigger cell (sword swings and lunges); anchor = feet. PLACEHOLDER SoC art: never ship publicly."
   }

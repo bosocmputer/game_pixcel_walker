@@ -96,7 +96,7 @@ function recolorHair(img: HTMLImageElement, ramp: string[]): HTMLCanvasElement {
 the combat animations. They are a Sword of Convallaria costume (HluciaGreativanM2set01) with OUR base head, so
 every hairstyle fits and hair colour / skin recolour work as usual. Built by `study/greativan/build_battle.py`.
 
-- Frames use the bigger `manifest.battle_cell` (72×72, feet anchor (36, 62)): sword swings and lunges reach
+- Frames use the bigger `manifest.battle_cell` (96×96, feet anchor (48, 84) — holds ~99% of SoC battle frames): sword swings and lunges reach
   past 48×64. Set the sprite origin to anchor / size while a battle frame is shown.
 - `dressed: true`: the body already wears its costume. Recolour its skin greys and draw the hair, but no
   outfit layer. `weapon` is the sword layer, drawn in front of the body.

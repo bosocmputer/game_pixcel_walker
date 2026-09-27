@@ -43,6 +43,8 @@ import { heroCanvas, monsterCanvas, type HairStyle, type Paperdoll } from '../ga
 import { hasPixelSprite, pixelImage } from '../game/sprites';
 import {
   animFrameCount,
+  AVATAR_CELL_H,
+  AVATAR_CELL_W,
   AVATAR_ORIGIN_X,
   AVATAR_ORIGIN_Y,
   avatarAction,
@@ -114,6 +116,11 @@ interface UnitView {
   attackKeys: string[];
   attackHit: number;
   castKeys: string[];
+  /**
+   * Size of the character itself in texture pixels, when the texture is a roomy battle cell (swings and
+   * lunges need space) — labels, bars, shadows and effects follow the body, not the empty cell. null = texture.
+   */
+  body: { w: number; h: number } | null;
 }
 
 /** Frame of a looping animation at time `t` (ms), given each frame's duration. */
@@ -429,6 +436,15 @@ export class BattleScene extends Phaser.Scene {
     };
   }
 
+  /** On-screen height / width of a unit's body (not of its texture cell). */
+  private hgt(v: UnitView): number {
+    return v.body ? v.body.h * Math.abs(v.sprite.scaleY) : v.sprite.displayHeight;
+  }
+
+  private wid(v: UnitView): number {
+    return v.body ? v.body.w * Math.abs(v.sprite.scaleX) : v.sprite.displayWidth;
+  }
+
   /** Whole-number display scale for 32-bit art: 1 on phones / narrow screens, 2 on wide ones. */
   private artScale(): number {
     return this.portrait || this.scale.width < 900 ? 1 : 2;
@@ -493,7 +509,8 @@ export class BattleScene extends Phaser.Scene {
         slashKeys.push(slashKey);
       }
     }
-    const shadowW = Math.max(26, sprite.displayWidth * (isHero ? 0.5 : 0.7));
+    const body = battle ? { w: AVATAR_CELL_W, h: AVATAR_CELL_H } : null;
+    const shadowW = Math.max(26, (body ? body.w * finalScale : sprite.displayWidth) * (isHero ? 0.5 : 0.7));
     const shadow = this.add.ellipse(0, 0, shadowW, Math.max(8, shadowW * 0.28), 0x000000, 0.32).setDepth(9);
     const v: UnitView = {
       sprite,
@@ -521,6 +538,7 @@ export class BattleScene extends Phaser.Scene {
       attackKeys: battle?.attack ?? [],
       attackHit: battle?.attackHit ?? 3,
       castKeys: battle?.cast ?? [],
+      body,
     };
     this.views.set(u.id, v);
     return v;
@@ -533,7 +551,7 @@ export class BattleScene extends Phaser.Scene {
       v.bars.clear();
       v.status.render(u, v.home.x, v.home.y + 32);
       if ((u.hp <= 0 && v.shown <= 0) || u.passive) continue;
-      const w = Math.max(50, v.sprite.displayWidth * 0.9);
+      const w = Math.max(50, this.wid(v) * 0.9);
       const x = v.home.x - w / 2;
       const y = v.home.y + 18;
       v.bars.fillStyle(0x000000, 0.6).fillRect(x - 1, y - 1, w + 2, 7);
@@ -619,7 +637,7 @@ export class BattleScene extends Phaser.Scene {
     if (!v) return;
     this.time.delayedCall(delay, () => {
       const t = this.add
-        .text(v.home.x + Phaser.Math.Between(-14, 14), v.home.y - v.sprite.displayHeight * 0.7 + yOff, text, {
+        .text(v.home.x + Phaser.Math.Between(-14, 14), v.home.y - this.hgt(v) * 0.7 + yOff, text, {
           fontFamily: PIXEL_FONT, fontSize: big ? '22px' : '15px', color, stroke: '#000', strokeThickness: 4,
         })
         .setOrigin(0.5)
@@ -733,7 +751,7 @@ export class BattleScene extends Phaser.Scene {
     this.tickAwakenCue(t);
     const av = this.activeId ? this.views.get(this.activeId) : undefined;
     if (av && av.sprite.alpha > 0.5) {
-      this.marker.setVisible(true).setPosition(av.sprite.x, av.sprite.y - av.sprite.displayHeight - 14 + Math.sin(t * 7) * 3);
+      this.marker.setVisible(true).setPosition(av.sprite.x, av.sprite.y - this.hgt(av) - 14 + Math.sin(t * 7) * 3);
     } else this.marker.setVisible(false);
   }
 
@@ -762,7 +780,7 @@ export class BattleScene extends Phaser.Scene {
     if (ready && !this.wasReady) {
       sfx('notice');
       haptic('tap');
-      this.popup(this.meId, '[ระบบ] ตื่นรู้พร้อม!', '#7ff0ff', false, 0, -v!.sprite.displayHeight * 0.45);
+      this.popup(this.meId, '[ระบบ] ตื่นรู้พร้อม!', '#7ff0ff', false, 0, -this.hgt(v!) * 0.45);
     }
     this.wasReady = ready;
     if (!ready || !v) {
@@ -776,7 +794,7 @@ export class BattleScene extends Phaser.Scene {
     this.aura.lineStyle(3, 0x7ff0ff, 0.5 + 0.4 * k).strokeEllipse(v.sprite.x, v.home.y, w, w * 0.3);
     for (let i = 0; i < 4; i++) {
       const p = (t * 0.8 + i / 4) % 1;
-      this.aura.fillStyle(i % 2 ? 0x7ff0ff : 0xffffff, 1 - p).fillRect(v.sprite.x + (i - 1.5) * 10, v.home.y - p * v.sprite.displayHeight, 3, 3);
+      this.aura.fillStyle(i % 2 ? 0x7ff0ff : 0xffffff, 1 - p).fillRect(v.sprite.x + (i - 1.5) * 10, v.home.y - p * this.hgt(v), 3, 3);
     }
   }
 
@@ -829,7 +847,7 @@ export class BattleScene extends Phaser.Scene {
     if (r.done) return;
     const me = this.views.get(this.meId);
     const cx = me ? me.home.x : this.scale.width / 2;
-    const cy = me ? me.home.y - me.sprite.displayHeight * 0.5 : this.scale.height / 2;
+    const cy = me ? me.home.y - this.hgt(me) * 0.5 : this.scale.height / 2;
     const t = (performance.now() - r.start) / this.ringMs;
     const target = 30;
     const radius = target * (1 + 2.2 * Math.max(0, 1 - t));
@@ -934,7 +952,7 @@ export class BattleScene extends Phaser.Scene {
     this.setTimeScale(0.3);
     this.flashScreen(0xffffff, 0.45);
     cam.zoomTo(1.14, 220, 'Quad.easeOut', true);
-    cam.pan(v.home.x, v.home.y - v.sprite.displayHeight * 0.5, 220, 'Quad.easeOut', true);
+    cam.pan(v.home.x, v.home.y - this.hgt(v) * 0.5, 220, 'Quad.easeOut', true);
     haptic('finisher');
     window.setTimeout(() => {
       this.slowmo = false;
@@ -1008,7 +1026,7 @@ export class BattleScene extends Phaser.Scene {
 
   private anchor(unitId: string): (FxAnchor & { px: number }) | null {
     const v = this.views.get(unitId);
-    return v ? { x: v.home.x, y: v.home.y, h: v.sprite.displayHeight, px: v.fxPx } : null;
+    return v ? { x: v.home.x, y: v.home.y, h: this.hgt(v), px: v.fxPx } : null;
   }
 
   private fx(key: string, unitId: string, delay = 0, opts: { ground?: boolean; scale?: number } = {}) {
@@ -1025,7 +1043,7 @@ export class BattleScene extends Phaser.Scene {
     const direction = side === 'A' ? 1 : -1;
     // Reach follows the weapon: a spear stops well short, a dagger steps right in.
     const reach = attacker.weapon?.type === 'SPEAR' ? 1.9 : attacker.weapon?.type === 'DAGGER' ? 0.8 : 1;
-    const stopShort = Math.max(28, Math.min(48, (attacker.sprite.displayWidth + target.sprite.displayWidth) * 0.32)) * reach;
+    const stopShort = Math.max(28, Math.min(48, (this.wid(attacker) + this.wid(target)) * 0.32)) * reach;
     const landing = { x: target.home.x - direction * stopShort, y: target.home.y };
     const lift = Math.min(32, Math.max(16, 18 + Math.abs(landing.y - from.y) * 0.25));
     const approachMs = 250 / this.speed;
@@ -1080,7 +1098,7 @@ export class BattleScene extends Phaser.Scene {
         if (drawn) this.time.delayedCall(strikePauseMs * 0.5, () => show(attacker.attackHit + 1));
         // The drawn slash brings its own trail; only the procedural hero needs the effect.
         if (!slashing) {
-          const at = { x: landing.x, y: landing.y, h: attacker.sprite.displayHeight };
+          const at = { x: landing.x, y: landing.y, h: this.hgt(attacker) };
           if (attacker.weapon) weaponSwing(this, at, attacker.fxPx, direction, attacker.weapon.type, attacker.weapon.element);
           else meleeSwing(this, at, attacker.fxPx, direction);
         }
@@ -1142,10 +1160,10 @@ export class BattleScene extends Phaser.Scene {
         if (a && b && t) {
           this.time.delayedCall(delay, () => {
             const g = this.add.graphics().setDepth(34);
-            const ty = t.home.y - t.sprite.displayHeight * 0.5;
+            const ty = t.home.y - this.hgt(t) * 0.5;
             // A gold chain from the first attacker through the second to the target.
             for (const [from, to] of [[a, t], [b, t]] as const) {
-              const fy = from.home.y - from.sprite.displayHeight * 0.5;
+              const fy = from.home.y - this.hgt(from) * 0.5;
               for (let k = 0; k <= 10; k++) {
                 const x = Phaser.Math.Linear(from.home.x, to.home.x, k / 10);
                 const y = Phaser.Math.Linear(fy, ty, k / 10);
@@ -1153,7 +1171,7 @@ export class BattleScene extends Phaser.Scene {
               }
             }
             this.tweens.add({ targets: g, alpha: 0, delay: 260, duration: 300, onComplete: () => g.destroy() });
-            damageNumber(this, t.home.x, t.home.y - t.sprite.displayHeight - 8, 'LINK!', { color: '#ffd54f', small: true, speed: Math.sqrt(this.speed) });
+            damageNumber(this, t.home.x, t.home.y - this.hgt(t) - 8, 'LINK!', { color: '#ffd54f', small: true, speed: Math.sqrt(this.speed) });
             sfx('buff');
           });
         }
@@ -1234,7 +1252,7 @@ export class BattleScene extends Phaser.Scene {
         } else if (skill) {
           const tag = e.reactive === 'ASSIST' ? '⚡ ' : e.reactive === 'COUNTER' ? '↩ ' : e.reactive ? '✦ ' : '';
           // Skill names float above the sprite so they don't collide with damage/heal numbers.
-          this.popup(e.unit, `${tag}${skill.nameTh}`, '#ffa726', false, delay, -v.sprite.displayHeight * 0.45);
+          this.popup(e.unit, `${tag}${skill.nameTh}`, '#ffa726', false, delay, -this.hgt(v) * 0.45);
         }
         break;
       }
@@ -1249,7 +1267,7 @@ export class BattleScene extends Phaser.Scene {
         if (v && a) {
           this.time.delayedCall(delay, () => {
             const lane = this.laneFor(e.target);
-            damageNumber(this, v.home.x, v.home.y - v.sprite.displayHeight * 0.72, `${e.amount}${e.block ? ' 🛡' : ''}`, {
+            damageNumber(this, v.home.x, v.home.y - this.hgt(v) * 0.72, `${e.amount}${e.block ? ' 🛡' : ''}`, {
               color: e.block ? '#9ad0ff' : ELEMENT_COLOR[e.element],
               crit: e.crit,
               lane,
